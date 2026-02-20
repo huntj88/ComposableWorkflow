@@ -19,6 +19,7 @@ Implement controlled command execution from workflow steps with policy enforceme
 - [ ] Implement non-zero handling semantics using `allowNonZeroExit`.
 - [ ] Implement truncation/redaction with deterministic markers (`truncated`, `redactedFields`).
 - [ ] Emit command lifecycle events and linked logs.
+- [ ] Add unit tests for command policy evaluation, redaction/truncation helpers, and non-zero outcome mapping.
 - [ ] Integration tests for policy matrix, truncation/redaction, timeout, non-zero permutations.
 
 ## Required Artifacts
@@ -30,6 +31,7 @@ Implement controlled command execution from workflow steps with policy enforceme
 - Disallowed command requests fail before process spawn.
 - Allowed commands respect policy normalization and timeout limits.
 - Output/log payloads are redacted and truncated exactly per config.
+- Unit tests verify deterministic policy and payload transformation logic separate from process/integration execution.
 
 ## Spec/Behavior Links
 - Spec: sections 6.6, 9.1, 12, 13.

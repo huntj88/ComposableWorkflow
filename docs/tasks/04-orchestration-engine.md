@@ -20,6 +20,7 @@ Build `workflow-server` execution engine with single-runner semantics, event app
   - loser behavior exits without state mutation
 - [ ] Implement idempotent start key path to avoid duplicate logical runs.
 - [ ] Add deterministic crash-safe boundaries for durable append before critical acknowledgment.
+- [ ] Add unit tests for lock arbitration, idempotent start decision logic, and transition-runner guard paths.
 - [ ] Add integration tests for runner lock, sequence monotonicity, and idempotent start races.
 
 ## Required Artifacts
@@ -31,6 +32,7 @@ Build `workflow-server` execution engine with single-runner semantics, event app
 - Exactly one active runner mutates a run at a time.
 - Event stream is append-only with strict per-run sequence ordering.
 - Critical durability ordering contract is preserved under injected failures.
+- Unit tests validate orchestration decision logic independent of DB/network integration paths.
 
 ## Spec/Behavior Links
 - Spec: sections 4.3, 7.2, 12.

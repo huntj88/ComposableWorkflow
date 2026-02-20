@@ -15,6 +15,7 @@ Implement parent/child launch, linkage persistence, await semantics, failure pro
 - [ ] Persist parent-child relation materialization (event + required `workflow_run_children` table).
 - [ ] Enforce no new child launch during restricted lifecycles (`pausing|paused|resuming|cancelling|recovering`).
 - [ ] Ensure run tree endpoint includes recursive descendants and depth filtering.
+- [ ] Add unit tests for child lifecycle restriction guards and lineage projection utilities.
 - [ ] Integration tests for launch, await result, failure propagation, and tree consistency.
 
 ## Required Artifacts
@@ -25,6 +26,7 @@ Implement parent/child launch, linkage persistence, await semantics, failure pro
 - Parent-child linkage is queryable and consistent across summary/tree/events.
 - Parent resumes with child output for successful child runs.
 - Active descendants receive parent cancellation requests.
+- Unit tests cover lineage and lifecycle guard logic independent of full integration orchestration.
 
 ## Spec/Behavior Links
 - Spec: sections 4.4, 6.3, 8.3, 11.

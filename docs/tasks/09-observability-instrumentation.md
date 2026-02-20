@@ -19,6 +19,7 @@ Implement server-injected instrumentation for workflow events, metrics, and trac
   - command spans
   - child workflow spans with context propagation
 - [ ] Implement telemetry failure isolation policy (no run corruption on sink failures).
+- [ ] Add unit tests for instrumentation adapter mapping, required field projection, and telemetry failure-isolation wrappers.
 - [ ] Integration tests for hook ordering, delayed/failing sink behavior, and trace parentage.
 
 ## Required Artifacts
@@ -29,6 +30,7 @@ Implement server-injected instrumentation for workflow events, metrics, and trac
 - Required fields are present for lifecycle, transition, command, and child events.
 - Metrics emit expected dimensions without unbounded high-cardinality tags.
 - Trace trees preserve parent/child relationships for nested workflows.
+- Unit tests validate adapter behavior and failure isolation independent of external sink integrations.
 
 ## Spec/Behavior Links
 - Spec: sections 6.5, 9.

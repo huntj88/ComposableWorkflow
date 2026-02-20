@@ -9,6 +9,7 @@ Implement near-real-time run event streaming via SSE.
 ## Implementation Tasks
 - [ ] Implement live stream endpoint (`SSE`) with ordered event delivery.
 - [ ] Implement reconnect/no-loss semantics using cursor strategy.
+- [ ] Add unit tests for stream cursor encode/decode and SSE frame serialization helpers.
 - [ ] Add API contract docs and integration tests for stream ordering and reconnect behavior.
 
 ## Required Artifacts
@@ -17,6 +18,7 @@ Implement near-real-time run event streaming via SSE.
 
 ## Acceptance Criteria
 - Stream endpoint delivers ordered events and predictable reconnection behavior.
+- Unit tests cover cursor and frame helper behavior for deterministic edge-case handling.
 
 ## Spec/Behavior Links
 - Spec: section 8.9.

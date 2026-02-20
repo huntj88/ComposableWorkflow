@@ -25,6 +25,7 @@ Build integration harness infrastructure required to deterministically test race
   - lifecycle timeline
   - event stream
   - injected fault points
+- [ ] Add unit tests for harness utilities (`fake-clock`, `barrier`, `fault-injector`, capture helpers).
 
 ## Required Artifacts
 - `packages/workflow-server/test/harness/*`
@@ -33,6 +34,7 @@ Build integration harness infrastructure required to deterministically test race
 ## Acceptance Criteria
 - Harness can deterministically reproduce race/fault windows without sleep-based timing.
 - Test suites can assert internals and observability artifacts directly.
+- Unit tests cover deterministic helper primitives independent of full harness startup.
 
 ## Spec/Behavior Links
 - Integration plan: sections 3 and 8.

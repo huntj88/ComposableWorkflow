@@ -23,6 +23,7 @@ Implement exact lifecycle machine transitions and control endpoints with coopera
 - [ ] Emit exact lifecycle checkpoint events:
   - `workflow.pausing`, `workflow.paused`, `workflow.resuming`, `workflow.resumed`,
   - `workflow.recovering`, `workflow.recovered`, `workflow.cancelling`, `workflow.cancelled`.
+- [ ] Add unit tests for lifecycle transition matrix and guard evaluation logic.
 
 ## Required Artifacts
 - `packages/workflow-server/src/lifecycle/*`
@@ -33,6 +34,7 @@ Implement exact lifecycle machine transitions and control endpoints with coopera
 - Lifecycle transitions are legal only along specified state machine edges.
 - Pause/resume invalid requests return 409 with current lifecycle details.
 - Reconcile endpoint and startup reconcile are idempotent and deterministic.
+- Unit tests validate lifecycle transition legality independently from API transport concerns.
 
 ## Spec/Behavior Links
 - Spec: section 11, section 12.

@@ -22,6 +22,7 @@ Implement durable persistence for workflow definitions, runs, events, and option
   - append event with sequence allocation
   - upsert run summary projection
   - idempotent start key storage/query
+- [ ] Add unit tests for repository-level pure logic (query builders, row mapping, and transaction boundary helpers).
 - [ ] Add storage invariants tests against real Postgres container.
 
 ## Required Artifacts
@@ -32,6 +33,7 @@ Implement durable persistence for workflow definitions, runs, events, and option
 ## Acceptance Criteria
 - Migrations are repeatable and safe across clean and existing DB states.
 - Event append and run projection update are atomic under transaction boundaries.
+- Unit tests cover repository helper logic and transaction contracts; integration tests cover real DB invariants.
 - Data model supports all required API reads without schema changes later.
 
 ## Spec/Behavior Links

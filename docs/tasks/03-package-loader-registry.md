@@ -15,6 +15,7 @@ Implement runtime package discovery/loading, manifest validation, registry popul
   - explicit override mode for controlled environments
 - [ ] Persist definition metadata snapshot to `workflow_definitions`.
 - [ ] Add startup diagnostics logs for loaded/rejected packages.
+- [ ] Add unit tests for manifest validation, registry behavior, and collision policy decisions.
 - [ ] Integration tests for valid load, invalid schema, and collision handling.
 
 ## Required Artifacts
@@ -26,6 +27,7 @@ Implement runtime package discovery/loading, manifest validation, registry popul
 - Server starts with valid packages and exposes registered workflow types.
 - Invalid manifests are rejected with explicit errors and no partial registration.
 - Collision behavior matches configuration and is observable via logs.
+- Unit tests validate manifest schema checks and registry collision semantics independently from integration boot flows.
 
 ## Spec/Behavior Links
 - Spec: sections 5.1, 7.1.

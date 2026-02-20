@@ -15,6 +15,7 @@ Implement `apps/workflow-cli` as operator/developer tooling independent from in-
 - [ ] Implement robust API client with retry/backoff for transient network errors.
 - [ ] Add JSON input/output modes for scripting.
 - [ ] Implement incremental stream rendering for follow mode.
+- [ ] Add unit tests for command parsing, output mode formatting, and retry policy decisions.
 - [ ] Add contract tests against running server API.
 
 ## Required Artifacts
@@ -24,6 +25,7 @@ Implement `apps/workflow-cli` as operator/developer tooling independent from in-
 ## Acceptance Criteria
 - CLI behavior matches API semantics and reflects server-side filtering/stream ordering.
 - CLI does not depend on workflow step command execution paths.
+- Unit tests cover CLI command handling and API client retry behavior independent of live server contract tests.
 
 ## Spec/Behavior Links
 - Spec: sections 6.7, 15 phase 2.

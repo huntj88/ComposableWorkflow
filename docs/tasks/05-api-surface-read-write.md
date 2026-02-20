@@ -20,6 +20,7 @@ Implement REST API endpoints and response contracts required for run control, ru
 - [ ] Implement filtering (`eventType`, `since`, `until`, lifecycle/workflowType list filters).
 - [ ] Build run tree projection with depth and include-completed flags.
 - [ ] Define dynamic overlay read model contract (active node, traversed/pending/failed edges, child linkage, timestamp/log references) derivable from run + events APIs for UI consumers.
+- [ ] Add unit tests for schema validation, cursor encode/decode helpers, and read-model projection utilities.
 - [ ] Integration tests for payload semantics and pagination stability.
 
 ## Required Artifacts
@@ -31,6 +32,7 @@ Implement REST API endpoints and response contracts required for run control, ru
 - Endpoint contracts match spec payload shape and semantics.
 - Event pagination remains stable under concurrent append conditions.
 - Run summary/tree/definition outputs are sufficient for future UI graph rendering.
+- Unit tests cover API schema and projection helper logic that does not require live service wiring.
 
 ## Spec/Behavior Links
 - Spec: section 8, section 10.

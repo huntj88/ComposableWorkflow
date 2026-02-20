@@ -15,6 +15,7 @@ Create workflow packages used by integration and E2E suites to validate behavior
   - deterministic long-running workflow with safe-point checkpoints for pause/resume/recovery tests
 - [ ] Add metadata-rich definitions (states, transitions, display fields) for graph endpoint assertions.
 - [ ] Include deterministic inputs for idempotency and race tests.
+- [ ] Add unit tests for reference workflow transition maps and deterministic progression helpers.
 - [ ] Add package-level tests for expected progression paths.
 
 ## Required Artifacts
@@ -24,6 +25,7 @@ Create workflow packages used by integration and E2E suites to validate behavior
 ## Acceptance Criteria
 - Package can be loaded dynamically by server.
 - Workflows provide stable test fixtures for all critical behavior families.
+- Unit tests validate reference workflow logic determinism independent of loader/integration execution.
 
 ## Spec/Behavior Links
 - Spec: sections 5, 6, 14.
