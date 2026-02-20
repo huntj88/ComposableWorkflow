@@ -163,6 +163,7 @@ A behavior is integration-primary when one or more is true:
 - Cancellation request reaches active descendants exactly once.
 - Terminal descendants are skipped safely.
 - No new child launches after cancellation intent is recorded.
+- Cancellation lifecycle emits `workflow.cancelling` then terminal `workflow.cancelled`.
 
 **Related behaviors:** `B-CHILD-004`, `B-LIFE-006`.
 
@@ -175,6 +176,7 @@ A behavior is integration-primary when one or more is true:
 **Assertions**
 - Launch rejected with deterministic runtime error.
 - No child run row/event created.
+- No `workflow_run_children` lineage row created.
 
 **Related behaviors:** `B-LIFE-005`.
 
@@ -202,10 +204,10 @@ A behavior is integration-primary when one or more is true:
 - Redacted fields are masked deterministically.
 - `truncated` and `redactedFields` markers are populated.
 
-**Related behaviors:** `B-CMD-004`, `B-OBS-001`, `B-SEC-003`.
+**Related behaviors:** `B-CMD-004`, `B-OBS-001`.
 
 ## ITX-012: Non-zero exit handling permutations
-**Why not E2E-only:** matrix across exit code + `allowNonZeroExit` + retry policy.
+**Why not E2E-only:** matrix across exit code + `allowNonZeroExit` + FSM-defined retry policy.
 
 **Setup**
 - Simulated command exits with known codes under both flag settings.
@@ -225,7 +227,7 @@ A behavior is integration-primary when one or more is true:
 **Assertions**
 - Event emission ordering contract preserved.
 - Defined failure-isolation behavior honored (e.g., telemetry failure does not corrupt run state).
-- Retries/dead-letter behavior (if configured) is observed.
+- FSM-defined retry/dead-letter behavior (if configured) is observed.
 
 **Related behaviors:** `B-OBS-001..003`.
 
@@ -279,24 +281,36 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-DATA-002`.
 
-## ITX-018: Loader hot-reload atomic registry swap (optional phase)
-**Why not E2E-only:** depends on file-watch timing and registry internals.
+## ITX-018: Child-linkage write is transactional and idempotent
+**Why not E2E-only:** requires precise validation of transaction boundaries and duplicate-suppression semantics.
 
 **Setup**
-- Dev-mode hot reload with rapid manifest changes.
+- Force child launch with injected retry/recovery windows around linkage writes.
 
 **Assertions**
-- Registry updates atomically (no half-loaded state).
-- In-flight runs continue safely under prior registration contract.
+- `workflow_run_children` linkage row is written in the same transaction boundary as child launch persistence and linkage event append.
+- Duplicate retries/recovery attempts do not create duplicate linkage rows.
+- Linkage relation stays consistent with emitted lineage events.
 
-**Related behaviors:** section 7.1 hot reload optional.
+**Related behaviors:** `B-DATA-003`, `B-CHILD-001`.
 
----
+## ITX-019: Startup reconcile admission gate blocks new execution until ready
+**Why not E2E-only:** startup race windows are timing-sensitive and need deterministic control of boot sequencing.
+
+**Setup**
+- Seed unfinished runs and hold reconcile progress with harness barriers while issuing new start requests.
+
+**Assertions**
+- Server startup reconciliation runs before accepting new execution work.
+- Start requests are deferred/rejected according to startup policy until reconcile gate clears.
+- No run execution begins before reconcile completion boundary.
+
+**Related behaviors:** `B-LIFE-008`, `GS-005`.
 
 ## 5) Integration vs E2E Ownership Matrix
 
 ## 5.1 Integration-Primary
-- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018.
+- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019.
 
 ## 5.2 Shared Coverage (Integration + E2E)
 - ITX-008, 009, 012, 015.

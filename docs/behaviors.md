@@ -25,7 +25,7 @@ Primary source: `docs/typescript-server-workflow-spec.md`.
 ## 1.2 Assertion Types
 Each behavior should validate all relevant dimensions:
 1. **API contract** (status code + response payload shape + value semantics).
-2. **Persistence** (`workflow_runs`, `workflow_events`, and related relations/snapshots if enabled).
+2. **Persistence** (`workflow_runs`, `workflow_events`, required `workflow_run_children`, and snapshots if enabled).
 3. **Event stream correctness** (event type, ordering, sequence monotonicity, linkage fields).
 4. **Observability** (logs/metrics/traces emitted with required fields).
 
@@ -40,6 +40,25 @@ For every run:
 For parent/child relationships:
 - child events include correct `parentRunId`.
 - parent-linked child lifecycle visibility is queryable via run summary/tree/events.
+
+## B-EVT-001: Required event envelope fields are always populated
+**Given** any persisted workflow event
+**When** events are read from API or storage
+**Then** `runId`, `workflowType`, and `eventType` are always present
+**And** missing required envelope fields are treated as contract violations
+
+## B-EVT-002: Event identity, timestamp, and sequence invariants hold per run
+**Given** a run with one or more events
+**When** validating its event stream
+**Then** `eventId` values are unique
+**And** `timestamp` values are valid ISO8601
+**And** `sequence` is strictly monotonic per `runId`
+
+## B-EVT-003: Parent-linked child event lineage remains consistent
+**Given** child workflow lifecycle events linked to a parent run
+**When** querying parent and child events/summary/tree views
+**Then** child events include correct `parentRunId`
+**And** lineage remains consistent across events and run-tree projections
 
 ---
 
@@ -116,6 +135,12 @@ For parent/child relationships:
 **When** transition is attempted
 **Then** `transition.failed` is emitted with error payload
 **And** run lifecycle/result follows configured failure semantics
+
+## B-TRANS-004: State/action failure retry ownership and error-state fallback
+**Given** a state handler/action throws or returns failure
+**When** failure handling is evaluated
+**Then** retry behavior is determined only by workflow FSM design (explicit states/transitions), not by implicit server auto-retry
+**And** if the state does not catch/handle the error, `transition.failed` is emitted and run transitions to terminal `failed`
 
 ## B-TRANS-003: Event ordering remains append-only and consistent under concurrent system load
 **Given** multiple independent runs executing concurrently
@@ -271,8 +296,8 @@ Endpoint: `GET /api/v1/workflows/definitions/{workflowType}`
 - Returns states (nodes), transitions (edges), child-launch annotations, and display metadata.
 - Sufficient to render static flowchart graph without runtime execution.
 
-## B-API-006: Optional live stream delivers near-real-time ordered events
-Endpoint: `GET /api/v1/workflows/runs/{runId}/stream` (SSE/WebSocket)
+## B-API-006: Live stream delivers near-real-time ordered events
+Endpoint: `GET /api/v1/workflows/runs/{runId}/stream` (SSE)
 - Emits new events in sequence order.
 - Reconnection behavior (if supported) preserves no-loss semantics under documented cursor strategy.
 
@@ -291,9 +316,9 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/stream` (SSE/WebSocket)
 **Then** derived state equals run summary state
 **And** optional snapshots (if enabled) are consistent optimization, not alternate source-of-truth
 
-## B-DATA-003: Parent-child relation materialization (if table enabled)
+## B-DATA-003: Parent-child relation materialization
 **Given** child launches occurred
-**When** querying `workflow_run_children` (or equivalent relation)
+**When** querying `workflow_run_children`
 **Then** relation matches event lineage and run tree API output
 
 ---
@@ -329,23 +354,13 @@ Validate at least:
 
 ---
 
-## 11) Security and Multi-Tenancy Behaviors (When Enabled)
+## 11) Security and Multi-Tenancy (Out of Scope)
 
-## B-SEC-001: API auth and authorization enforcement
-Unauthorized requests are rejected before workflow mutation/read operations.
-
-## B-SEC-002: Tenant scoping isolation
-Runs/events are not visible across tenant boundary.
-
-## B-SEC-003: Sensitive payload redaction
-Configured sensitive fields are redacted in logs/events (including command stdio fields as configured).
-
-## B-SEC-004: Package loading allowlist enforcement
-Server refuses workflow package sources outside configured allowlist.
+Security and multi-tenancy are not goals of this project and are intentionally excluded from the behavior catalog.
 
 ---
 
-## 12) CLI Behaviors (`apps/workflow-cli`) (When Implemented)
+## 12) CLI Behaviors (`apps/workflow-cli`)
 
 ## B-CLI-001: `workflow run` starts run via server API
 CLI command sends expected payload and surfaces run id/lifecycle.

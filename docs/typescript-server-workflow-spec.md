@@ -41,6 +41,16 @@ UI is out of scope, but API responses must support rendering workflow and child 
 - Defining a specific diagram rendering engine.
 - Defining a state machine code generator (can be added later).
 
+## 3.1 Defer-Now, Adopt-Later Checklist (State Machine Code Generator)
+
+To keep later generator adoption low-risk while deferring it now:
+- Keep workflow definitions declarative with explicit `states` and `transitions` metadata (avoid hidden dynamic transition wiring).
+- Standardize state/transition naming conventions across workflow packages (`domain.action.state` style or equivalent documented scheme).
+- Keep all workflow contracts (`WorkflowDefinition`, `WorkflowContext`, event payload shapes) stable and versioned through `workflow-lib` only.
+- Require transition validity/unit tests for every workflow package (including invalid-transition failure paths).
+- Ensure definition metadata exposed by API (`/definitions/{workflowType}`) remains complete and generator-friendly.
+- Avoid package-specific DSLs/macros that would conflict with a future shared generator output format.
+
 ---
 
 ## 4) Core Concepts
@@ -183,6 +193,12 @@ export interface WorkflowContext<I, O> {
   complete(output: O): void;
   fail(error: Error): void;
 }
+
+Failure handling semantics for workflow state handlers:
+- Retries for workflow/business/action failures are authored explicitly in the workflow finite state machine (state design + transition graph).
+- The server/orchestrator must not apply implicit automatic retries for state handler/action failures.
+- State handlers should catch and handle expected errors locally when recovery is possible.
+- Any uncaught state handler error must emit `transition.failed` and drive the run to terminal `failed` (error state).
 
 export interface WorkflowDefinition<I, O> {
   initialState: string;
@@ -356,9 +372,8 @@ Example config fields:
 5. Persist `workflowVersion` as metadata for logs/telemetry/inspection.
 6. Reject collisions unless explicit override policy is configured.
 
-### Hot Reload (optional phase)
-- File-watch local package paths in non-prod mode.
-- Reload manifests with atomic registry swap.
+### Hot Reload
+- Out of scope for the current delivery plan.
 
 ## 7.2 Orchestration Engine
 Engine responsibilities:
@@ -372,8 +387,7 @@ Engine responsibilities:
 
 Concurrency model:
 - single logical runner per `runId` at a time,
-- child runs execute independently but linked,
-- optional distributed locking when horizontally scaled.
+- child runs execute independently but linked.
 
 ## 7.3 Persistence Model
 Default for localhost and MVP environments: Postgres running in Docker.
@@ -409,10 +423,64 @@ Minimum logical entities:
 - `workflow_definitions` (registered metadata snapshot),
 - `workflow_runs`,
 - `workflow_events` (append-only, indexed by `runId`, `parentRunId`, `timestamp`),
-- `workflow_run_children` (optional materialized relation),
+- `workflow_run_children` (required parent-child lineage relation),
 - `workflow_snapshots` (optional optimization for fast current-state reads).
 
 Current state can be derived from event stream; snapshots are optimization only.
+
+`workflow_run_children` requirements (required):
+- Purpose: authoritative query surface for parent/child traversal and run tree reads without replaying full event history.
+- Minimum columns:
+  - `parent_run_id` (FK -> `workflow_runs.run_id`),
+  - `child_run_id` (FK -> `workflow_runs.run_id`, unique),
+  - `parent_workflow_type`,
+  - `child_workflow_type`,
+  - `parent_state` (state from which child was launched),
+  - `created_at` (ISO timestamp),
+  - `linked_by_event_id` (event id that recorded linkage).
+- Required constraints/indexes:
+  - primary key `(parent_run_id, child_run_id)`,
+  - unique index on `child_run_id` (single parent ownership),
+  - index on `parent_run_id` (tree expansion),
+  - index on `created_at` (diagnostics/ops queries).
+- Write semantics:
+  - linkage row is written in the same transaction boundary as child launch persistence and linkage event append,
+  - no duplicate linkage rows across retries/recovery (idempotent upsert semantics),
+  - relation must remain consistent with event lineage and run tree API output.
+
+Example migration snippet (`workflow_run_children`):
+
+```sql
+CREATE TABLE workflow_run_children (
+  parent_run_id text NOT NULL,
+  child_run_id text NOT NULL,
+  parent_workflow_type text NOT NULL,
+  child_workflow_type text NOT NULL,
+  parent_state text NOT NULL,
+  created_at timestamptz NOT NULL,
+  linked_by_event_id text NOT NULL,
+  PRIMARY KEY (parent_run_id, child_run_id),
+  CONSTRAINT fk_wrc_parent_run FOREIGN KEY (parent_run_id) REFERENCES workflow_runs(run_id),
+  CONSTRAINT fk_wrc_child_run FOREIGN KEY (child_run_id) REFERENCES workflow_runs(run_id),
+  CONSTRAINT uq_wrc_child_run UNIQUE (child_run_id)
+);
+
+CREATE INDEX idx_wrc_parent_run_id ON workflow_run_children(parent_run_id);
+CREATE INDEX idx_wrc_created_at ON workflow_run_children(created_at);
+
+-- idempotent linkage write within same transaction as child launch event append
+INSERT INTO workflow_run_children (
+  parent_run_id,
+  child_run_id,
+  parent_workflow_type,
+  child_workflow_type,
+  parent_state,
+  created_at,
+  linked_by_event_id
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (parent_run_id, child_run_id) DO NOTHING;
+```
 
 Connection config (server):
 - `DATABASE_URL=postgresql://workflow:workflow@localhost:5432/workflow`
@@ -512,9 +580,8 @@ Returns static metadata to render flowchart:
 - possible child workflow launch points,
 - display metadata.
 
-## 8.9 Live Event Stream (optional but recommended)
-- `GET /workflows/runs/{runId}/stream` via SSE, or
-- WebSocket subscription.
+## 8.9 Live Event Stream
+- `GET /workflows/runs/{runId}/stream` via SSE.
 
 Used by future UI for near-real-time visualization.
 
@@ -602,6 +669,7 @@ Lifecycle event mapping (must mirror lifecycle state machine 1:1):
 - entering `recovering` emits `workflow.recovering`
 - successful recovery completion emits `workflow.recovered`
 - entering `cancelling` emits `workflow.cancelling`
+- entering terminal `cancelled` emits `workflow.cancelled`
 
 ## 11.2 API Endpoints (Exact)
 
@@ -680,8 +748,8 @@ Response:
 
 1. Idempotent start via idempotency key.
 2. Durable event append before acknowledging critical transitions.
-3. Retry policy for transient action failures.
-4. Dead-letter/error terminal state with full error payload.
+3. Retry policy for workflow/action failures is FSM-defined within workflow implementation; no server-managed automatic retries for those failures.
+4. Unhandled state/action errors must transition the run to terminal `failed` (error state) with full error payload.
 5. Parent/child failure policy options:
    - propagate failure to parent (default),
    - allow parent-defined compensation/recovery.
@@ -692,13 +760,9 @@ Response:
 
 ---
 
-## 13) Security and Multi-Tenancy (if needed)
+## 13) Security and Multi-Tenancy (Out of Scope)
 
-- AuthN/AuthZ at API layer.
-- Tenant scoping field on runs/events.
-- Package loading allowlist.
-- Validate input payload schemas before execution.
-- Redaction policies for sensitive logs/payloads, including command `stdin`/`stdout`/`stderr`.
+Security and multi-tenancy are not goals of this project and are out of scope for the current delivery.
 
 ---
 
@@ -738,23 +802,20 @@ Response:
 ### Phase 1 (MVP)
 - Monorepo scaffold.
 - `workflow-lib` core contracts + runtime + child launch + events.
-- `workflow-server` start run + get run + get events + list active.
+- `workflow-server` start run + get run + get events + list active + run tree + definition metadata.
 - Local Postgres via Docker compose + initial migration set.
+- Required parent/child lineage relation (`workflow_run_children`) in persistence model.
 - One example workflow package.
+- Command execution policy configuration (workflow-invoked commands).
 - Basic logging + metrics.
 
 ### Phase 2
-- Run tree endpoint.
-- Definition graph metadata endpoint.
 - SSE live stream.
-- Command execution policy configuration (workflow-invoked commands).
 - Initial `apps/workflow-cli` commands (run/list/inspect/events).
 
 ### Phase 3
 - Snapshots/replay optimizations.
-- Hot-reload in dev.
 - Advanced retry/cancellation policies.
-- Multi-tenant hardening.
 
 ---
 
