@@ -103,10 +103,20 @@ describe('command redaction and truncation integration', () => {
     });
 
     const completedEvent = appendedEvents.find((event) => event.eventType === 'command.completed');
+    const completedLinkedLog = appendedEvents.find(
+      (event) =>
+        event.eventType === 'log' &&
+        event.payload?.linkedEventType === 'command.completed' &&
+        event.payload?.linkedEventId === completedEvent?.eventId,
+    );
+
     expect(completedEvent?.payload).toBeDefined();
     expect(completedEvent?.payload?.redactedFields).toEqual(['stdin', 'stdout']);
     expect(completedEvent?.payload?.truncated).toBe(true);
     expect(completedEvent?.payload?.stdin).toBe('***RE');
     expect(completedEvent?.payload?.stdout).toBe('***RE');
+    expect(completedLinkedLog?.payload?.message).toBe('Workflow command completed');
+    expect(completedLinkedLog?.payload?.linkedSequence).toBe(3);
+    expect(completedLinkedLog?.payload?.truncated).toBe(true);
   });
 });

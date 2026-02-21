@@ -102,7 +102,17 @@ describe('command timeout enforcement', () => {
     });
 
     const timeoutEvent = appendedEvents.find((event) => event.eventType === 'command.failed');
+    const timeoutLinkedLog = appendedEvents.find(
+      (event) =>
+        event.eventType === 'log' &&
+        event.payload?.linkedEventType === 'command.failed' &&
+        event.payload?.linkedEventId === timeoutEvent?.eventId,
+    );
+
     expect(timeoutEvent?.payload?.timeout).toBe(true);
+    expect(timeoutLinkedLog?.payload?.message).toBe('Workflow command failed');
+    expect(timeoutLinkedLog?.payload?.linkedSequence).toBe(3);
+    expect(timeoutLinkedLog?.payload?.timeoutMs).toBe(100);
     expect(result.run.lifecycle).toBe('failed');
   });
 });
