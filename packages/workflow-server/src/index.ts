@@ -25,6 +25,12 @@ export * from './loader/source-resolvers.js';
 export * from './loader/load-packages.js';
 export * from './registry/errors.js';
 export * from './registry/workflow-registry.js';
+export * from './locking/lock-provider.js';
+export * from './locking/postgres-advisory-lock.js';
+export * from './orchestrator/start-run.js';
+export * from './orchestrator/transition-runner.js';
+export * from './orchestrator/orchestrator.js';
+export * from './bootstrap.js';
 
 import { runMigrationsOnStartup } from './persistence/migrate.js';
 import { loadServerConfigFromEnv } from './config.js';

@@ -7,21 +7,21 @@
 Build `workflow-server` execution engine with single-runner semantics, event append flow, and deterministic state progression.
 
 ## Implementation Tasks
-- [ ] Implement run creation pipeline:
+- [x] Implement run creation pipeline:
   - id generation
   - initial lifecycle/state setup
   - `workflow.started` event append
-- [ ] Implement orchestrator execution loop:
+- [x] Implement orchestrator execution loop:
   - state handler dispatch
   - transition request/completion/failure event flow
   - terminalization handling (`completed|failed|cancelled`)
-- [ ] Enforce single logical runner per `runId`:
+- [x] Enforce single logical runner per `runId`:
   - lock interface (in-memory + database adapter)
   - loser behavior exits without state mutation
-- [ ] Implement idempotent start key path to avoid duplicate logical runs.
-- [ ] Add deterministic crash-safe boundaries for durable append before critical acknowledgment.
-- [ ] Add unit tests for lock arbitration, idempotent start decision logic, and transition-runner guard paths.
-- [ ] Add integration tests for runner lock, sequence monotonicity, and idempotent start races.
+- [x] Implement idempotent start key path to avoid duplicate logical runs.
+- [x] Add deterministic crash-safe boundaries for durable append before critical acknowledgment.
+- [x] Add unit tests for lock arbitration, idempotent start decision logic, and transition-runner guard paths.
+- [x] Add integration tests for runner lock, sequence monotonicity, and idempotent start races.
 
 ## Required Artifacts
 - `packages/workflow-server/src/orchestrator/*`

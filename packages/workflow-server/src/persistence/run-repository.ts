@@ -54,6 +54,20 @@ RETURNING
   ended_at
 `;
 
+export const SELECT_RUN_SUMMARY_SQL = `
+SELECT
+  run_id,
+  workflow_type,
+  workflow_version,
+  lifecycle,
+  current_state,
+  parent_run_id,
+  started_at,
+  ended_at
+FROM workflow_runs
+WHERE run_id = $1
+`;
+
 export const toWorkflowRunRowValues = (summary: RunSummary): unknown[] => [
   summary.runId,
   summary.workflowType,
@@ -78,6 +92,7 @@ export const mapWorkflowRunRow = (row: WorkflowRunRow): RunSummary => ({
 
 export interface RunRepository {
   upsertRunSummary: (client: DbClient, summary: RunSummary) => Promise<RunSummary>;
+  getRunSummary: (client: DbClient, runId: string) => Promise<RunSummary | null>;
 }
 
 export const createRunRepository = (): RunRepository => ({
@@ -89,6 +104,15 @@ export const createRunRepository = (): RunRepository => ({
 
     if (result.rowCount !== 1) {
       throw new Error(`Expected one run summary row but received ${result.rowCount}`);
+    }
+
+    return mapWorkflowRunRow(result.rows[0]);
+  },
+  getRunSummary: async (client, runId) => {
+    const result = await client.query<WorkflowRunRow>(SELECT_RUN_SUMMARY_SQL, [runId]);
+
+    if (result.rowCount === 0) {
+      return null;
     }
 
     return mapWorkflowRunRow(result.rows[0]);
