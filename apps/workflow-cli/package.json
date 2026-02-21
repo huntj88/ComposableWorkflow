@@ -6,6 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
+    "workflow": "dist/index.js",
     "workflow-cli": "dist/index.js"
   },
   "files": [
@@ -15,6 +16,13 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src test",
     "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run test/index.test.ts",
+    "test:contract": "vitest run test/contract/**/*.spec.ts",
+    "workflow": "node dist/index.js",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "commander": "^14.0.1",
+    "undici": "^7.16.0"
   }
 }

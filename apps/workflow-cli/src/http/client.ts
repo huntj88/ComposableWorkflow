@@ -1,0 +1,468 @@
+import {
+  fetch as undiciFetch,
+  Headers,
+  type Dispatcher,
+  type RequestInit as UndiciRequestInit,
+  type Response as UndiciResponse,
+} from 'undici';
+
+export interface ErrorEnvelope {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+  requestId?: string;
+}
+
+export interface RunSummary {
+  runId: string;
+  workflowType: string;
+  workflowVersion: string;
+  lifecycle: string;
+  currentState: string;
+  currentTransitionContext?: Record<string, unknown> | null;
+  parentRunId: string | null;
+  childrenSummary: {
+    total: number;
+    active: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+  };
+  startedAt: string;
+  endedAt: string | null;
+  counters: {
+    eventCount: number;
+    logCount: number;
+    childCount: number;
+  };
+}
+
+export interface WorkflowEvent {
+  eventId: string;
+  runId: string;
+  sequence: number;
+  eventType: string;
+  timestamp: string;
+  payload: Record<string, unknown> | null;
+  error: Record<string, unknown> | null;
+}
+
+export interface WorkflowDefinition {
+  workflowType: string;
+  workflowVersion: string;
+  states: string[];
+  transitions: Array<{ from: string; to: string; name?: string }>;
+  childLaunchAnnotations: Record<string, unknown>[];
+  metadata: Record<string, unknown>;
+}
+
+export interface RetryOptions {
+  maxAttempts: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+}
+
+export interface RetryDecision {
+  shouldRetry: boolean;
+  reason: 'network' | '5xx' | 'other';
+}
+
+export class WorkflowApiError extends Error {
+  readonly statusCode: number;
+  readonly code?: string;
+  readonly details?: Record<string, unknown>;
+
+  constructor(params: {
+    message: string;
+    statusCode: number;
+    code?: string;
+    details?: Record<string, unknown>;
+  }) {
+    super(params.message);
+    this.name = 'WorkflowApiError';
+    this.statusCode = params.statusCode;
+    this.code = params.code;
+    this.details = params.details;
+  }
+}
+
+export interface StartRunRequest {
+  workflowType: string;
+  input: unknown;
+  idempotencyKey?: string;
+}
+
+export interface ListRunsRequest {
+  lifecycle?: string;
+  workflowType?: string;
+}
+
+export interface ListEventsRequest {
+  runId: string;
+  cursor?: string;
+}
+
+export interface StreamEventsRequest {
+  runId: string;
+  cursor?: string;
+  eventType?: string;
+  signal?: AbortSignal;
+}
+
+export interface FollowEventChunk {
+  cursor?: string;
+  event: WorkflowEvent;
+}
+
+export interface WorkflowApiClient {
+  startWorkflow: (request: StartRunRequest) => Promise<RunSummary>;
+  listRuns: (request: ListRunsRequest) => Promise<RunSummary[]>;
+  listRunEvents: (
+    request: ListEventsRequest,
+  ) => Promise<{ items: WorkflowEvent[]; nextCursor?: string }>;
+  streamRunEvents: (request: StreamEventsRequest) => AsyncGenerator<FollowEventChunk>;
+  inspectDefinition: (workflowType: string) => Promise<WorkflowDefinition>;
+}
+
+interface CreateWorkflowApiClientOptions {
+  baseUrl: string;
+  retry?: Partial<RetryOptions>;
+  fetchFn?: (input: string, init?: UndiciRequestInit) => Promise<UndiciResponse>;
+  sleep?: (ms: number) => Promise<void>;
+  dispatcher?: Dispatcher;
+}
+
+const defaultRetryOptions: RetryOptions = {
+  maxAttempts: 4,
+  initialDelayMs: 100,
+  maxDelayMs: 1_000,
+};
+
+const sleepDefault = async (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const asErrorEnvelope = (input: unknown): ErrorEnvelope | undefined => {
+  if (!input || typeof input !== 'object') {
+    return undefined;
+  }
+
+  const value = input as Record<string, unknown>;
+  if (typeof value.code !== 'string' || typeof value.message !== 'string') {
+    return undefined;
+  }
+
+  return {
+    code: value.code,
+    message: value.message,
+    details:
+      typeof value.details === 'object' ? (value.details as Record<string, unknown>) : undefined,
+    requestId: typeof value.requestId === 'string' ? value.requestId : undefined,
+  };
+};
+
+const isNetworkFailure = (error: unknown): boolean => error instanceof Error;
+
+export const getRetryDecision = (params: {
+  error?: unknown;
+  statusCode?: number;
+  attempt: number;
+  maxAttempts: number;
+}): RetryDecision => {
+  if (params.attempt >= params.maxAttempts) {
+    return { shouldRetry: false, reason: 'other' };
+  }
+
+  if (params.error && isNetworkFailure(params.error)) {
+    return { shouldRetry: true, reason: 'network' };
+  }
+
+  if (
+    typeof params.statusCode === 'number' &&
+    params.statusCode >= 500 &&
+    params.statusCode <= 599
+  ) {
+    return { shouldRetry: true, reason: '5xx' };
+  }
+
+  return { shouldRetry: false, reason: 'other' };
+};
+
+export const isTransientError = (error: unknown): boolean => {
+  if (!(error instanceof WorkflowApiError)) {
+    return isNetworkFailure(error);
+  }
+
+  return error.statusCode >= 500 && error.statusCode <= 599;
+};
+
+const parseJsonBody = async (response: UndiciResponse): Promise<unknown> => {
+  const raw = await response.text();
+  if (!raw) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return undefined;
+  }
+};
+
+export const createWorkflowApiClient = (
+  options: CreateWorkflowApiClientOptions,
+): WorkflowApiClient => {
+  const retryOptions: RetryOptions = {
+    ...defaultRetryOptions,
+    ...options.retry,
+  };
+
+  const baseUrl = options.baseUrl.replace(/\/$/, '');
+  const sleep = options.sleep ?? sleepDefault;
+  const fetchFn = options.fetchFn ?? undiciFetch;
+
+  const requestJson = async <TResponse>(
+    path: string,
+    init?: UndiciRequestInit,
+  ): Promise<TResponse> => {
+    for (let attempt = 1; attempt <= retryOptions.maxAttempts; attempt += 1) {
+      let response: UndiciResponse;
+
+      try {
+        const headers = new Headers(init?.headers);
+        headers.set('accept', 'application/json');
+        headers.set('content-type', headers.get('content-type') ?? 'application/json');
+
+        response = await fetchFn(`${baseUrl}${path}`, {
+          ...init,
+          headers,
+          dispatcher: options.dispatcher,
+        });
+      } catch (error) {
+        const decision = getRetryDecision({
+          error,
+          attempt,
+          maxAttempts: retryOptions.maxAttempts,
+        });
+
+        if (!decision.shouldRetry) {
+          throw new WorkflowApiError({
+            statusCode: 0,
+            message: error instanceof Error ? error.message : 'Network request failed',
+          });
+        }
+
+        const delay = Math.min(
+          retryOptions.initialDelayMs * 2 ** (attempt - 1),
+          retryOptions.maxDelayMs,
+        );
+        await sleep(delay);
+        continue;
+      }
+
+      if (response.ok) {
+        const body = await parseJsonBody(response);
+        return body as TResponse;
+      }
+
+      const decision = getRetryDecision({
+        statusCode: response.status,
+        attempt,
+        maxAttempts: retryOptions.maxAttempts,
+      });
+
+      if (decision.shouldRetry) {
+        const delay = Math.min(
+          retryOptions.initialDelayMs * 2 ** (attempt - 1),
+          retryOptions.maxDelayMs,
+        );
+        await sleep(delay);
+        continue;
+      }
+
+      const payload = asErrorEnvelope(await parseJsonBody(response));
+      throw new WorkflowApiError({
+        statusCode: response.status,
+        code: payload?.code,
+        message: payload?.message ?? `Request failed with status ${response.status}`,
+        details: payload?.details,
+      });
+    }
+
+    throw new WorkflowApiError({
+      statusCode: 0,
+      message: 'Request failed after retry attempts',
+    });
+  };
+
+  const startWorkflow = async (request: StartRunRequest): Promise<RunSummary> =>
+    requestJson<RunSummary>('/api/v1/workflows/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        workflowType: request.workflowType,
+        input: request.input,
+        idempotencyKey: request.idempotencyKey,
+      }),
+    });
+
+  const listRuns = async (request: ListRunsRequest): Promise<RunSummary[]> => {
+    const query = new URLSearchParams();
+
+    if (request.lifecycle) {
+      query.set('lifecycle', request.lifecycle);
+    }
+
+    if (request.workflowType) {
+      query.set('workflowType', request.workflowType);
+    }
+
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    const response = await requestJson<{ items: RunSummary[] }>(`/api/v1/workflows/runs${suffix}`);
+    return response.items;
+  };
+
+  const listRunEvents = async (
+    request: ListEventsRequest,
+  ): Promise<{ items: WorkflowEvent[]; nextCursor?: string }> => {
+    const query = new URLSearchParams();
+
+    if (request.cursor) {
+      query.set('cursor', request.cursor);
+    }
+
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return requestJson<{ items: WorkflowEvent[]; nextCursor?: string }>(
+      `/api/v1/workflows/runs/${encodeURIComponent(request.runId)}/events${suffix}`,
+    );
+  };
+
+  const streamRunEvents = async function* (
+    request: StreamEventsRequest,
+  ): AsyncGenerator<FollowEventChunk> {
+    const query = new URLSearchParams();
+
+    if (request.cursor) {
+      query.set('cursor', request.cursor);
+    }
+
+    if (request.eventType) {
+      query.set('eventType', request.eventType);
+    }
+
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+
+    const response = await fetchFn(
+      `${baseUrl}/api/v1/workflows/runs/${encodeURIComponent(request.runId)}/stream${suffix}`,
+      {
+        method: 'GET',
+        headers: {
+          accept: 'text/event-stream',
+        },
+        signal: request.signal,
+        dispatcher: options.dispatcher,
+      },
+    );
+
+    if (!response.ok) {
+      const payload = asErrorEnvelope(await parseJsonBody(response));
+      throw new WorkflowApiError({
+        statusCode: response.status,
+        code: payload?.code,
+        message: payload?.message ?? `Stream request failed with status ${response.status}`,
+        details: payload?.details,
+      });
+    }
+
+    if (!response.body) {
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    const reader = response.body.getReader();
+
+    let buffer = '';
+    let currentEvent = '';
+    let currentId: string | undefined;
+    let currentData = '';
+
+    const flushFrame = async (): Promise<FollowEventChunk | undefined> => {
+      if (!currentData) {
+        currentEvent = '';
+        currentId = undefined;
+        return undefined;
+      }
+
+      if (currentEvent !== 'workflow-event') {
+        currentEvent = '';
+        currentId = undefined;
+        currentData = '';
+        return undefined;
+      }
+
+      const parsed = JSON.parse(currentData) as WorkflowEvent;
+
+      currentEvent = '';
+      currentData = '';
+      const cursor = currentId;
+      currentId = undefined;
+
+      return {
+        cursor,
+        event: parsed,
+      };
+    };
+
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) {
+        break;
+      }
+
+      buffer += decoder.decode(chunk.value, { stream: true });
+
+      let newlineIndex = buffer.indexOf('\n');
+      while (newlineIndex >= 0) {
+        const line = buffer.slice(0, newlineIndex).replace(/\r$/, '');
+        buffer = buffer.slice(newlineIndex + 1);
+
+        if (line.length === 0) {
+          const frame = await flushFrame();
+          if (frame) {
+            yield frame;
+          }
+        } else if (line.startsWith(':')) {
+          newlineIndex = buffer.indexOf('\n');
+          continue;
+        } else if (line.startsWith('event:')) {
+          currentEvent = line.slice(6).trim();
+        } else if (line.startsWith('id:')) {
+          currentId = line.slice(3).trim();
+        } else if (line.startsWith('data:')) {
+          const value = line.slice(5).trimStart();
+          currentData = currentData ? `${currentData}\n${value}` : value;
+        }
+
+        newlineIndex = buffer.indexOf('\n');
+      }
+    }
+
+    const finalFrame = await flushFrame();
+    if (finalFrame) {
+      yield finalFrame;
+    }
+  };
+
+  const inspectDefinition = async (workflowType: string): Promise<WorkflowDefinition> =>
+    requestJson<WorkflowDefinition>(
+      `/api/v1/workflows/definitions/${encodeURIComponent(workflowType)}`,
+    );
+
+  return {
+    startWorkflow,
+    listRuns,
+    listRunEvents,
+    streamRunEvents,
+    inspectDefinition,
+  };
+};

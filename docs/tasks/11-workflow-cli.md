@@ -7,16 +7,16 @@
 Implement `apps/workflow-cli` as operator/developer tooling independent from in-workflow command execution.
 
 ## Implementation Tasks
-- [ ] Implement CLI command surface:
+- [x] Implement CLI command surface:
   - `workflow run`
   - `workflow runs list`
   - `workflow runs events --follow`
   - `workflow inspect --graph`
-- [ ] Implement robust API client with retry/backoff for transient network errors.
-- [ ] Add JSON input/output modes for scripting.
-- [ ] Implement incremental stream rendering for follow mode.
-- [ ] Add unit tests for command parsing, output mode formatting, and retry policy decisions.
-- [ ] Add contract tests against running server API.
+- [x] Implement robust API client with retry/backoff for transient network errors.
+- [x] Add JSON input/output modes for scripting.
+- [x] Implement incremental stream rendering for follow mode.
+- [x] Add unit tests for command parsing, output mode formatting, and retry policy decisions.
+- [x] Add contract tests against running server API.
 
 ## Required Artifacts
 - `apps/workflow-cli/src/*`
