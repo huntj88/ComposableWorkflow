@@ -7,7 +7,7 @@
 Implement the remaining integration-primary and shared tests for lifecycle control, command policy paths, and instrumentation contracts.
 
 ## Implementation Tasks
-- [ ] Implement tests for:
+- [x] Implement tests for:
   - `ITX-005` pause safe-point enforcement
   - `ITX-006` duplicate resume race
   - `ITX-007` recovery reconciler idempotence with partial progress
@@ -20,8 +20,8 @@ Implement the remaining integration-primary and shared tests for lifecycle contr
   - `ITX-014` trace tree integrity
   - `ITX-015` definition metadata normalization
   - `ITX-019` startup reconcile admission gate
-- [ ] Assert required lifecycle checkpoint event mapping 1:1.
-- [ ] Assert telemetry failures are isolated from run-state mutation.
+- [x] Assert required lifecycle checkpoint event mapping 1:1.
+- [x] Assert telemetry failures are isolated from run-state mutation.
 
 ## Required Artifacts
 - `packages/workflow-server/test/integration/itx.lifecycle.*`

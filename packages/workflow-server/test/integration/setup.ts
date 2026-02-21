@@ -43,3 +43,38 @@ export const listEventTypesForRun = async (
 
   return result.rows.map((row) => row.event_type);
 };
+
+export const countEventsForRun = async (
+  harness: IntegrationHarness,
+  params: {
+    runId: string;
+    eventType: string;
+  },
+): Promise<number> => {
+  const result = await harness.db.pool.query<{ count: number }>(
+    'SELECT COUNT(*)::int AS count FROM workflow_events WHERE run_id = $1 AND event_type = $2',
+    [params.runId, params.eventType],
+  );
+
+  return result.rows[0]?.count ?? 0;
+};
+
+export const findEventSequence = (eventTypes: string[], sequence: readonly string[]): number[] => {
+  const indexes: number[] = [];
+  let cursor = 0;
+
+  for (const eventType of sequence) {
+    const index = eventTypes.indexOf(eventType, cursor);
+    if (index < 0) {
+      return [];
+    }
+
+    indexes.push(index);
+    cursor = index + 1;
+  }
+
+  return indexes;
+};
+
+export const hasEventSequence = (eventTypes: string[], sequence: readonly string[]): boolean =>
+  findEventSequence(eventTypes, sequence).length === sequence.length;
