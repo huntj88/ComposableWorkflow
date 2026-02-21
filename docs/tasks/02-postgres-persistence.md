@@ -7,23 +7,23 @@
 Implement durable persistence for workflow definitions, runs, events, and optional snapshot optimization tables with migration safety.
 
 ## Implementation Tasks
-- [ ] Choose migration tool and wire startup migration execution.
-- [ ] Create schema:
+- [x] Choose migration tool and wire startup migration execution.
+- [x] Create schema:
   - `workflow_definitions`
   - `workflow_runs`
   - `workflow_events`
   - `workflow_run_children` (required)
   - `workflow_snapshots` (optional optimization)
   - migration `001_init_workflow_tables.ts` must mirror the `workflow_run_children` DDL contract in `docs/typescript-server-workflow-spec.md` section 7.3 (columns, PK/FK/unique, and indexes)
-- [ ] Add indexes for:
+- [x] Add indexes for:
   - event query path (`runId`, `sequence`, `eventType`, `timestamp`)
   - run listing filters (`lifecycle`, `workflowType`, time fields)
-- [ ] Implement transactional repository interfaces:
+- [x] Implement transactional repository interfaces:
   - append event with sequence allocation
   - upsert run summary projection
   - idempotent start key storage/query
-- [ ] Add unit tests for repository-level pure logic (query builders, row mapping, and transaction boundary helpers).
-- [ ] Add storage invariants tests against real Postgres container.
+- [x] Add unit tests for repository-level pure logic (query builders, row mapping, and transaction boundary helpers).
+- [x] Add storage invariants tests against real Postgres container.
 
 ## Required Artifacts
 - `packages/workflow-server/src/persistence/*`
