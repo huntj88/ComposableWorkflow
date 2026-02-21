@@ -7,10 +7,10 @@
 Implement near-real-time run event streaming via SSE.
 
 ## Implementation Tasks
-- [ ] Implement live stream endpoint (`SSE`) with ordered event delivery.
-- [ ] Implement reconnect/no-loss semantics using cursor strategy.
-- [ ] Add unit tests for stream cursor encode/decode and SSE frame serialization helpers.
-- [ ] Add API contract docs and integration tests for stream ordering and reconnect behavior.
+- [x] Implement live stream endpoint (`SSE`) with ordered event delivery.
+- [x] Implement reconnect/no-loss semantics using cursor strategy.
+- [x] Add unit tests for stream cursor encode/decode and SSE frame serialization helpers.
+- [x] Add API contract docs and integration tests for stream ordering and reconnect behavior.
 
 ## Required Artifacts
 - `packages/workflow-server/src/stream/*`

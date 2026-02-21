@@ -582,6 +582,16 @@ Returns static metadata to render flowchart:
 
 ## 8.9 Live Event Stream
 - `GET /workflows/runs/{runId}/stream` via SSE.
+- Query:
+  - `cursor?` (opaque base64url cursor matching events pagination cursor format),
+  - `eventType?` (optional filter).
+- SSE frame contract:
+  - `event: workflow-event`
+  - `id: <cursor>`
+  - `data: <WorkflowEvent JSON>`
+- Reconnect semantics:
+  - Client reconnects with `cursor=<lastSeenCursor>`.
+  - Server resumes with events whose `sequence` is strictly greater than cursor boundary (`no-loss`, ordered delivery).
 
 Used by future UI for near-real-time visualization.
 

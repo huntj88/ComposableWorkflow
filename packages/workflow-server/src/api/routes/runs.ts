@@ -9,6 +9,7 @@ import {
   type TransitionEdge,
 } from '../../read-models/run-tree-projection.js';
 import { registerLifecycleControlRoutes } from '../../lifecycle/control-routes.js';
+import { registerSseRunRoute } from '../../stream/sse-route.js';
 import { ApiError, type ApiServerDependencies } from '../server.js';
 import {
   errorEnvelopeSchema,
@@ -249,6 +250,7 @@ export const registerRunRoutes = async (
   deps: ApiServerDependencies,
 ): Promise<void> => {
   await registerLifecycleControlRoutes(server, deps);
+  await registerSseRunRoute(server, deps);
 
   server.get(
     '/api/v1/workflows/runs/:runId',
