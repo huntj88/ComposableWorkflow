@@ -36,6 +36,7 @@ export const bootstrapWorkflowServer = async (
     pool: db.pool,
     registry: packageResult.registry,
     lockProvider,
+    commandPolicy: config.commandPolicy,
   });
   const reconcileService = createReconcileService({
     pool: db.pool,

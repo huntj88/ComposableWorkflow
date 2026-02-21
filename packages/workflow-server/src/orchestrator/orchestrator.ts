@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 
 import type { LockProvider } from '../locking/lock-provider.js';
+import type { CommandPolicy } from '../command/command-policy.js';
+import type { CommandRunnerAdapter } from '../command/command-runner.js';
 import { withTransaction } from '../persistence/db.js';
 import { createEventRepository, type EventRepository } from '../persistence/event-repository.js';
 import {
@@ -37,6 +39,8 @@ export interface OrchestratorDependencies {
   now?: () => Date;
   runIdFactory?: () => string;
   eventIdFactory?: () => string;
+  commandPolicy?: CommandPolicy;
+  commandRunner?: CommandRunnerAdapter;
   ownerIdFactory?: () => string;
   lockTtlMs?: number;
   maxIterations?: number;
@@ -91,6 +95,8 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
                 runRepository,
                 eventRepository,
                 idempotencyRepository,
+                commandPolicy: deps.commandPolicy,
+                commandRunner: deps.commandRunner,
                 eventIdFactory,
                 runIdFactory,
                 now,

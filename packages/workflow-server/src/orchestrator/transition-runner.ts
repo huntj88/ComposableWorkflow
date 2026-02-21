@@ -4,6 +4,21 @@ import type { WorkflowLifecycle } from '../lifecycle/lifecycle-machine.js';
 import type { IdempotencyRepository } from '../persistence/idempotency-repository.js';
 import type { RunRepository, RunSummary } from '../persistence/run-repository.js';
 import type { WorkflowRegistration, WorkflowRegistry } from '../registry/workflow-registry.js';
+import {
+  type CommandPolicy,
+  type NormalizedCommandRequest,
+  type CommandRequest,
+  CommandPolicyError,
+  defaultCommandPolicy,
+  evaluateCommandPolicy,
+} from '../command/command-policy.js';
+import {
+  createSpawnCommandRunnerAdapter,
+  mapCommandOutcome,
+  type CommandRunnerAdapter,
+} from '../command/command-runner.js';
+import { redactPayloadFields } from '../command/redaction.js';
+import { truncateCommandPayload } from '../command/truncation.js';
 import { awaitChild } from './child/await-child.js';
 import {
   assertChildLaunchAllowed,
@@ -78,11 +93,29 @@ interface FailureIntent {
   error: unknown;
 }
 
+interface CommandEventPayload {
+  command?: string;
+  args: string[];
+  stdin: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+  timeoutMs?: number;
+  truncated: boolean;
+  redactedFields: string[];
+  timeout?: boolean;
+}
+
 export interface TransitionRunnerDependencies {
   registry: WorkflowRegistry;
   runRepository: RunRepository;
   eventRepository: EventRepository;
   idempotencyRepository: IdempotencyRepository;
+  commandPolicy?: CommandPolicy;
+  commandRunner?: CommandRunnerAdapter;
   now?: () => Date;
   eventIdFactory: () => string;
   runIdFactory?: () => string;
@@ -192,6 +225,16 @@ const applyLifecycleSafePoint = async (params: {
   return null;
 };
 
+class SafePointInterruption extends Error {
+  readonly result: TransitionStepResult;
+
+  constructor(result: TransitionStepResult) {
+    super('Workflow execution interrupted by lifecycle safe point');
+    this.name = 'SafePointInterruption';
+    this.result = result;
+  }
+}
+
 const resolveTransitionName = (
   descriptors: readonly WorkflowTransitionDescriptor[] | undefined,
   from: string,
@@ -212,6 +255,9 @@ const createExecutionContext = (
   let transitionIntent: TransitionIntent | undefined;
   let completionIntent: CompletionIntent | undefined;
   let failureIntent: FailureIntent | undefined;
+  const now = deps.now ?? (() => new Date());
+  const commandPolicy = deps.commandPolicy ?? defaultCommandPolicy();
+  const commandRunner = deps.commandRunner ?? createSpawnCommandRunnerAdapter();
 
   const ensureNoResolutionConflict = (kind: string): void => {
     const resolvedCount = [transitionIntent, completionIntent, failureIntent].filter(
@@ -221,6 +267,88 @@ const createExecutionContext = (
     if (resolvedCount > 0) {
       throw new Error(`Workflow state has already resolved; cannot apply ${kind}`);
     }
+  };
+
+  const enforceLifecycleSafePoint = async (): Promise<RunSummary> => {
+    const latestRun = await deps.runRepository.getRunSummary(client, run.runId);
+    if (!latestRun) {
+      throw new Error(`Run ${run.runId} not found`);
+    }
+
+    const safePointResult = await applyLifecycleSafePoint({
+      client,
+      run: latestRun,
+      runRepository: deps.runRepository,
+      eventRepository: deps.eventRepository,
+      now,
+      eventIdFactory: deps.eventIdFactory,
+    });
+    if (safePointResult) {
+      throw new SafePointInterruption(safePointResult);
+    }
+
+    if (latestRun.lifecycle === 'cancelling') {
+      await deps.eventRepository.appendEvent(client, {
+        eventId: deps.eventIdFactory(),
+        runId: latestRun.runId,
+        eventType: 'workflow.cancelled',
+        timestamp: now().toISOString(),
+      });
+
+      const cancelledRun = await deps.runRepository.upsertRunSummary(client, {
+        ...latestRun,
+        lifecycle: 'cancelled',
+        endedAt: now().toISOString(),
+      });
+
+      throw new SafePointInterruption({
+        run: cancelledRun,
+        progressed: true,
+        terminal: true,
+      });
+    }
+
+    if (isTerminalLifecycle(latestRun.lifecycle)) {
+      throw new SafePointInterruption({
+        run: latestRun,
+        progressed: false,
+        terminal: true,
+      });
+    }
+
+    return latestRun;
+  };
+
+  const toCommandRequest = (request: unknown): CommandRequest => {
+    if (!request || typeof request !== 'object') {
+      throw new Error('Command request must be an object');
+    }
+
+    return request as CommandRequest;
+  };
+
+  const sanitizeCommandPayload = (
+    payload: Omit<CommandEventPayload, 'truncated' | 'redactedFields'>,
+  ) => {
+    const redacted = redactPayloadFields({
+      payload,
+      redactFields: commandPolicy.redactFields,
+    });
+
+    const truncated = truncateCommandPayload({
+      payload: redacted.value,
+      outputMaxBytes: commandPolicy.outputMaxBytes,
+    });
+
+    return {
+      payload: {
+        ...truncated.value,
+        truncated: truncated.truncated,
+        redactedFields: redacted.redactedFields,
+      } as CommandEventPayload,
+      truncated: truncated.truncated,
+      redactedFields: redacted.redactedFields,
+    };
   };
 
   const context: RuntimeWorkflowContext<unknown, unknown> = {
@@ -239,9 +367,9 @@ const createExecutionContext = (
       };
     },
     launchChild: async (request) => {
-      const now = deps.now ?? (() => new Date());
+      const beforeChildRun = await enforceLifecycleSafePoint();
       const parsedRequest = toChildLaunchRequest(request);
-      assertChildLaunchAllowed(run.lifecycle as WorkflowLifecycle);
+      assertChildLaunchAllowed(beforeChildRun.lifecycle as WorkflowLifecycle);
 
       const { childRun } = await launchChild({
         client,
@@ -304,10 +432,150 @@ const createExecutionContext = (
         });
 
         throw error;
+      } finally {
+        await enforceLifecycleSafePoint();
       }
     },
-    runCommand: async (): Promise<unknown> => {
-      throw new Error('runCommand is not implemented in the orchestrator MVP');
+    runCommand: async (request): Promise<unknown> => {
+      await enforceLifecycleSafePoint();
+
+      const parsedRequest = toCommandRequest(request);
+      let normalizedRequest: NormalizedCommandRequest;
+
+      try {
+        normalizedRequest = evaluateCommandPolicy({
+          policy: commandPolicy,
+          request: parsedRequest,
+        });
+      } catch (error) {
+        if (error instanceof CommandPolicyError) {
+          const failurePayload = sanitizeCommandPayload({
+            command: parsedRequest.command,
+            args: parsedRequest.args ?? [],
+            stdin: parsedRequest.stdin ?? '',
+            stdout: '',
+            stderr: '',
+            exitCode: -1,
+            startedAt: now().toISOString(),
+            completedAt: now().toISOString(),
+            durationMs: 0,
+            timeoutMs: parsedRequest.timeoutMs,
+          });
+
+          await deps.eventRepository.appendEvent(client, {
+            eventId: deps.eventIdFactory(),
+            runId: run.runId,
+            eventType: 'command.failed',
+            timestamp: now().toISOString(),
+            payload: failurePayload.payload,
+            error: {
+              name: error.name,
+              message: error.message,
+              code: error.code,
+            },
+          });
+        }
+
+        throw error;
+      }
+
+      const startedPayload = sanitizeCommandPayload({
+        command: normalizedRequest.command,
+        args: normalizedRequest.args,
+        stdin: normalizedRequest.stdin,
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+        startedAt: now().toISOString(),
+        completedAt: now().toISOString(),
+        durationMs: 0,
+        timeoutMs: normalizedRequest.timeoutMs,
+      });
+
+      await deps.eventRepository.appendEvent(client, {
+        eventId: deps.eventIdFactory(),
+        runId: run.runId,
+        eventType: 'command.started',
+        timestamp: now().toISOString(),
+        payload: startedPayload.payload,
+      });
+
+      const commandResult = await commandRunner.run(normalizedRequest);
+      const finalizedPayload = sanitizeCommandPayload({
+        command: normalizedRequest.command,
+        args: normalizedRequest.args,
+        stdin: normalizedRequest.stdin,
+        stdout: commandResult.stdout,
+        stderr: commandResult.stderr,
+        exitCode: commandResult.exitCode,
+        startedAt: commandResult.startedAt,
+        completedAt: commandResult.completedAt,
+        durationMs: commandResult.durationMs,
+        timeoutMs: normalizedRequest.timeoutMs,
+      });
+
+      const outcome = mapCommandOutcome({
+        exitCode: commandResult.exitCode,
+        timedOut: commandResult.timedOut,
+        allowNonZeroExit: normalizedRequest.allowNonZeroExit,
+      });
+
+      if (commandResult.timedOut) {
+        await deps.eventRepository.appendEvent(client, {
+          eventId: deps.eventIdFactory(),
+          runId: run.runId,
+          eventType: 'command.failed',
+          timestamp: now().toISOString(),
+          payload: {
+            ...finalizedPayload.payload,
+            timeout: true,
+          },
+          error: {
+            name: 'CommandTimeoutError',
+            message: `Command timed out after ${normalizedRequest.timeoutMs}ms`,
+          },
+        });
+
+        throw new Error(`Command timed out after ${normalizedRequest.timeoutMs}ms`);
+      }
+
+      if (outcome === 'command.failed') {
+        await deps.eventRepository.appendEvent(client, {
+          eventId: deps.eventIdFactory(),
+          runId: run.runId,
+          eventType: 'command.failed',
+          timestamp: now().toISOString(),
+          payload: finalizedPayload.payload,
+          error: {
+            name: 'CommandExitCodeError',
+            message: `Command exited with code ${commandResult.exitCode}`,
+          },
+        });
+
+        throw new Error(`Command exited with code ${commandResult.exitCode}`);
+      }
+
+      await deps.eventRepository.appendEvent(client, {
+        eventId: deps.eventIdFactory(),
+        runId: run.runId,
+        eventType: 'command.completed',
+        timestamp: now().toISOString(),
+        payload: finalizedPayload.payload,
+      });
+
+      await enforceLifecycleSafePoint();
+
+      return {
+        exitCode: commandResult.exitCode,
+        stdin: finalizedPayload.payload.stdin,
+        stdout: finalizedPayload.payload.stdout,
+        stderr: finalizedPayload.payload.stderr,
+        startedAt: commandResult.startedAt,
+        completedAt: commandResult.completedAt,
+        durationMs: commandResult.durationMs,
+        truncated: finalizedPayload.truncated,
+        redactedFields: finalizedPayload.redactedFields,
+      };
     },
     complete: (output) => {
       ensureNoResolutionConflict('complete');
@@ -461,6 +729,10 @@ export const runTransitionStep = async (params: {
   try {
     await handler(context, undefined);
   } catch (error) {
+    if (error instanceof SafePointInterruption) {
+      return error.result;
+    }
+
     const failedRun = await failRun({
       client: params.client,
       run: params.run,

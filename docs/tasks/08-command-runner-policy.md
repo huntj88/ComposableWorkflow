@@ -7,23 +7,23 @@
 Implement controlled command execution from workflow steps with policy enforcement, timeout handling, and structured output capture.
 
 ## Implementation Tasks
-- [ ] Implement command runner adapter abstraction (real process + test double).
-- [ ] Implement cooperative safe points around execution paths moved from `T06`:
+- [x] Implement command runner adapter abstraction (real process + test double).
+- [x] Implement cooperative safe points around execution paths moved from `T06`:
   - before/after child launch
   - before/after command execution
-- [ ] Implement policy engine:
+- [x] Implement policy engine:
   - command allow/deny
   - cwd restrictions
   - env restrictions
   - timeout caps
-- [ ] Implement result capture:
+- [x] Implement result capture:
   - `stdin`, `stdout`, `stderr`, `exitCode`
   - `startedAt`, `completedAt`, `durationMs`
-- [ ] Implement non-zero handling semantics using `allowNonZeroExit`.
-- [ ] Implement truncation/redaction with deterministic markers (`truncated`, `redactedFields`).
+- [x] Implement non-zero handling semantics using `allowNonZeroExit`.
+- [x] Implement truncation/redaction with deterministic markers (`truncated`, `redactedFields`).
 - [ ] Emit command lifecycle events and linked logs.
-- [ ] Add unit tests for command policy evaluation, redaction/truncation helpers, and non-zero outcome mapping.
-- [ ] Integration tests for policy matrix, truncation/redaction, timeout, non-zero permutations.
+- [x] Add unit tests for command policy evaluation, redaction/truncation helpers, and non-zero outcome mapping.
+- [x] Integration tests for policy matrix, truncation/redaction, timeout, non-zero permutations.
 
 ## Required Artifacts
 - `packages/workflow-lib/src/command/*`
