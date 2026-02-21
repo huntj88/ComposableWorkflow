@@ -44,9 +44,15 @@ importers:
 
   packages/workflow-server:
     dependencies:
+      '@composable-workflow/workflow-lib':
+        specifier: workspace:*
+        version: link:../workflow-lib
       '@fastify/swagger':
         specifier: ^9.6.1
         version: 9.7.0
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.0
       fastify:
         specifier: ^5.6.1
         version: 5.7.4
@@ -56,6 +62,9 @@ importers:
       pg:
         specifier: ^8.13.3
         version: 8.18.0
+      pino:
+        specifier: ^10.3.1
+        version: 10.3.1
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -340,6 +349,10 @@ packages:
 
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
+
+  '@opentelemetry/api@1.9.0':
+    resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
+    engines: {node: '>=8.0.0'}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -2064,6 +2077,8 @@ snapshots:
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
   '@js-sdsl/ordered-map@4.4.2': {}
+
+  '@opentelemetry/api@1.9.0': {}
 
   '@pinojs/redact@0.4.0': {}
 

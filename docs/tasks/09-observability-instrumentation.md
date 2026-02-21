@@ -7,20 +7,20 @@
 Implement server-injected instrumentation for workflow events, metrics, and trace trees with guaranteed field coverage and failure isolation.
 
 ## Implementation Tasks
-- [ ] Implement instrumentation sink adapters:
+- [x] Implement instrumentation sink adapters:
   - structured logger
   - metrics provider
   - OpenTelemetry-compatible tracer/exporter
-- [ ] Wire workflow-lib hooks from server runtime (`onEvent`, `onMetric`, `onTrace`).
-- [ ] Define required log/metric fields and cardinality constraints.
-- [ ] Implement trace hierarchy:
+- [x] Wire workflow-lib hooks from server runtime (`onEvent`, `onMetric`, `onTrace`).
+- [x] Define required log/metric fields and cardinality constraints.
+- [x] Implement trace hierarchy:
   - root span per run
   - transition spans
   - command spans
   - child workflow spans with context propagation
-- [ ] Implement telemetry failure isolation policy (no run corruption on sink failures).
-- [ ] Add unit tests for instrumentation adapter mapping, required field projection, and telemetry failure-isolation wrappers.
-- [ ] Integration tests for hook ordering, delayed/failing sink behavior, and trace parentage.
+- [x] Implement telemetry failure isolation policy (no run corruption on sink failures).
+- [x] Add unit tests for instrumentation adapter mapping, required field projection, and telemetry failure-isolation wrappers.
+- [x] Integration tests for hook ordering, delayed/failing sink behavior, and trace parentage.
 
 ## Required Artifacts
 - `packages/workflow-server/src/observability/*`
