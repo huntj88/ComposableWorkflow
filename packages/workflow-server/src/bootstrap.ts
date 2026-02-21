@@ -5,10 +5,12 @@ import { loadWorkflowPackages } from './loader/load-packages.js';
 import { createPostgresAdvisoryLockProvider } from './locking/postgres-advisory-lock.js';
 import { createOrchestrator, type Orchestrator } from './orchestrator/orchestrator.js';
 import { createDbConnection, type DbConnection } from './persistence/db.js';
+import type { WorkflowRegistry } from './registry/workflow-registry.js';
 
 export interface BootstrapResult {
   db: DbConnection;
   orchestrator: Orchestrator;
+  registry: WorkflowRegistry;
 }
 
 export const bootstrapWorkflowServer = async (
@@ -32,5 +34,6 @@ export const bootstrapWorkflowServer = async (
   return {
     db,
     orchestrator,
+    registry: packageResult.registry,
   };
 };

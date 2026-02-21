@@ -64,32 +64,34 @@ describe('orchestrator idempotent start race', () => {
       lockProvider: new InMemoryLockProvider(),
     });
 
-    const responses = await Promise.all(
-      Array.from({ length: 16 }).map(() =>
-        orchestrator.startRun({
-          workflowType: 'wf.idempotent-race',
-          input: { amount: 42 },
-          idempotencyKey: 'idem-race-key-1',
-        }),
-      ),
-    );
+    try {
+      const responses = await Promise.all(
+        Array.from({ length: 16 }).map(() =>
+          orchestrator.startRun({
+            workflowType: 'wf.idempotent-race',
+            input: { amount: 42 },
+            idempotencyKey: 'idem-race-key-1',
+          }),
+        ),
+      );
 
-    const runIds = new Set(responses.map((response) => response.run.runId));
-    expect(runIds.size).toBe(1);
-    expect(responses.filter((response) => response.created).length).toBe(1);
+      const runIds = new Set(responses.map((response) => response.run.runId));
+      expect(runIds.size).toBe(1);
+      expect(responses.filter((response) => response.created).length).toBe(1);
 
-    const runCount = await pool.query<{ count: number }>(
-      'SELECT COUNT(*)::int AS count FROM workflow_runs WHERE workflow_type = $1',
-      ['wf.idempotent-race'],
-    );
-    expect(runCount.rows[0].count).toBe(1);
+      const runCount = await pool.query<{ count: number }>(
+        'SELECT COUNT(*)::int AS count FROM workflow_runs WHERE workflow_type = $1',
+        ['wf.idempotent-race'],
+      );
+      expect(runCount.rows[0].count).toBe(1);
 
-    const startedCount = await pool.query<{ count: number }>(
-      "SELECT COUNT(*)::int AS count FROM workflow_events WHERE event_type = 'workflow.started' AND run_id = $1",
-      [responses[0].run.runId],
-    );
-    expect(startedCount.rows[0].count).toBe(1);
-
-    await pool.end();
+      const startedCount = await pool.query<{ count: number }>(
+        "SELECT COUNT(*)::int AS count FROM workflow_events WHERE event_type = 'workflow.started' AND run_id = $1",
+        [responses[0].run.runId],
+      );
+      expect(startedCount.rows[0].count).toBe(1);
+    } finally {
+      await pool.end();
+    }
   });
 });

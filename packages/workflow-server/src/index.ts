@@ -31,6 +31,10 @@ export * from './orchestrator/start-run.js';
 export * from './orchestrator/transition-runner.js';
 export * from './orchestrator/orchestrator.js';
 export * from './bootstrap.js';
+export * from './api/server.js';
+export * from './api/schemas.js';
+export * from './read-models/event-pagination.js';
+export * from './read-models/run-tree-projection.js';
 
 import { runMigrationsOnStartup } from './persistence/migrate.js';
 import { loadServerConfigFromEnv } from './config.js';

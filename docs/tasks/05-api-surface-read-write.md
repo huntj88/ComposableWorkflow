@@ -7,7 +7,7 @@
 Implement REST API endpoints and response contracts required for run control, runtime introspection, and graph metadata.
 
 ## Implementation Tasks
-- [ ] Implement endpoints:
+- [x] Implement endpoints:
   - `POST /api/v1/workflows/start`
   - `GET /api/v1/workflows/runs/{runId}`
   - `GET /api/v1/workflows/runs/{runId}/tree`
@@ -15,13 +15,13 @@ Implement REST API endpoints and response contracts required for run control, ru
   - `GET /api/v1/workflows/runs/{runId}/logs`
   - `GET /api/v1/workflows/runs`
   - `GET /api/v1/workflows/definitions/{workflowType}`
-- [ ] Validate request/response schemas and consistent error envelopes.
-- [ ] Implement cursor pagination contract for events endpoint.
-- [ ] Implement filtering (`eventType`, `since`, `until`, lifecycle/workflowType list filters).
-- [ ] Build run tree projection with depth and include-completed flags.
-- [ ] Define dynamic overlay read model contract (active node, traversed/pending/failed edges, child linkage, timestamp/log references) derivable from run + events APIs for UI consumers.
-- [ ] Add unit tests for schema validation, cursor encode/decode helpers, and read-model projection utilities.
-- [ ] Integration tests for payload semantics and pagination stability.
+- [x] Validate request/response schemas and consistent error envelopes.
+- [x] Implement cursor pagination contract for events endpoint.
+- [x] Implement filtering (`eventType`, `since`, `until`, lifecycle/workflowType list filters).
+- [x] Build run tree projection with depth and include-completed flags.
+- [x] Define dynamic overlay read model contract (active node, traversed/pending/failed edges, child linkage, timestamp/log references) derivable from run + events APIs for UI consumers.
+- [x] Add unit tests for schema validation, cursor encode/decode helpers, and read-model projection utilities.
+- [x] Integration tests for payload semantics and pagination stability.
 
 ## Required Artifacts
 - `packages/workflow-server/src/api/*`
