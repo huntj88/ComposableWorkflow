@@ -7,18 +7,15 @@ import type {
   WorkflowTrace,
 } from '@composable-workflow/workflow-lib/contracts';
 
-import { createApiServer } from '../../src/api/server.js';
+import { bootstrapWorkflowServer } from '../../src/bootstrap.js';
 import {
   createSpawnCommandRunnerAdapter,
   type CommandRunnerAdapter,
 } from '../../src/command/command-runner.js';
 import type { WorkflowPackageSource } from '../../src/config.js';
 import { InMemoryLockProvider, type LockProvider } from '../../src/locking/lock-provider.js';
-import {
-  createInstrumentedEventRepository,
-  createWorkflowInstrumentationAdapter,
-} from '../../src/observability/instrumentation-adapter.js';
-import { createOrchestrator, type Orchestrator } from '../../src/orchestrator/orchestrator.js';
+import { createWorkflowInstrumentationAdapter } from '../../src/observability/instrumentation-adapter.js';
+import type { Orchestrator } from '../../src/orchestrator/orchestrator.js';
 import { createPool } from '../../src/persistence/db.js';
 import {
   createEventRepository,
@@ -29,13 +26,7 @@ import {
   type IdempotencyRepository,
 } from '../../src/persistence/idempotency-repository.js';
 import { createRunRepository, type RunRepository } from '../../src/persistence/run-repository.js';
-import { createReconcileService } from '../../src/recovery/reconcile-service.js';
-import { createStartupReconcileController } from '../../src/recovery/startup-reconcile.js';
-import {
-  createWorkflowRegistry,
-  type WorkflowRegistry,
-} from '../../src/registry/workflow-registry.js';
-import { loadWorkflowPackages } from '../../src/loader/load-packages.js';
+import type { WorkflowRegistry } from '../../src/registry/workflow-registry.js';
 import { createBarrier, type BarrierControl } from './barrier.js';
 import { createCaptureSink, type HarnessCaptureSink } from './capture-sink.js';
 import {
@@ -212,20 +203,6 @@ export const createIntegrationHarness = async (
   const connectionString = options.postgres?.connectionString ?? container?.connectionString;
   const pool = options.adapters?.persistence?.pool ?? createPool({ connectionString });
 
-  const registry = options.registry
-    ? options.registry
-    : options.packageSources
-      ? (
-          await loadWorkflowPackages({
-            sources: options.packageSources,
-            collisionPolicy: 'override',
-            pool,
-          })
-        ).registry
-      : createWorkflowRegistry('override');
-
-  options.registerWorkflows?.(registry);
-
   const runRepository = wrapRunRepositoryWithFaults(
     options.adapters?.persistence?.runRepository ?? createRunRepository(),
     faultInjector,
@@ -256,59 +233,45 @@ export const createIntegrationHarness = async (
     },
   };
 
-  const eventRepository = createInstrumentedEventRepository({
-    baseEventRepository: eventRepositoryBase,
-    runRepository,
-    instrumentation,
-  });
-
   const lockProvider = wrapLockProviderWithFaults(
     options.adapters?.lockProvider ?? new InMemoryLockProvider(),
     faultInjector,
   );
   const commandRunner = options.adapters?.commandRunner ?? createSpawnCommandRunnerAdapter();
 
-  const orchestratorBase = createOrchestrator({
+  const runtime = await bootstrapWorkflowServer({
     pool,
-    registry,
-    lockProvider,
-    runRepository,
-    eventRepository,
-    idempotencyRepository,
+    poolConfig: { connectionString },
+    startupReconcile: options.startupReconcile ?? false,
+    packageSources: options.packageSources,
+    collisionPolicy: 'override',
+    registry: options.registry,
     now,
-    runIdFactory,
-    eventIdFactory,
-    ownerIdFactory,
-    commandRunner,
+    ids: {
+      runIdFactory,
+      eventIdFactory,
+      ownerIdFactory,
+    },
+    adapters: {
+      lockProvider,
+      runRepository,
+      eventRepository: eventRepositoryBase,
+      idempotencyRepository,
+      commandRunner,
+      instrumentation,
+    },
   });
-  const orchestrator = wrapOrchestratorWithFaults(orchestratorBase, faultInjector);
 
-  const reconcileService = createReconcileService({
-    pool,
-    lockProvider,
-    orchestrator,
-    now,
-  });
-  const startupReconcile = createStartupReconcileController(reconcileService);
+  options.registerWorkflows?.(runtime.registry);
 
-  if (options.startupReconcile ?? false) {
-    await startupReconcile.runInitialReconcile();
-  }
-
-  const server = await createApiServer({
-    pool,
-    orchestrator,
-    registry,
-    reconcileService,
-    startupReconcile,
-  });
+  const orchestrator = wrapOrchestratorWithFaults(runtime.orchestrator, faultInjector);
 
   return {
-    server,
+    server: runtime.server,
     orchestrator,
-    registry,
+    registry: runtime.registry,
     db: {
-      pool,
+      pool: runtime.db.pool,
       connectionString,
       container,
     },
@@ -337,7 +300,7 @@ export const createIntegrationHarness = async (
         return {
           lifecycleTimeline: events.filter((event) => event.eventType.startsWith('workflow.')),
           eventStream: events,
-          faults: faultInjector.listTriggered(),
+          faults: [...faultInjector.listTriggered()],
           logs: runId ? captured.logs.filter((item) => item.runId === runId) : captured.logs,
           metrics: captured.metrics,
           traces: runId ? captured.traces.filter((item) => item.runId === runId) : captured.traces,
@@ -345,8 +308,7 @@ export const createIntegrationHarness = async (
       },
     },
     shutdown: async () => {
-      await server.close();
-      await pool.end();
+      await runtime.shutdown();
       await container?.stop();
     },
   };

@@ -7,16 +7,16 @@
 Introduce a persistent production server entrypoint and enforce architectural parity so test and production execution paths share the same runtime code, producing identical workflow outcomes for identical inputs/events.
 
 ## Implementation Tasks
-- [ ] Add a persistent production launcher for `workflow-server` that binds `WORKFLOW_SERVER_PORT`, handles shutdown signals, and logs startup/shutdown lifecycle.
-- [ ] Refactor server composition to a single shared composition root used by both production launcher and test harness.
-- [ ] Eliminate duplicated runtime behavior paths between harness and production:
+- [x] Add a persistent production launcher for `workflow-server` that binds `WORKFLOW_SERVER_PORT`, handles shutdown signals, and logs startup/shutdown lifecycle.
+- [x] Refactor server composition to a single shared composition root used by both production launcher and test harness.
+- [x] Eliminate duplicated runtime behavior paths between harness and production:
   - no duplicated orchestration wiring,
   - no duplicated repository/event pipeline wiring,
   - no duplicated API route registration wiring.
-- [ ] Introduce a black-box E2E suite that executes against the launched production server process over HTTP.
-- [ ] Keep existing harness-based suites for fast deterministic coverage, but classify them as integration/system-level unless they run against launched production server.
-- [ ] Add parity assertions proving same workflow fixtures produce equivalent final outcomes between harness and production execution modes.
-- [ ] If any behavior cannot be guaranteed equivalent under current architecture, perform refactors so E2E required gates run against the production launcher path.
+- [x] Introduce a black-box E2E suite that executes against the launched production server process over HTTP.
+- [x] Keep existing harness-based suites for fast deterministic coverage, but classify them as integration/system-level unless they run against launched production server.
+- [x] Add parity assertions proving same workflow fixtures produce equivalent final outcomes between harness and production execution modes.
+- [x] If any behavior cannot be guaranteed equivalent under current architecture, perform refactors so E2E required gates run against the production launcher path.
 
 ## Required Artifacts
 - `packages/workflow-server/src/**`

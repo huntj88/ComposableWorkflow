@@ -1,35 +1,36 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { executeCli, EXIT_CODE_SUCCESS } from '../../src/index.js';
 import { createWorkflowApiClient, type WorkflowApiClient } from '../../src/http/client.js';
-import { createE2eHarness } from '../../../../packages/workflow-server/test/e2e/setup.js';
-import type { IntegrationHarness } from '../../../../packages/workflow-server/test/harness/create-harness.js';
 
 const SUCCESS_WORKFLOW_TYPE = 'reference.success.v1';
+const describeIfBlackbox =
+  process.env.WORKFLOW_BLACKBOX_REQUIRED === 'true' ? describe : describe.skip;
+const resolveBaseUrl = (): string => {
+  if (process.env.WORKFLOW_BLACKBOX_BASE_URL) {
+    return process.env.WORKFLOW_BLACKBOX_BASE_URL;
+  }
 
-describe('e2e.cli.behaviors', () => {
-  let harness: IntegrationHarness | undefined;
+  if (process.env.WORKFLOW_API_BASE_URL) {
+    return process.env.WORKFLOW_API_BASE_URL;
+  }
+
+  const port = process.env.WORKFLOW_SERVER_PORT ?? '3000';
+  return `http://127.0.0.1:${port}`;
+};
+
+describeIfBlackbox('e2e.cli.behaviors', () => {
+  let baseUrl = '';
   let client: WorkflowApiClient;
   const stdout: string[] = [];
   const stderr: string[] = [];
 
   beforeAll(async () => {
-    harness = await createE2eHarness();
-    const address = await harness.server.listen({ host: '127.0.0.1', port: 0 });
-    const baseUrl = address;
-
+    baseUrl = resolveBaseUrl();
     client = createWorkflowApiClient({ baseUrl });
-  }, 120_000);
-
-  afterAll(async () => {
-    await harness?.shutdown();
   });
 
   it('B-CLI-001..004 executes run, list, follow events, and inspect graph against running server', async () => {
-    if (!harness) {
-      throw new Error('Harness not initialized');
-    }
-
     stdout.length = 0;
     stderr.length = 0;
 
@@ -68,7 +69,18 @@ describe('e2e.cli.behaviors', () => {
     const runOutput = JSON.parse(stdout[0] ?? '{}') as { runId: string };
     expect(runOutput.runId).toBeTruthy();
 
-    await harness.orchestrator.resumeRun(runOutput.runId);
+    const resumeResponse = await fetch(
+      `${baseUrl}/api/v1/workflows/runs/${runOutput.runId}/resume`,
+      {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ requestedBy: 'cli-e2e', reason: 'progress-run' }),
+      },
+    );
+    expect([200, 409]).toContain(resumeResponse.status);
 
     const listExit = await executeCli(
       ['node', 'workflow', 'runs', 'list', '--workflow-type', SUCCESS_WORKFLOW_TYPE, '--json'],
