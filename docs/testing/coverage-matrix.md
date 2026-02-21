@@ -4,13 +4,23 @@ This is the authoritative requirement-to-test ownership ledger.
 
 ## Columns
 - `RequirementID`: Behavior or test-plan identifier.
-- `Suite`: `e2e`, `integration`, or `optional-*`.
+- `Suite`: `e2e-blackbox`, `system-harness`, `integration`, or `optional-*`.
 - `PlannedTestFile`: Canonical target test file.
 - `OwnerTask`: Task doc that owns implementation.
 - `Status`: `planned | implemented | passing`.
 - `FeatureGate`: `required` or named optional gate.
 
+Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the in-process harness and are classified as `system-harness`.
+
 ## E2E Behavior Coverage (`B-*`, `GS-*`)
+
+### Black-box parity gates
+
+| RequirementID | Suite | PlannedTestFile | OwnerTask | Status | FeatureGate |
+|---|---|---|---|---|---|
+| Parity-001-ProdPersistentServer | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/server-smoke.spec.ts | T19 | implemented | required |
+| Parity-004-OutcomeEquivalence | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/workflow-parity.spec.ts | T19 | implemented | required |
+| B-CLI-001..004-BlackBoxMode | e2e-blackbox | apps/workflow-cli/test/e2e/cli-behaviors.spec.ts | T19 | implemented | required |
 
 | RequirementID | Suite | PlannedTestFile | OwnerTask | Status | FeatureGate |
 |---|---|---|---|---|---|

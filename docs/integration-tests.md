@@ -2,6 +2,19 @@
 
 This document defines **integration tests for behaviors that should not rely solely on end-to-end black-box tests**.
 
+## Classification and Parity Policy
+
+- `system` (harness): in-process suites using `test/harness/create-harness.ts` for deterministic controls and fault injection.
+- `e2e-blackbox`: suites that call a separately launched production server process over network HTTP only.
+- Harness/system coverage is required for deterministic depth, but it is not a substitute for required black-box production parity gates.
+
+### Required Commands
+
+- Launch production server: `pnpm --filter @composable-workflow/workflow-server start`
+- Workflow-server black-box suite: `pnpm --filter @composable-workflow/workflow-server test:e2e:blackbox`
+- Workflow-CLI black-box suite: `pnpm --filter @composable-workflow/workflow-cli test:e2e:blackbox`
+- Harness/system suite: `pnpm --filter @composable-workflow/workflow-server test:system`
+
 Use this alongside:
 - `docs/typescript-server-workflow-spec.md`
 - `docs/behaviors.md`

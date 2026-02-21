@@ -226,11 +226,13 @@ export const launchChild = async (params: {
     runId: params.parentRun.runId,
     eventType: 'child.started',
     timestamp: params.deps.now().toISOString(),
-    payload: toChildLifecyclePayload(
-      childRun.runId,
-      childRun.workflowType,
-      childRun.lifecycle as WorkflowLifecycle,
-    ),
+    payload: {
+      ...toChildLifecyclePayload(
+        childRun.runId,
+        childRun.workflowType,
+        childRun.lifecycle as WorkflowLifecycle,
+      ),
+    },
   });
 
   await params.client.query(

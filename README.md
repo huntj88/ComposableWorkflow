@@ -59,6 +59,9 @@ Run loader startup diagnostics:
 
 ```bash
 pnpm --filter @composable-workflow/workflow-server start:test
+
+# production-style long-lived server
+pnpm --filter @composable-workflow/workflow-server start
 ```
 
 Expected startup diagnostic log events include:

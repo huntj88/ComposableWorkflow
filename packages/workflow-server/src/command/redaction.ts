@@ -9,7 +9,7 @@ export const redactPayloadFields = <T extends Record<string, unknown>>(params: {
   payload: T;
   redactFields: string[];
 }): RedactionResult<T> => {
-  const nextValue = { ...params.payload };
+  const nextValue = { ...params.payload } as Record<string, unknown>;
   const redactedFields: string[] = [];
 
   for (const field of params.redactFields) {
@@ -22,7 +22,7 @@ export const redactPayloadFields = <T extends Record<string, unknown>>(params: {
   }
 
   return {
-    value: nextValue,
+    value: nextValue as T,
     redactedFields,
   };
 };

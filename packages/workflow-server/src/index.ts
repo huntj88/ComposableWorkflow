@@ -51,11 +51,3 @@ export * from './read-models/run-tree-projection.js';
 import { runMigrationsOnStartup } from './persistence/migrate.js';
 import { loadServerConfigFromEnv } from './config.js';
 import { loadWorkflowPackages } from './loader/load-packages.js';
-import { fileURLToPath } from 'node:url';
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  initializePackageRegistry().catch((error) => {
-    console.error('Failed to initialize workflow package registry', error);
-    process.exitCode = 1;
-  });
-}

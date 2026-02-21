@@ -90,7 +90,7 @@ export const createApiServer = async (deps: ApiServerDependencies): Promise<Fast
       return;
     }
 
-    if ('validation' in error) {
+    if (error && typeof error === 'object' && 'validation' in error) {
       void reply.code(400).send(
         errorEnvelopeSchema.parse(
           toErrorEnvelope({
@@ -110,7 +110,7 @@ export const createApiServer = async (deps: ApiServerDependencies): Promise<Fast
       errorEnvelopeSchema.parse(
         toErrorEnvelope({
           code: 'INTERNAL_ERROR',
-          message: error.message || 'Internal server error',
+          message: error instanceof Error ? error.message : 'Internal server error',
           requestId: request.id,
         }),
       ),

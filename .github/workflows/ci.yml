@@ -185,7 +185,7 @@ jobs:
           if-no-files-found: warn
 
   e2e:
-    name: e2e
+    name: e2e-blackbox
     runs-on: ubuntu-latest
     timeout-minutes: 35
     needs:
@@ -227,10 +227,45 @@ jobs:
       - name: Prepare artifacts directory
         run: mkdir -p .artifacts/e2e/{timeline,telemetry,faults}
 
-      - name: Run e2e suites
+      - name: Run harness system suites
         run: |
           set -eo pipefail
-          { pnpm --filter workflow-server test:e2e && pnpm --filter workflow-cli test:e2e; } 2>&1 | tee .artifacts/e2e/console.log
+          pnpm --filter workflow-server test:system 2>&1 | tee .artifacts/e2e/console.log
+
+      - name: Launch production server
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-server start > .artifacts/e2e/workflow-server.log 2>&1 &
+          echo $! > .artifacts/e2e/workflow-server.pid
+
+      - name: Wait for server readiness
+        run: |
+          set -eo pipefail
+          for attempt in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:3000/api/v1/workflows/definitions/reference.success.v1" >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "workflow-server did not become ready in time" >&2
+          exit 1
+
+      - name: Run black-box e2e suites
+        run: |
+          set -eo pipefail
+          {
+            pnpm --filter @composable-workflow/workflow-server test:e2e:blackbox
+            pnpm --filter @composable-workflow/workflow-cli test:e2e:blackbox
+          } 2>&1 | tee -a .artifacts/e2e/console.log
+
+      - name: Stop production server
+        if: always()
+        run: |
+          set -eo pipefail
+          if [ -f .artifacts/e2e/workflow-server.pid ]; then
+            kill -TERM "$(cat .artifacts/e2e/workflow-server.pid)" || true
+            sleep 2
+          fi
 
       - name: Collect e2e diagnostics snapshots
         if: always()

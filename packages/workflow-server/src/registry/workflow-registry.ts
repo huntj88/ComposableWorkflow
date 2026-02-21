@@ -9,6 +9,7 @@ export interface WorkflowRegistration {
     displayName?: string;
     tags?: string[];
     description?: string;
+    childLaunchAnnotations?: Record<string, unknown>[];
   };
   packageName: string;
   packageVersion: string;

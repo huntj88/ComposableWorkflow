@@ -12,8 +12,11 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src test",
     "test": "vitest run --passWithNoTests",
-    "test:e2e": "vitest run test/e2e/**/*.spec.ts --passWithNoTests",
-    "start:test": "tsx src/index.ts",
+    "test:system": "vitest run test/e2e/**/*.spec.ts --passWithNoTests",
+    "test:e2e": "pnpm test:e2e:blackbox",
+    "test:e2e:blackbox": "WORKFLOW_BLACKBOX_REQUIRED=true vitest run test/e2e-blackbox --passWithNoTests",
+    "start": "tsx src/main.ts",
+    "start:test": "pnpm start",
     "migrate:up": "tsx src/persistence/migrate.ts up",
     "migrate:down": "tsx src/persistence/migrate.ts down",
     "clean": "rm -rf dist"

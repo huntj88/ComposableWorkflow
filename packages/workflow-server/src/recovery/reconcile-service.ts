@@ -112,7 +112,7 @@ LIMIT 1
                 [run.run_id],
               );
 
-              if (recoveredAlready.rowCount > 0) {
+              if ((recoveredAlready.rowCount ?? 0) > 0) {
                 return false;
               }
             }

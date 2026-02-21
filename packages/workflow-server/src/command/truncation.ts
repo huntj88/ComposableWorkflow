@@ -23,7 +23,7 @@ export const truncateCommandPayload = <T extends Record<string, unknown>>(params
   fields?: string[];
 }): TruncationResult<T> => {
   const fields = params.fields ?? ['stdin', 'stdout', 'stderr'];
-  const nextValue = { ...params.payload };
+  const nextValue = { ...params.payload } as Record<string, unknown>;
   let truncated = false;
 
   for (const field of fields) {
@@ -38,7 +38,7 @@ export const truncateCommandPayload = <T extends Record<string, unknown>>(params
   }
 
   return {
-    value: nextValue,
+    value: nextValue as T,
     truncated,
   };
 };
