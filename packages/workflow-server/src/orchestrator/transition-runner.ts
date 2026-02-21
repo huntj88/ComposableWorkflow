@@ -1,8 +1,16 @@
 import type { DbClient } from '../persistence/db.js';
 import type { EventRepository } from '../persistence/event-repository.js';
-import { shouldBlockChildLaunch, type WorkflowLifecycle } from '../lifecycle/lifecycle-machine.js';
+import type { WorkflowLifecycle } from '../lifecycle/lifecycle-machine.js';
+import type { IdempotencyRepository } from '../persistence/idempotency-repository.js';
 import type { RunRepository, RunSummary } from '../persistence/run-repository.js';
 import type { WorkflowRegistration, WorkflowRegistry } from '../registry/workflow-registry.js';
+import { awaitChild } from './child/await-child.js';
+import {
+  assertChildLaunchAllowed,
+  toChildLaunchRequest,
+  toChildLifecyclePayload,
+} from './child/child-lineage.js';
+import { launchChild } from './child/launch-child.js';
 
 interface WorkflowTransitionDescriptor {
   from: string;
@@ -74,8 +82,11 @@ export interface TransitionRunnerDependencies {
   registry: WorkflowRegistry;
   runRepository: RunRepository;
   eventRepository: EventRepository;
+  idempotencyRepository: IdempotencyRepository;
   now?: () => Date;
   eventIdFactory: () => string;
+  runIdFactory?: () => string;
+  maxChildIterations?: number;
 }
 
 export interface TransitionStepResult {
@@ -188,6 +199,8 @@ const resolveTransitionName = (
 ): string | undefined => descriptors?.find((item) => item.from === from && item.to === to)?.name;
 
 const createExecutionContext = (
+  client: DbClient,
+  deps: TransitionRunnerDependencies,
   run: RunSummary,
   input: unknown,
 ): {
@@ -225,11 +238,73 @@ const createExecutionContext = (
         data,
       };
     },
-    launchChild: async () => {
-      if (shouldBlockChildLaunch(run.lifecycle as WorkflowLifecycle)) {
-        throw new Error(`Child launch blocked in lifecycle ${run.lifecycle}`);
+    launchChild: async (request) => {
+      const now = deps.now ?? (() => new Date());
+      const parsedRequest = toChildLaunchRequest(request);
+      assertChildLaunchAllowed(run.lifecycle as WorkflowLifecycle);
+
+      const { childRun } = await launchChild({
+        client,
+        deps: {
+          registry: deps.registry,
+          runRepository: deps.runRepository,
+          eventRepository: deps.eventRepository,
+          idempotencyRepository: deps.idempotencyRepository,
+          now,
+          eventIdFactory: deps.eventIdFactory,
+          runIdFactory: deps.runIdFactory,
+        },
+        parentRun: run,
+        request: parsedRequest,
+      });
+
+      try {
+        const awaited = await awaitChild({
+          client,
+          deps: {
+            getRunSummary: deps.runRepository.getRunSummary,
+            runStep: async (childRun) =>
+              runTransitionStep({
+                client,
+                deps,
+                run: childRun,
+              }),
+            maxIterations: deps.maxChildIterations,
+          },
+          childRunId: childRun.runId,
+        });
+
+        await deps.eventRepository.appendEvent(client, {
+          eventId: deps.eventIdFactory(),
+          runId: run.runId,
+          eventType: 'child.completed',
+          timestamp: now().toISOString(),
+          payload: toChildLifecyclePayload(
+            awaited.childRun.runId,
+            awaited.childRun.workflowType,
+            awaited.childRun.lifecycle as WorkflowLifecycle,
+          ),
+        });
+
+        return awaited.output;
+      } catch (error) {
+        const latestChild = await deps.runRepository.getRunSummary(client, childRun.runId);
+        const childLifecycle = latestChild?.lifecycle ?? 'failed';
+
+        await deps.eventRepository.appendEvent(client, {
+          eventId: deps.eventIdFactory(),
+          runId: run.runId,
+          eventType: 'child.failed',
+          timestamp: now().toISOString(),
+          payload: toChildLifecyclePayload(
+            childRun.runId,
+            childRun.workflowType,
+            childLifecycle as WorkflowLifecycle,
+          ),
+        });
+
+        throw error;
       }
-      throw new Error('launchChild is not implemented in the orchestrator MVP');
     },
     runCommand: async (): Promise<unknown> => {
       throw new Error('runCommand is not implemented in the orchestrator MVP');
@@ -359,7 +434,7 @@ export const runTransitionStep = async (params: {
 
   const registration = getRegistration(params.deps.registry, params.run.workflowType);
   const { context, readCompletionIntent, readFailureIntent, readTransitionIntent } =
-    createExecutionContext(params.run, params.input);
+    createExecutionContext(params.client, params.deps, params.run, params.input);
 
   const definition = registration.factory(context) as RuntimeWorkflowDefinition<unknown, unknown>;
   const handler = definition.states[params.run.currentState];

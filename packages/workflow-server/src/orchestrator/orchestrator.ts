@@ -50,6 +50,7 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
   const lockTtlMs = deps.lockTtlMs ?? 30_000;
   const maxIterations = deps.maxIterations ?? 256;
   const now = deps.now ?? (() => new Date());
+  const runIdFactory = deps.runIdFactory ?? defaultRunIdFactory;
   const eventIdFactory = deps.eventIdFactory ?? defaultEventIdFactory;
 
   return {
@@ -62,7 +63,7 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
           eventRepository,
           idempotencyRepository,
           now,
-          runIdFactory: deps.runIdFactory ?? defaultRunIdFactory,
+          runIdFactory,
           eventIdFactory,
         },
         request,
@@ -89,7 +90,9 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
                 registry: deps.registry,
                 runRepository,
                 eventRepository,
+                idempotencyRepository,
                 eventIdFactory,
+                runIdFactory,
                 now,
               },
               run,

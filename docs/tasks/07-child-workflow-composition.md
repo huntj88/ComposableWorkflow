@@ -7,16 +7,16 @@
 Implement parent/child launch, linkage persistence, await semantics, failure propagation defaults, and tree visibility.
 
 ## Implementation Tasks
-- [ ] Implement `launchChild` orchestration path:
+- [x] Implement `launchChild` orchestration path:
   - child run creation linked with `parentRunId`
   - parent wait/resume mechanics
-- [ ] Emit child lifecycle events (`child.started|completed|failed`) with linkage fields.
-- [ ] Implement default child failure propagation to parent.
-- [ ] Persist parent-child relation materialization (event + required `workflow_run_children` table).
-- [ ] Enforce no new child launch during restricted lifecycles (`pausing|paused|resuming|cancelling|recovering`).
-- [ ] Ensure run tree endpoint includes recursive descendants and depth filtering.
-- [ ] Add unit tests for child lifecycle restriction guards and lineage projection utilities.
-- [ ] Integration tests for launch, await result, failure propagation, and tree consistency.
+- [x] Emit child lifecycle events (`child.started|completed|failed`) with linkage fields.
+- [x] Implement default child failure propagation to parent.
+- [x] Persist parent-child relation materialization (event + required `workflow_run_children` table).
+- [x] Enforce no new child launch during restricted lifecycles (`pausing|paused|resuming|cancelling|recovering`).
+- [x] Ensure run tree endpoint includes recursive descendants and depth filtering.
+- [x] Add unit tests for child lifecycle restriction guards and lineage projection utilities.
+- [x] Integration tests for launch, await result, failure propagation, and tree consistency.
 
 ## Required Artifacts
 - `packages/workflow-server/src/orchestrator/child/*`

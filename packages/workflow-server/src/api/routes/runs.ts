@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 
 import {
   buildDynamicOverlay,
+  filterRunTreeByDepth,
   projectRunTree,
   type RunChildLinkRecord,
   type RunTreeNodeRecord,
@@ -323,7 +324,8 @@ export const registerRunRoutes = async (
         includeCompletedChildren: query.includeCompletedChildren,
       });
 
-      const root = projectRunTree(runId, nodes, links);
+      const projectedRoot = projectRunTree(runId, nodes, links);
+      const root = filterRunTreeByDepth(projectedRoot, query.depth);
 
       const eventsResult = await deps.pool.query<{
         sequence: number;

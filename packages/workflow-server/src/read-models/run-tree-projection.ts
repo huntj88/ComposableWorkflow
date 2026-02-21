@@ -42,6 +42,19 @@ export interface RunTreeNode {
   children: RunTreeNode[];
 }
 
+export const filterRunTreeByDepth = (root: RunTreeNode, maxDepth?: number): RunTreeNode => {
+  if (maxDepth === undefined) {
+    return root;
+  }
+
+  const cloneAtDepth = (node: RunTreeNode, depth: number): RunTreeNode => ({
+    ...node,
+    children: depth >= maxDepth ? [] : node.children.map((child) => cloneAtDepth(child, depth + 1)),
+  });
+
+  return cloneAtDepth(root, 0);
+};
+
 export interface DynamicOverlay {
   runId: string;
   activeNode: string;
