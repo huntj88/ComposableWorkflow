@@ -32,6 +32,7 @@ This folder contains the end-to-end implementation plan for:
 - `T15` -> `T06`, `T08`, `T09`, `T13`
 - `T16` -> `T06`, `T07`, `T08`, `T11`, `T12`
 - `T17` -> `T10`, `T14`, `T15`, `T16`
+- `T18` -> `T17`
 
 ## Task Index
 
@@ -53,6 +54,7 @@ This folder contains the end-to-end implementation plan for:
 - `T15` [15-integration-suite-lifecycle-command-observability.md](./15-integration-suite-lifecycle-command-observability.md)
 - `T16` [16-e2e-suite-golden-scenarios.md](./16-e2e-suite-golden-scenarios.md)
 - `T17` [17-ci-quality-gates.md](./17-ci-quality-gates.md)
+- `T18` [18-spec-drift-corrections.md](./18-spec-drift-corrections.md)
 
 ## Phase Alignment (Spec Section 15)
 
@@ -60,8 +62,9 @@ This folder contains the end-to-end implementation plan for:
 |---|---|---|
 | Phase 1 (MVP core) | `T00`-`T09`, `T12` | Core runtime/server APIs, required persistence model, child composition, command policy, and baseline observability. |
 | Phase 2 (operator UX) | `T10`, `T11` | Live SSE stream and initial user-facing CLI commands. |
+| Phase 3 (drift remediation) | `T18` | Post-delivery spec-to-implementation drift correction and contract alignment across runtime, API, observability, and CLI surfaces. |
+| Phase 4 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
 | Cross-phase verification/gates | `T13`-`T17` | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
-| Phase 3 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
 
 ## Coverage Expectations
 
