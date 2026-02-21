@@ -1,0 +1,9 @@
+dist
+node_modules
+.pnpm-store
+docs
+AGENTS.md
+pnpm-lock.yaml
+packages/**/test/**/*.js
+packages/**/test/**/*.d.ts
+packages/**/test/**/*.d.ts.map

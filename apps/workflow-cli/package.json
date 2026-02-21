@@ -1,0 +1,20 @@
+{
+  "name": "@composable-workflow/workflow-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "workflow-cli": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  }
+}

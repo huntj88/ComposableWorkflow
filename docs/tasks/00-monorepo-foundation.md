@@ -7,25 +7,25 @@
 Create the baseline workspace, package boundaries, toolchain, and local runtime prerequisites so all downstream tasks can be implemented without restructuring.
 
 ## Implementation Tasks
-- [ ] Create folder layout:
+- [x] Create folder layout:
   - `packages/workflow-lib`
   - `packages/workflow-server`
   - `packages/workflow-package-reference`
   - `apps/workflow-cli`
   - `packages/*/src`, `packages/*/test`
-- [ ] Configure workspace package manager (`pnpm-workspace.yaml`) and root scripts.
-- [ ] Add root TypeScript configs:
+- [x] Configure workspace package manager (`pnpm-workspace.yaml`) and root scripts.
+- [x] Add root TypeScript configs:
   - base `tsconfig.base.json`
   - per-package `tsconfig.json`
-- [ ] Add lint/format/test conventions and shared scripts.
-- [ ] Configure workspace quality tooling:
+- [x] Add lint/format/test conventions and shared scripts.
+- [x] Configure workspace quality tooling:
   - ESLint + Prettier root configuration
   - Husky pre-commit hook that runs `pnpm lint`, `pnpm test`, and `pnpm format:check`
   - pre-commit bypass is disallowed by repository policy
-- [ ] Add local Postgres bootstrap:
+- [x] Add local Postgres bootstrap:
   - `docker-compose.yml` with Postgres 16
   - `.env.example` including `DATABASE_URL`
-- [ ] Add deterministic dev bootstrap docs (`README.md`) with one-command setup.
+- [x] Add deterministic dev bootstrap docs (`README.md`) with one-command setup.
 
 ## Required Artifacts
 - Root workspace configs and scripts.
