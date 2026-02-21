@@ -7,25 +7,25 @@
 Build integration harness infrastructure required to deterministically test race conditions, crash windows, and instrumentation contracts.
 
 ## Implementation Tasks
-- [ ] Implement in-process server+engine harness with dependency injection overrides.
-- [ ] Add swappable adapters for:
+- [x] Implement in-process server+engine harness with dependency injection overrides.
+- [x] Add swappable adapters for:
   - persistence
   - lock provider
   - command runner
   - instrumentation sink
   - clock/time source
   - id/sequence allocator
-- [ ] Add deterministic controls:
+- [x] Add deterministic controls:
   - fake clock
   - barriers/latches
   - fault injection points around orchestration and persistence boundaries
-- [ ] Add capture sink for events/logs/metrics/traces with query helpers.
-- [ ] Add Postgres testcontainer setup and lifecycle management.
-- [ ] Add baseline diagnostics capture on failure:
+- [x] Add capture sink for events/logs/metrics/traces with query helpers.
+- [x] Add Postgres testcontainer setup and lifecycle management.
+- [x] Add baseline diagnostics capture on failure:
   - lifecycle timeline
   - event stream
   - injected fault points
-- [ ] Add unit tests for harness utilities (`fake-clock`, `barrier`, `fault-injector`, capture helpers).
+- [x] Add unit tests for harness utilities (`fake-clock`, `barrier`, `fault-injector`, capture helpers).
 
 ## Required Artifacts
 - `packages/workflow-server/test/harness/*`
