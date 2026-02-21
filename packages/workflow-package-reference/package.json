@@ -3,11 +3,25 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/manifest.js",
+  "types": "dist/manifest.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/manifest.d.ts",
+      "default": "./dist/manifest.js"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "default": "./dist/manifest.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "fixtures"
   ],
+  "dependencies": {
+    "@composable-workflow/workflow-lib": "workspace:*"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src test",

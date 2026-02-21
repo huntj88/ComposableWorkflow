@@ -1,0 +1,10 @@
+{
+  "idempotencyKey": "reference-success-2026-01",
+  "workflowType": "reference.success.v1",
+  "request": {
+    "requestId": "ref-success-001",
+    "customerId": "customer-123",
+    "amountCents": 4250,
+    "currency": "USD"
+  }
+}

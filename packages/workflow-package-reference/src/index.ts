@@ -1,1 +1,2 @@
-export const referenceWorkflowPackageName = 'reference-workflow';
+export { default } from './manifest.js';
+export * from './manifest.js';

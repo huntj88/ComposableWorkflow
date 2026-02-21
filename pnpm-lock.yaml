@@ -47,7 +47,11 @@ importers:
 
   packages/workflow-lib: {}
 
-  packages/workflow-package-reference: {}
+  packages/workflow-package-reference:
+    dependencies:
+      '@composable-workflow/workflow-lib':
+        specifier: workspace:*
+        version: link:../workflow-lib
 
   packages/workflow-server:
     dependencies:

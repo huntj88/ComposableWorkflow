@@ -7,16 +7,16 @@
 Create workflow packages used by integration and E2E suites to validate behavior families with deterministic outcomes.
 
 ## Implementation Tasks
-- [ ] Implement at least one package exposing:
+- [x] Implement at least one package exposing:
   - simple success workflow
   - deterministic failure workflow
   - parent workflow that launches child
   - workflow step invoking `ctx.runCommand(...)`
   - deterministic long-running workflow with safe-point checkpoints for pause/resume/recovery tests
-- [ ] Add metadata-rich definitions (states, transitions, display fields) for graph endpoint assertions.
-- [ ] Include deterministic inputs for idempotency and race tests.
-- [ ] Add unit tests for reference workflow transition maps and deterministic progression helpers.
-- [ ] Add package-level tests for expected progression paths.
+- [x] Add metadata-rich definitions (states, transitions, display fields) for graph endpoint assertions.
+- [x] Include deterministic inputs for idempotency and race tests.
+- [x] Add unit tests for reference workflow transition maps and deterministic progression helpers.
+- [x] Add package-level tests for expected progression paths.
 
 ## Required Artifacts
 - `packages/workflow-package-reference/src/*`

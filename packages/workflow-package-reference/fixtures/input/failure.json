@@ -1,0 +1,8 @@
+{
+  "idempotencyKey": "reference-failure-2026-01",
+  "workflowType": "reference.failure.v1",
+  "request": {
+    "requestId": "ref-failure-001",
+    "failureCode": "DECLINED"
+  }
+}
