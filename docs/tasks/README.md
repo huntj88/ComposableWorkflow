@@ -7,7 +7,7 @@ This folder contains the end-to-end implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute task documents in numeric order (`T00` -> `T17`).
+1. Execute task documents in numeric order (`T00` -> `T19`).
 2. Do not start a task until all `Depends On` items are complete.
 3. If a task is split across PRs, keep all acceptance criteria in the same task document.
 4. Treat optional scopes as gated and explicitly documented.
@@ -33,6 +33,7 @@ This folder contains the end-to-end implementation plan for:
 - `T16` -> `T06`, `T07`, `T08`, `T11`, `T12`
 - `T17` -> `T10`, `T14`, `T15`, `T16`
 - `T18` -> `T17`
+- `T19` -> `T18`
 
 ## Task Index
 
@@ -55,6 +56,7 @@ This folder contains the end-to-end implementation plan for:
 - `T16` [16-e2e-suite-golden-scenarios.md](./16-e2e-suite-golden-scenarios.md)
 - `T17` [17-ci-quality-gates.md](./17-ci-quality-gates.md)
 - `T18` [18-spec-drift-corrections.md](./18-spec-drift-corrections.md)
+- `T19` [19-production-server-parity-e2e.md](./19-production-server-parity-e2e.md)
 
 ## Phase Alignment (Spec Section 15)
 
@@ -63,7 +65,8 @@ This folder contains the end-to-end implementation plan for:
 | Phase 1 (MVP core) | `T00`-`T09`, `T12` | Core runtime/server APIs, required persistence model, child composition, command policy, and baseline observability. |
 | Phase 2 (operator UX) | `T10`, `T11` | Live SSE stream and initial user-facing CLI commands. |
 | Phase 3 (drift remediation) | `T18` | Post-delivery spec-to-implementation drift correction and contract alignment across runtime, API, observability, and CLI surfaces. |
-| Phase 4 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
+| Phase 4 (prod parity hardening) | `T19` | Introduce persistent production launcher and enforce black-box E2E parity guarantees with shared composition root. |
+| Phase 5 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
 | Cross-phase verification/gates | `T13`-`T17` | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
 
 ## Coverage Expectations
