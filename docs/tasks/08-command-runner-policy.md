@@ -21,7 +21,7 @@ Implement controlled command execution from workflow steps with policy enforceme
   - `startedAt`, `completedAt`, `durationMs`
 - [x] Implement non-zero handling semantics using `allowNonZeroExit`.
 - [x] Implement truncation/redaction with deterministic markers (`truncated`, `redactedFields`).
-- [ ] Emit command lifecycle events and linked logs.
+- [x] Emit command lifecycle events and linked logs.
 - [x] Add unit tests for command policy evaluation, redaction/truncation helpers, and non-zero outcome mapping.
 - [x] Integration tests for policy matrix, truncation/redaction, timeout, non-zero permutations.
 

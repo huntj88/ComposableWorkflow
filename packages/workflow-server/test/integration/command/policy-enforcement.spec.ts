@@ -98,9 +98,13 @@ describe('command policy enforcement', () => {
     expect(commandRunner.run).not.toHaveBeenCalled();
     expect(appendedEvents.map((event) => event.eventType)).toEqual([
       'command.failed',
+      'log',
       'transition.failed',
       'workflow.failed',
     ]);
+    const linkedLog = appendedEvents.find((event) => event.eventType === 'log');
+    expect(linkedLog?.payload?.linkedEventType).toBe('command.failed');
+    expect(linkedLog?.payload?.linkedEventId).toBe('evt_1');
     expect(result.terminal).toBe(true);
     expect(result.run.lifecycle).toBe('failed');
   });

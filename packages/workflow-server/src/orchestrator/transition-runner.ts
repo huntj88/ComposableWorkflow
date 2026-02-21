@@ -109,6 +109,8 @@ interface CommandEventPayload {
   timeout?: boolean;
 }
 
+type CommandLifecycleEventType = 'command.started' | 'command.completed' | 'command.failed';
+
 export interface TransitionRunnerDependencies {
   registry: WorkflowRegistry;
   runRepository: RunRepository;
@@ -351,6 +353,54 @@ const createExecutionContext = (
     };
   };
 
+  const appendCommandEventWithLinkedLog = async (params: {
+    eventType: CommandLifecycleEventType;
+    payload: CommandEventPayload;
+    error?: Record<string, unknown>;
+  }): Promise<void> => {
+    const timestamp = now().toISOString();
+    const commandEvent = await deps.eventRepository.appendEvent(client, {
+      eventId: deps.eventIdFactory(),
+      runId: run.runId,
+      eventType: params.eventType,
+      timestamp,
+      payload: params.payload,
+      error: params.error,
+    });
+
+    const severity = params.eventType === 'command.failed' ? 'error' : 'info';
+    const message =
+      params.eventType === 'command.started'
+        ? 'Workflow command started'
+        : params.eventType === 'command.completed'
+          ? 'Workflow command completed'
+          : 'Workflow command failed';
+
+    await deps.eventRepository.appendEvent(client, {
+      eventId: deps.eventIdFactory(),
+      runId: run.runId,
+      eventType: 'log',
+      timestamp,
+      payload: {
+        severity,
+        message,
+        linkedEventId: commandEvent.eventId,
+        linkedEventType: commandEvent.eventType,
+        linkedSequence: commandEvent.sequence,
+        command: params.payload.command,
+        args: params.payload.args,
+        stdin: params.payload.stdin,
+        stdout: params.payload.stdout,
+        stderr: params.payload.stderr,
+        exitCode: params.payload.exitCode,
+        durationMs: params.payload.durationMs,
+        timeoutMs: params.payload.timeoutMs,
+        truncated: params.payload.truncated,
+        redactedFields: params.payload.redactedFields,
+      },
+    });
+  };
+
   const context: RuntimeWorkflowContext<unknown, unknown> = {
     runId: run.runId,
     workflowType: run.workflowType,
@@ -462,11 +512,8 @@ const createExecutionContext = (
             timeoutMs: parsedRequest.timeoutMs,
           });
 
-          await deps.eventRepository.appendEvent(client, {
-            eventId: deps.eventIdFactory(),
-            runId: run.runId,
+          await appendCommandEventWithLinkedLog({
             eventType: 'command.failed',
-            timestamp: now().toISOString(),
             payload: failurePayload.payload,
             error: {
               name: error.name,
@@ -492,11 +539,8 @@ const createExecutionContext = (
         timeoutMs: normalizedRequest.timeoutMs,
       });
 
-      await deps.eventRepository.appendEvent(client, {
-        eventId: deps.eventIdFactory(),
-        runId: run.runId,
+      await appendCommandEventWithLinkedLog({
         eventType: 'command.started',
-        timestamp: now().toISOString(),
         payload: startedPayload.payload,
       });
 
@@ -521,11 +565,8 @@ const createExecutionContext = (
       });
 
       if (commandResult.timedOut) {
-        await deps.eventRepository.appendEvent(client, {
-          eventId: deps.eventIdFactory(),
-          runId: run.runId,
+        await appendCommandEventWithLinkedLog({
           eventType: 'command.failed',
-          timestamp: now().toISOString(),
           payload: {
             ...finalizedPayload.payload,
             timeout: true,
@@ -540,11 +581,8 @@ const createExecutionContext = (
       }
 
       if (outcome === 'command.failed') {
-        await deps.eventRepository.appendEvent(client, {
-          eventId: deps.eventIdFactory(),
-          runId: run.runId,
+        await appendCommandEventWithLinkedLog({
           eventType: 'command.failed',
-          timestamp: now().toISOString(),
           payload: finalizedPayload.payload,
           error: {
             name: 'CommandExitCodeError',
@@ -555,11 +593,8 @@ const createExecutionContext = (
         throw new Error(`Command exited with code ${commandResult.exitCode}`);
       }
 
-      await deps.eventRepository.appendEvent(client, {
-        eventId: deps.eventIdFactory(),
-        runId: run.runId,
+      await appendCommandEventWithLinkedLog({
         eventType: 'command.completed',
-        timestamp: now().toISOString(),
         payload: finalizedPayload.payload,
       });
 
