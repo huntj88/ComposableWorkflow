@@ -78,10 +78,30 @@ const wrapEventRepositoryWithFaults = (
   fault: FaultInjector,
 ): EventRepository => ({
   appendEvent: async (client, input) => {
+    await fault.checkpoint('before_event_append');
     await fault.checkpoint('persistence.before.appendEvent');
     const result = await base.appendEvent(client, input);
+    await fault.checkpoint('after_event_append_before_ack');
     await fault.checkpoint('persistence.after.appendEvent');
     return result;
+  },
+});
+
+const wrapLockProviderWithFaults = (base: LockProvider, fault: FaultInjector): LockProvider => ({
+  acquire: async (runId, ownerId, ttlMs) => {
+    await fault.checkpoint('before_lock_acquire');
+    const acquired = await base.acquire(runId, ownerId, ttlMs);
+    if (acquired) {
+      await fault.checkpoint('after_lock_acquire');
+    }
+
+    return acquired;
+  },
+  renew: async (runId, ownerId, ttlMs) => {
+    await base.renew(runId, ownerId, ttlMs);
+  },
+  release: async (runId, ownerId) => {
+    await base.release(runId, ownerId);
   },
 });
 
@@ -242,7 +262,10 @@ export const createIntegrationHarness = async (
     instrumentation,
   });
 
-  const lockProvider = options.adapters?.lockProvider ?? new InMemoryLockProvider();
+  const lockProvider = wrapLockProviderWithFaults(
+    options.adapters?.lockProvider ?? new InMemoryLockProvider(),
+    faultInjector,
+  );
   const commandRunner = options.adapters?.commandRunner ?? createSpawnCommandRunnerAdapter();
 
   const orchestratorBase = createOrchestrator({

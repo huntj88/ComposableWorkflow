@@ -1,6 +1,45 @@
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { runMigrations } from '../../src/persistence/migrate.js';
+
+const RETRYABLE_PG_CODES = new Set(['57P03']);
+
+const isRetryableStartupError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const withCode = error as { code?: unknown; message?: unknown };
+  if (typeof withCode.code === 'string' && RETRYABLE_PG_CODES.has(withCode.code)) {
+    return true;
+  }
+
+  return (
+    typeof withCode.message === 'string' &&
+    withCode.message.toLowerCase().includes('database system is starting up')
+  );
+};
+
+const runMigrationsWithRetry = async (databaseUrl: string): Promise<void> => {
+  const maxAttempts = 20;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await runMigrations({
+        databaseUrl,
+        direction: 'up',
+      });
+      return;
+    } catch (error) {
+      if (!isRetryableStartupError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+
+      await delay(250);
+    }
+  }
+};
 
 export interface PostgresTestContainerOptions {
   image?: string;
@@ -35,10 +74,7 @@ export const createPostgresTestContainer = async (
   const connectionString = `postgresql://${username}:${password}@${container.getHost()}:${container.getMappedPort(5432)}/${database}`;
 
   if (options.migrate ?? true) {
-    await runMigrations({
-      databaseUrl: connectionString,
-      direction: 'up',
-    });
+    await runMigrationsWithRetry(connectionString);
   }
 
   return {

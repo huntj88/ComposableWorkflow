@@ -7,8 +7,8 @@
 Implement integration-primary tests focused on transactional correctness and concurrency races.
 
 ## Implementation Tasks
-- [ ] Add test files using naming convention `itx.<domain>.<behavior-id>.spec.ts`.
-- [ ] Implement test coverage for:
+- [x] Add test files using naming convention `itx.<domain>.<behavior-id>.spec.ts`.
+- [x] Implement test coverage for:
   - `ITX-001` event append atomicity around ack boundary
   - `ITX-002` per-run sequence monotonicity under concurrent writers
   - `ITX-003` single active runner lock per run
@@ -16,8 +16,8 @@ Implement integration-primary tests focused on transactional correctness and con
   - `ITX-016` cursor pagination stability under concurrent appends
   - `ITX-017` snapshot consistency (when snapshots enabled)
   - `ITX-018` child-linkage transactional/idempotent write semantics
-- [ ] Include fault injection checkpoints before/after DB append and lock acquisition.
-- [ ] Assert no duplicate logical progression on retry/restart paths.
+- [x] Include fault injection checkpoints before/after DB append and lock acquisition.
+- [x] Assert no duplicate logical progression on retry/restart paths.
 
 ## Required Artifacts
 - `packages/workflow-server/test/integration/itx.persistence.*`
