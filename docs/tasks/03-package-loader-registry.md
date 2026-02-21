@@ -7,16 +7,16 @@
 Implement runtime package discovery/loading, manifest validation, registry population, collision handling, and persisted metadata snapshots.
 
 ## Implementation Tasks
-- [ ] Implement source resolvers for configured package references (`path|pnpm|bundle`).
-- [ ] Validate manifest schema before registration.
-- [ ] Register workflows by `workflowType` with single active version semantics.
-- [ ] Add collision policy:
+- [x] Implement source resolvers for configured package references (`path|pnpm|bundle`).
+- [x] Validate manifest schema before registration.
+- [x] Register workflows by `workflowType` with single active version semantics.
+- [x] Add collision policy:
   - reject by default
   - explicit override mode for controlled environments
-- [ ] Persist definition metadata snapshot to `workflow_definitions`.
-- [ ] Add startup diagnostics logs for loaded/rejected packages.
-- [ ] Add unit tests for manifest validation, registry behavior, and collision policy decisions.
-- [ ] Integration tests for valid load, invalid schema, and collision handling.
+- [x] Persist definition metadata snapshot to `workflow_definitions`.
+- [x] Add startup diagnostics logs for loaded/rejected packages.
+- [x] Add unit tests for manifest validation, registry behavior, and collision policy decisions.
+- [x] Integration tests for valid load, invalid schema, and collision handling.
 
 ## Required Artifacts
 - `packages/workflow-server/src/loader/*`

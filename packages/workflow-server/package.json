@@ -12,12 +12,14 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src test",
     "test": "vitest run --passWithNoTests",
+    "start:test": "tsx src/index.ts",
     "migrate:up": "tsx src/persistence/migrate.ts up",
     "migrate:down": "tsx src/persistence/migrate.ts down",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "pg": "^8.13.3"
+    "pg": "^8.13.3",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/pg": "^8.11.11",
