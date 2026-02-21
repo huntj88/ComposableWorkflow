@@ -6,6 +6,7 @@ import { registerInspectGraphCommand } from './commands/inspect-graph.js';
 import { registerRunCommand } from './commands/run.js';
 import { registerRunsEventsCommand } from './commands/runs-events.js';
 import { registerRunsListCommand } from './commands/runs-list.js';
+import { registerRunsTreeCommand } from './commands/runs-tree.js';
 import {
   WorkflowApiError,
   createWorkflowApiClient,
@@ -57,6 +58,7 @@ export const createProgram = (deps: CliDependencies): Command => {
   registerRunCommand(program, deps);
   registerRunsListCommand(program, deps);
   registerRunsEventsCommand(program, deps);
+  registerRunsTreeCommand(program, deps);
   registerInspectGraphCommand(program, deps);
 
   return program;

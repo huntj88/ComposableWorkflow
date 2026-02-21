@@ -34,6 +34,32 @@ export const createDefaultTelemetrySinks = (): TelemetrySinks => ({
 });
 
 const toSeverity = (event: WorkflowEvent): WorkflowLogRecord['severity'] => {
+  if (event.eventType === 'log') {
+    const level =
+      typeof event.payload?.level === 'string'
+        ? event.payload.level
+        : typeof event.payload?.severity === 'string'
+          ? event.payload.severity
+          : 'info';
+    const normalized = level.toLowerCase();
+
+    if (normalized === 'warning') {
+      return 'warn';
+    }
+
+    if (normalized === 'trace' || normalized === 'debug' || normalized === 'info') {
+      return 'info';
+    }
+
+    if (normalized === 'warn') {
+      return 'warn';
+    }
+
+    if (normalized === 'error' || normalized === 'fatal') {
+      return 'error';
+    }
+  }
+
   if (event.eventType.endsWith('.failed') || event.eventType === 'workflow.failed') {
     return 'error';
   }
@@ -163,7 +189,247 @@ export const projectEventMetrics = (event: WorkflowEvent): WorkflowMetric[] => {
     });
   }
 
+  if (event.eventType === 'workflow.started') {
+    metrics.push({
+      name: 'workflow.run.count',
+      value: 1,
+      unit: '1',
+      tags: {
+        ...baseTags,
+        lifecycle: 'started',
+      },
+      timestamp: event.timestamp,
+    });
+    metrics.push({
+      name: 'workflow.run.active',
+      value: 1,
+      unit: '1',
+      tags: {
+        ...baseTags,
+        lifecycle: 'active',
+      },
+      timestamp: event.timestamp,
+    });
+  }
+
+  if (event.eventType === 'workflow.completed') {
+    metrics.push({
+      name: 'workflow.run.count',
+      value: 1,
+      unit: '1',
+      tags: {
+        ...baseTags,
+        lifecycle: 'completed',
+      },
+      timestamp: event.timestamp,
+    });
+    metrics.push({
+      name: 'workflow.run.active',
+      value: -1,
+      unit: '1',
+      tags: {
+        ...baseTags,
+        lifecycle: 'active',
+      },
+      timestamp: event.timestamp,
+    });
+  }
+
+  if (event.eventType === 'workflow.failed' || event.eventType === 'workflow.cancelled') {
+    metrics.push({
+      name: 'workflow.run.count',
+      value: 1,
+      unit: '1',
+      tags: {
+        ...baseTags,
+        lifecycle: event.eventType.replace('workflow.', ''),
+      },
+      timestamp: event.timestamp,
+    });
+    metrics.push({
+      name: 'workflow.run.active',
+      value: -1,
+      unit: '1',
+      tags: {
+        ...baseTags,
+        lifecycle: 'active',
+      },
+      timestamp: event.timestamp,
+    });
+  }
+
+  if (event.eventType === 'transition.requested') {
+    metrics.push({
+      name: 'workflow.transition.count',
+      value: 1,
+      unit: '1',
+      tags: baseTags,
+      timestamp: event.timestamp,
+    });
+  }
+
+  if (event.eventType === 'transition.failed') {
+    metrics.push({
+      name: 'workflow.transition.failure.count',
+      value: 1,
+      unit: '1',
+      tags: baseTags,
+      timestamp: event.timestamp,
+    });
+  }
+
+  if (event.eventType === 'command.started') {
+    metrics.push({
+      name: 'workflow.command.invocation.count',
+      value: 1,
+      unit: '1',
+      tags: baseTags,
+      timestamp: event.timestamp,
+    });
+  }
+
+  if (event.eventType === 'command.failed') {
+    metrics.push({
+      name: 'workflow.command.failure.count',
+      value: 1,
+      unit: '1',
+      tags: baseTags,
+      timestamp: event.timestamp,
+    });
+
+    if (event.payload?.timeout === true) {
+      metrics.push({
+        name: 'workflow.command.timeout.count',
+        value: 1,
+        unit: '1',
+        tags: baseTags,
+        timestamp: event.timestamp,
+      });
+    }
+  }
+
+  if (event.eventType === 'child.started') {
+    metrics.push({
+      name: 'workflow.child.launch.count',
+      value: 1,
+      unit: '1',
+      tags: baseTags,
+      timestamp: event.timestamp,
+    });
+  }
+
+  if (event.eventType === 'child.failed') {
+    metrics.push({
+      name: 'workflow.child.failure.count',
+      value: 1,
+      unit: '1',
+      tags: baseTags,
+      timestamp: event.timestamp,
+    });
+  }
+
   return metrics;
+};
+
+const createDerivedDurationMetricsProjector = () => {
+  const runStartedAtByRunId = new Map<string, number>();
+  const transitionStartedAtByRunId = new Map<string, number>();
+  const childStartedAtByKey = new Map<string, number>();
+
+  return (event: WorkflowEvent): WorkflowMetric[] => {
+    const timestampMs = Date.parse(event.timestamp);
+    const fallbackTags = {
+      workflowType: event.workflowType,
+      lifecycle: 'none',
+      transition:
+        typeof event.payload?.name === 'string'
+          ? event.payload.name
+          : typeof event.payload?.to === 'string'
+            ? event.payload.to
+            : 'none',
+      command: typeof event.payload?.command === 'string' ? event.payload.command : 'none',
+      outcome: event.eventType.endsWith('.failed') ? 'failed' : 'success',
+    };
+
+    if (!Number.isFinite(timestampMs)) {
+      return [];
+    }
+
+    const derived: WorkflowMetric[] = [];
+
+    if (event.eventType === 'workflow.started') {
+      runStartedAtByRunId.set(event.runId, timestampMs);
+      return derived;
+    }
+
+    if (
+      event.eventType === 'workflow.completed' ||
+      event.eventType === 'workflow.failed' ||
+      event.eventType === 'workflow.cancelled'
+    ) {
+      const startedAt = runStartedAtByRunId.get(event.runId);
+      runStartedAtByRunId.delete(event.runId);
+
+      if (typeof startedAt === 'number' && timestampMs >= startedAt) {
+        derived.push({
+          name: 'workflow.run.duration.ms',
+          value: timestampMs - startedAt,
+          unit: 'ms',
+          tags: {
+            ...fallbackTags,
+            lifecycle: event.eventType.replace('workflow.', ''),
+          },
+          timestamp: event.timestamp,
+        });
+      }
+    }
+
+    if (event.eventType === 'transition.requested') {
+      transitionStartedAtByRunId.set(event.runId, timestampMs);
+      return derived;
+    }
+
+    if (event.eventType === 'transition.completed' || event.eventType === 'transition.failed') {
+      const startedAt = transitionStartedAtByRunId.get(event.runId);
+      transitionStartedAtByRunId.delete(event.runId);
+
+      if (typeof startedAt === 'number' && timestampMs >= startedAt) {
+        derived.push({
+          name: 'workflow.transition.duration.ms',
+          value: timestampMs - startedAt,
+          unit: 'ms',
+          tags: fallbackTags,
+          timestamp: event.timestamp,
+        });
+      }
+    }
+
+    if (event.eventType === 'child.started' && typeof event.payload?.childRunId === 'string') {
+      childStartedAtByKey.set(`${event.runId}:${event.payload.childRunId}`, timestampMs);
+      return derived;
+    }
+
+    if (
+      (event.eventType === 'child.completed' || event.eventType === 'child.failed') &&
+      typeof event.payload?.childRunId === 'string'
+    ) {
+      const key = `${event.runId}:${event.payload.childRunId}`;
+      const startedAt = childStartedAtByKey.get(key);
+      childStartedAtByKey.delete(key);
+
+      if (typeof startedAt === 'number' && timestampMs >= startedAt) {
+        derived.push({
+          name: 'workflow.child.duration.ms',
+          value: timestampMs - startedAt,
+          unit: 'ms',
+          tags: fallbackTags,
+          timestamp: event.timestamp,
+        });
+      }
+    }
+
+    return derived;
+  };
 };
 
 const projectTraceForEvent = (event: WorkflowEvent): WorkflowTrace => ({
@@ -186,6 +452,7 @@ export const createWorkflowInstrumentationAdapter = (
     ...createDefaultTelemetrySinks(),
     ...options.sinks,
   };
+  const projectDerivedDurationMetrics = createDerivedDurationMetricsProjector();
 
   const safeEmit = (kind: 'log' | 'metric' | 'trace', action: () => void): void => {
     try {
@@ -238,6 +505,10 @@ export const createWorkflowInstrumentationAdapter = (
       safeEmit('log', () => sinks.logger.emit(logRecord));
 
       for (const metric of projectEventMetrics(event)) {
+        safeEmit('metric', () => sinks.metrics.emit(metric));
+      }
+
+      for (const metric of projectDerivedDurationMetrics(event)) {
         safeEmit('metric', () => sinks.metrics.emit(metric));
       }
 

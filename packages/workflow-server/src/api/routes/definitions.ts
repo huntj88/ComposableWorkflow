@@ -59,11 +59,67 @@ export const inspectRegistrationDefinition = (registration: WorkflowRegistration
     createInspectionContext(registration.workflowType),
   ) as RuntimeWorkflowDefinition;
 
+  const metadataAnnotations = Array.isArray(registration.metadata?.childLaunchAnnotations)
+    ? registration.metadata.childLaunchAnnotations.filter(
+        (value): value is Record<string, unknown> => !!value && typeof value === 'object',
+      )
+    : [];
+
   return {
     states: Object.keys(definition.states),
     transitions: [...(definition.transitions ?? [])],
-    childLaunchAnnotations: [],
+    childLaunchAnnotations: metadataAnnotations,
   };
+};
+
+const parseMetadataStates = (metadata: Record<string, unknown>): string[] => {
+  const states = metadata.states;
+  if (!Array.isArray(states)) {
+    return [];
+  }
+
+  return states.filter((state): state is string => typeof state === 'string');
+};
+
+const parseMetadataTransitions = (
+  metadata: Record<string, unknown>,
+): Array<{ from: string; to: string; name?: string }> => {
+  const transitions = metadata.transitions;
+  if (!Array.isArray(transitions)) {
+    return [];
+  }
+
+  return transitions.flatMap((item) => {
+    if (!item || typeof item !== 'object') {
+      return [];
+    }
+
+    const value = item as Record<string, unknown>;
+    if (typeof value.from !== 'string' || typeof value.to !== 'string') {
+      return [];
+    }
+
+    return [
+      {
+        from: value.from,
+        to: value.to,
+        name: typeof value.name === 'string' ? value.name : undefined,
+      },
+    ];
+  });
+};
+
+const parseMetadataChildLaunchAnnotations = (
+  metadata: Record<string, unknown>,
+): Record<string, unknown>[] => {
+  const annotations = metadata.childLaunchAnnotations;
+  if (!Array.isArray(annotations)) {
+    return [];
+  }
+
+  return annotations.filter(
+    (item): item is Record<string, unknown> => !!item && typeof item === 'object',
+  );
 };
 
 export const registerDefinitionRoutes = async (
@@ -124,13 +180,14 @@ WHERE workflow_type = $1
       }
 
       const definition = row.rows[0];
+      const metadata = definition.metadata_jsonb ?? {};
       return workflowDefinitionSchema.parse({
         workflowType: definition.workflow_type,
         workflowVersion: definition.workflow_version,
-        states: [],
-        transitions: [],
-        childLaunchAnnotations: [],
-        metadata: definition.metadata_jsonb,
+        states: parseMetadataStates(metadata),
+        transitions: parseMetadataTransitions(metadata),
+        childLaunchAnnotations: parseMetadataChildLaunchAnnotations(metadata),
+        metadata,
       });
     },
   );

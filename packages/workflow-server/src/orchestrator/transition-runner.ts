@@ -93,6 +93,12 @@ interface FailureIntent {
   error: unknown;
 }
 
+interface NormalizedWorkflowLog {
+  level: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
 interface CommandEventPayload {
   command?: string;
   args: string[];
@@ -243,6 +249,62 @@ const resolveTransitionName = (
   to: string,
 ): string | undefined => descriptors?.find((item) => item.from === from && item.to === to)?.name;
 
+const normalizeWorkflowLogLevel = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return 'info';
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'warning') {
+    return 'warn';
+  }
+
+  if (['trace', 'debug', 'info', 'warn', 'error', 'fatal'].includes(normalized)) {
+    return normalized;
+  }
+
+  return 'info';
+};
+
+const normalizeWorkflowLog = (event: unknown): NormalizedWorkflowLog => {
+  if (typeof event === 'string') {
+    return {
+      level: 'info',
+      message: event,
+    };
+  }
+
+  if (!event || typeof event !== 'object') {
+    return {
+      level: 'info',
+      message: 'Workflow log event emitted',
+      metadata: {
+        value: event,
+      },
+    };
+  }
+
+  const value = event as Record<string, unknown>;
+  const level = normalizeWorkflowLogLevel(value.level ?? value.severity);
+  const message =
+    typeof value.message === 'string' && value.message.trim().length > 0
+      ? value.message
+      : 'Workflow log event emitted';
+
+  const metadata: Record<string, unknown> = {
+    ...value,
+  };
+  delete metadata.level;
+  delete metadata.severity;
+  delete metadata.message;
+
+  return {
+    level,
+    message,
+    metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+  };
+};
+
 const createExecutionContext = (
   client: DbClient,
   deps: TransitionRunnerDependencies,
@@ -253,10 +315,12 @@ const createExecutionContext = (
   readTransitionIntent: () => TransitionIntent | undefined;
   readCompletionIntent: () => CompletionIntent | undefined;
   readFailureIntent: () => FailureIntent | undefined;
+  flushPendingLogs: () => Promise<void>;
 } => {
   let transitionIntent: TransitionIntent | undefined;
   let completionIntent: CompletionIntent | undefined;
   let failureIntent: FailureIntent | undefined;
+  const pendingLogWrites: Promise<void>[] = [];
   const now = deps.now ?? (() => new Date());
   const commandPolicy = deps.commandPolicy ?? defaultCommandPolicy();
   const commandRunner = deps.commandRunner ?? createSpawnCommandRunnerAdapter();
@@ -364,7 +428,7 @@ const createExecutionContext = (
       runId: run.runId,
       eventType: params.eventType,
       timestamp,
-      payload: params.payload,
+      payload: params.payload as unknown as Record<string, unknown>,
       error: params.error,
     });
 
@@ -382,6 +446,7 @@ const createExecutionContext = (
       eventType: 'log',
       timestamp,
       payload: {
+        level: severity,
         severity,
         message,
         linkedEventId: commandEvent.eventId,
@@ -401,13 +466,41 @@ const createExecutionContext = (
     });
   };
 
+  const flushPendingLogs = async (): Promise<void> => {
+    if (pendingLogWrites.length === 0) {
+      return;
+    }
+
+    const writes = pendingLogWrites.splice(0, pendingLogWrites.length);
+    await Promise.all(writes);
+  };
+
   const context: RuntimeWorkflowContext<unknown, unknown> = {
     runId: run.runId,
     workflowType: run.workflowType,
     input,
     now: () => new Date(),
-    log: () => {
-      return;
+    log: (event) => {
+      const normalized = normalizeWorkflowLog(event);
+
+      const write = deps.eventRepository
+        .appendEvent(client, {
+          eventId: deps.eventIdFactory(),
+          runId: run.runId,
+          eventType: 'log',
+          timestamp: now().toISOString(),
+          payload: {
+            level: normalized.level,
+            severity: normalized.level,
+            message: normalized.message,
+            metadata: normalized.metadata,
+          },
+        })
+        .then(() => {
+          return;
+        });
+
+      pendingLogWrites.push(write);
     },
     transition: (to, data) => {
       ensureNoResolutionConflict('transition');
@@ -416,7 +509,7 @@ const createExecutionContext = (
         data,
       };
     },
-    launchChild: async (request) => {
+    launchChild: async <CO>(request: unknown): Promise<CO> => {
       const beforeChildRun = await enforceLifecycleSafePoint();
       const parsedRequest = toChildLaunchRequest(request);
       assertChildLaunchAllowed(beforeChildRun.lifecycle as WorkflowLifecycle);
@@ -461,10 +554,10 @@ const createExecutionContext = (
             awaited.childRun.runId,
             awaited.childRun.workflowType,
             awaited.childRun.lifecycle as WorkflowLifecycle,
-          ),
+          ) as unknown as Record<string, unknown>,
         });
 
-        return awaited.output;
+        return awaited.output as CO;
       } catch (error) {
         const latestChild = await deps.runRepository.getRunSummary(client, childRun.runId);
         const childLifecycle = latestChild?.lifecycle ?? 'failed';
@@ -478,7 +571,7 @@ const createExecutionContext = (
             childRun.runId,
             childRun.workflowType,
             childLifecycle as WorkflowLifecycle,
-          ),
+          ) as unknown as Record<string, unknown>,
         });
 
         throw error;
@@ -631,6 +724,7 @@ const createExecutionContext = (
     readTransitionIntent: () => transitionIntent,
     readCompletionIntent: () => completionIntent,
     readFailureIntent: () => failureIntent,
+    flushPendingLogs,
   };
 };
 
@@ -736,8 +830,13 @@ export const runTransitionStep = async (params: {
   }
 
   const registration = getRegistration(params.deps.registry, params.run.workflowType);
-  const { context, readCompletionIntent, readFailureIntent, readTransitionIntent } =
-    createExecutionContext(params.client, params.deps, params.run, params.input);
+  const {
+    context,
+    readCompletionIntent,
+    readFailureIntent,
+    readTransitionIntent,
+    flushPendingLogs,
+  } = createExecutionContext(params.client, params.deps, params.run, params.input);
 
   const definition = registration.factory(context) as RuntimeWorkflowDefinition<unknown, unknown>;
   const handler = definition.states[params.run.currentState];
@@ -763,16 +862,25 @@ export const runTransitionStep = async (params: {
 
   try {
     await handler(context, undefined);
+    await flushPendingLogs();
   } catch (error) {
-    if (error instanceof SafePointInterruption) {
-      return error.result;
+    let resolvedError: unknown = error;
+
+    try {
+      await flushPendingLogs();
+    } catch (logFlushError) {
+      resolvedError = logFlushError;
+    }
+
+    if (resolvedError instanceof SafePointInterruption) {
+      return resolvedError.result;
     }
 
     const failedRun = await failRun({
       client: params.client,
       run: params.run,
       fromState: params.run.currentState,
-      error,
+      error: resolvedError,
       runRepository: params.deps.runRepository,
       eventRepository: params.deps.eventRepository,
       now,

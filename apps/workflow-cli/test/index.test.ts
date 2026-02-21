@@ -75,6 +75,19 @@ const createMockDeps = (): {
       streamRunEvents: vi.fn(async function* () {
         yield* [];
       }),
+      inspectRunTree: vi.fn(async () => ({
+        tree: {
+          runId: 'wr_2',
+          workflowType: 'invoice',
+          workflowVersion: '1.0.0',
+          lifecycle: 'running',
+          currentState: 'start',
+          parentRunId: null,
+          startedAt: '2026-01-01T00:00:00.000Z',
+          endedAt: null,
+          children: [],
+        },
+      })),
       inspectDefinition: vi.fn(async () => ({
         workflowType: 'invoice',
         workflowVersion: '1.0.0',

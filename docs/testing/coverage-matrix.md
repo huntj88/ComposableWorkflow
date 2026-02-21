@@ -90,6 +90,13 @@ This is the authoritative requirement-to-test ownership ledger.
 | ITX-017 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-017.spec.ts | T14 | implemented | required |
 | ITX-018 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-018.spec.ts | T14 | implemented | required |
 | ITX-019 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-019.spec.ts | T15 | implemented | required |
+| Spec-6.4-WorkflowEventContract | integration | packages/workflow-server/test/integration/api/events-contract-shape.spec.ts | T18 | implemented | required |
+| Spec-4.3-WorkflowCustomLogs | integration | packages/workflow-server/test/integration/api/logs-custom-level.spec.ts | T18 | implemented | required |
+| Spec-8.2-RunSummaryTransitionContext | integration | packages/workflow-server/test/integration/api/run-summary-transition-context.spec.ts | T18 | implemented | required |
+| Spec-8.8-DefinitionGraphMetadata | integration | packages/workflow-server/test/integration/api/definition-graph-metadata.spec.ts | T18 | implemented | required |
+| Spec-9.1-LogFieldConsistency | integration | packages/workflow-server/test/integration/api/logs-custom-level.spec.ts | T18 | implemented | required |
+| Spec-9.2-RequiredMetricsSet | integration | packages/workflow-server/test/integration/observability/required-metrics.spec.ts | T18 | implemented | required |
+| Spec-6.7-CLIInspectionScope | integration | apps/workflow-cli/test/contract/runs-tree.spec.ts | T18 | implemented | required |
 
 ## Update Rules
 - Update `Status` to `implemented` when file exists with active test cases.

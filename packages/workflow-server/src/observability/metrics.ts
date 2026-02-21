@@ -36,11 +36,25 @@ const normalizeTags = (tags: Record<string, string> | undefined): Record<string,
 
 export class OTelWorkflowMetrics implements WorkflowMetrics {
   private readonly counters = new Map<string, ReturnType<Meter['createCounter']>>();
+  private readonly upDownCounters = new Map<string, ReturnType<Meter['createUpDownCounter']>>();
+  private readonly histograms = new Map<string, ReturnType<Meter['createHistogram']>>();
 
   constructor(private readonly meter: Meter) {}
 
   emit(metric: WorkflowMetric): void {
     const tags = normalizeTags(metric.tags);
+    if (metric.name === 'workflow.run.active') {
+      const upDownCounter = this.getOrCreateUpDownCounter(metric.name, metric.unit);
+      upDownCounter.add(metric.value, tags);
+      return;
+    }
+
+    if (metric.name.endsWith('.duration.ms')) {
+      const histogram = this.getOrCreateHistogram(metric.name, metric.unit);
+      histogram.record(metric.value, tags);
+      return;
+    }
+
     const counter = this.getOrCreateCounter(metric.name, metric.unit);
     counter.add(metric.value, tags);
   }
@@ -59,6 +73,40 @@ export class OTelWorkflowMetrics implements WorkflowMetrics {
       valueType: ValueType.INT,
     });
     this.counters.set(name, created);
+    return created;
+  }
+
+  private getOrCreateUpDownCounter(
+    name: string,
+    unit: string | undefined,
+  ): ReturnType<Meter['createUpDownCounter']> {
+    const existing = this.upDownCounters.get(name);
+    if (existing) {
+      return existing;
+    }
+
+    const created = this.meter.createUpDownCounter(name, {
+      unit,
+      valueType: ValueType.INT,
+    });
+    this.upDownCounters.set(name, created);
+    return created;
+  }
+
+  private getOrCreateHistogram(
+    name: string,
+    unit: string | undefined,
+  ): ReturnType<Meter['createHistogram']> {
+    const existing = this.histograms.get(name);
+    if (existing) {
+      return existing;
+    }
+
+    const created = this.meter.createHistogram(name, {
+      unit,
+      valueType: ValueType.INT,
+    });
+    this.histograms.set(name, created);
     return created;
   }
 }

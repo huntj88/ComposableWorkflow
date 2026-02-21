@@ -40,11 +40,48 @@ export interface RunSummary {
 export interface WorkflowEvent {
   eventId: string;
   runId: string;
+  workflowType: string;
+  parentRunId: string | null;
   sequence: number;
   eventType: string;
+  state: string | null;
+  transition: {
+    from?: string;
+    to?: string;
+    name?: string;
+  } | null;
+  child: {
+    childRunId: string;
+    childWorkflowType: string;
+    lifecycle: string;
+  } | null;
+  command: {
+    command: string;
+    args?: string[];
+    stdin?: string;
+    stdout?: string;
+    stderr?: string;
+    exitCode?: number;
+  } | null;
   timestamp: string;
   payload: Record<string, unknown> | null;
   error: Record<string, unknown> | null;
+}
+
+export interface RunTreeNode {
+  runId: string;
+  workflowType: string;
+  workflowVersion: string;
+  lifecycle: string;
+  currentState: string;
+  parentRunId: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  children: RunTreeNode[];
+}
+
+export interface RunTreeResponse {
+  tree: RunTreeNode;
 }
 
 export interface WorkflowDefinition {
@@ -121,6 +158,11 @@ export interface WorkflowApiClient {
     request: ListEventsRequest,
   ) => Promise<{ items: WorkflowEvent[]; nextCursor?: string }>;
   streamRunEvents: (request: StreamEventsRequest) => AsyncGenerator<FollowEventChunk>;
+  inspectRunTree: (request: {
+    runId: string;
+    depth?: number;
+    includeCompletedChildren?: boolean;
+  }) => Promise<RunTreeResponse>;
   inspectDefinition: (workflowType: string) => Promise<WorkflowDefinition>;
 }
 
@@ -458,11 +500,33 @@ export const createWorkflowApiClient = (
       `/api/v1/workflows/definitions/${encodeURIComponent(workflowType)}`,
     );
 
+  const inspectRunTree = async (request: {
+    runId: string;
+    depth?: number;
+    includeCompletedChildren?: boolean;
+  }): Promise<RunTreeResponse> => {
+    const query = new URLSearchParams();
+
+    if (typeof request.depth === 'number') {
+      query.set('depth', `${request.depth}`);
+    }
+
+    if (typeof request.includeCompletedChildren === 'boolean') {
+      query.set('includeCompletedChildren', `${request.includeCompletedChildren}`);
+    }
+
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return requestJson<RunTreeResponse>(
+      `/api/v1/workflows/runs/${encodeURIComponent(request.runId)}/tree${suffix}`,
+    );
+  };
+
   return {
     startWorkflow,
     listRuns,
     listRunEvents,
     streamRunEvents,
+    inspectRunTree,
     inspectDefinition,
   };
 };

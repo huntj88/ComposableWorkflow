@@ -7,22 +7,22 @@
 Close implementation drift between `docs/typescript-server-workflow-spec.md` and current runtime/API/CLI behavior, with explicit contract alignment and regression coverage.
 
 ## Implementation Tasks
-- [ ] Implement runtime workflow log emission from `ctx.log(...)` so custom workflow logs are persisted and observable.
-- [ ] Populate run summary `currentTransitionContext` from persisted transition/event state instead of always returning `null`.
-- [ ] Expand definition inspection output to provide generator-friendly metadata:
+- [x] Implement runtime workflow log emission from `ctx.log(...)` so custom workflow logs are persisted and observable.
+- [x] Populate run summary `currentTransitionContext` from persisted transition/event state instead of always returning `null`.
+- [x] Expand definition inspection output to provide generator-friendly metadata:
   - include static `states` and `transitions` in DB-fallback path when available,
   - populate `childLaunchAnnotations` for known launch points (or persisted metadata source).
-- [ ] Align event API contract with workflow event shape requirements:
+- [x] Align event API contract with workflow event shape requirements:
   - include typed fields (`workflowType`, `parentRunId`, `state`, `transition`, `child`, `command`) in response schema and mapping.
-- [ ] Align CLI operator surface with spec responsibilities by adding run-tree inspection support.
-- [ ] Expand observability metrics to include required counters/gauges/histograms:
+- [x] Align CLI operator surface with spec responsibilities by adding run-tree inspection support.
+- [x] Expand observability metrics to include required counters/gauges/histograms:
   - run counts by workflow type/lifecycle,
   - transition counts/failures,
   - command invocation counts/failures/timeouts,
   - child launch counts/failures,
   - duration metrics and active run gauge.
-- [ ] Normalize log payload field naming (`level`/`severity`) so logs API returns authored level consistently.
-- [ ] Add/adjust tests in server integration/e2e and CLI suites for each corrected drift item.
+- [x] Normalize log payload field naming (`level`/`severity`) so logs API returns authored level consistently.
+- [x] Add/adjust tests in server integration/e2e and CLI suites for each corrected drift item.
 
 ## Required Artifacts
 - `packages/workflow-server/src/orchestrator/transition-runner.ts`

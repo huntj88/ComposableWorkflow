@@ -38,6 +38,7 @@ interface SummaryRow {
   children_cancelled: number;
   event_count: number;
   log_count: number;
+  current_transition_context: Record<string, unknown> | null;
 }
 
 const summarySelectSql = `
@@ -56,7 +57,8 @@ SELECT
   COALESCE(children.failed, 0)::int AS children_failed,
   COALESCE(children.cancelled, 0)::int AS children_cancelled,
   COALESCE(counters.event_count, 0)::int AS event_count,
-  COALESCE(counters.log_count, 0)::int AS log_count
+  COALESCE(counters.log_count, 0)::int AS log_count,
+  transition_context.current_transition_context
 FROM workflow_runs wr
 LEFT JOIN LATERAL (
   SELECT
@@ -87,7 +89,41 @@ LEFT JOIN LATERAL (
   FROM workflow_events ev
   WHERE ev.run_id = wr.run_id
 ) counters ON true
+LEFT JOIN LATERAL (
+  SELECT (
+    jsonb_build_object(
+      'eventType', ev.event_type,
+      'sequence', ev.sequence,
+      'timestamp', ev.timestamp
+    ) || COALESCE(ev.payload_jsonb, '{}'::jsonb)
+  ) AS current_transition_context
+  FROM workflow_events ev
+  WHERE ev.run_id = wr.run_id
+    AND ev.event_type IN ('transition.requested', 'transition.completed', 'transition.failed')
+  ORDER BY ev.sequence DESC
+  LIMIT 1
+) transition_context ON true
 `;
+
+const normalizeLogLevel = (payload: Record<string, unknown> | null): string => {
+  const authoredLevel =
+    typeof payload?.level === 'string'
+      ? payload.level
+      : typeof payload?.severity === 'string'
+        ? payload.severity
+        : 'info';
+
+  const normalized = authoredLevel.trim().toLowerCase();
+  if (normalized === 'warning') {
+    return 'warn';
+  }
+
+  if (['trace', 'debug', 'info', 'warn', 'error', 'fatal'].includes(normalized)) {
+    return normalized;
+  }
+
+  return 'info';
+};
 
 const mapSummaryRow = (row: SummaryRow) =>
   runSummarySchema.parse({
@@ -96,7 +132,7 @@ const mapSummaryRow = (row: SummaryRow) =>
     workflowVersion: row.workflow_version,
     lifecycle: row.lifecycle,
     currentState: row.current_state,
-    currentTransitionContext: null,
+    currentTransitionContext: row.current_transition_context,
     parentRunId: row.parent_run_id,
     childrenSummary: {
       total: row.children_total,
@@ -423,7 +459,7 @@ ORDER BY sequence ASC
           sequence: row.sequence,
           eventType: row.event_type,
           timestamp: row.timestamp.toISOString(),
-          level: typeof row.payload_jsonb?.level === 'string' ? row.payload_jsonb.level : 'info',
+          level: normalizeLogLevel(row.payload_jsonb),
           message:
             typeof row.payload_jsonb?.message === 'string'
               ? row.payload_jsonb.message
