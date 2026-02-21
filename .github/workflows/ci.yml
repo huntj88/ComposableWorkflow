@@ -1,0 +1,312 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  PNPM_VERSION: 10
+  DATABASE_URL: postgresql://workflow:workflow@127.0.0.1:5432/workflow
+  WORKFLOW_PACKAGE_SOURCES: '[{"source":"path","value":"packages/workflow-package-reference"}]'
+  ITX_CLOCK_MODE: fake
+  ITX_FAULT_INJECTION: enabled
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build + typecheck
+        run: pnpm ci:build
+
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - build
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: workflow
+          POSTGRES_USER: workflow
+          POSTGRES_PASSWORD: workflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U workflow -d workflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare artifacts directory
+        run: mkdir -p .artifacts/unit
+
+      - name: Run unit suite
+        run: |
+          set -eo pipefail
+          pnpm ci:unit 2>&1 | tee .artifacts/unit/console.log
+
+      - name: Write diagnostics metadata
+        if: always()
+        run: |
+          cat > .artifacts/unit/fault-injection-metadata.json << 'EOF'
+          {
+            "stage": "unit",
+            "clockMode": "${{ env.ITX_CLOCK_MODE }}",
+            "faultInjection": "${{ env.ITX_FAULT_INJECTION }}",
+            "databaseUrl": "${{ env.DATABASE_URL }}"
+          }
+          EOF
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-unit-artifacts
+          path: .artifacts/unit
+          if-no-files-found: warn
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - unit
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: workflow
+          POSTGRES_USER: workflow
+          POSTGRES_PASSWORD: workflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U workflow -d workflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare artifacts directory
+        run: mkdir -p .artifacts/integration/{timeline,telemetry,faults}
+
+      - name: Run integration suite
+        run: |
+          set -eo pipefail
+          pnpm ci:integration 2>&1 | tee .artifacts/integration/console.log
+
+      - name: Collect integration diagnostics snapshots
+        if: always()
+        run: |
+          find . -type f \( -name '*diagnostic*.json' -o -name '*timeline*.json' -o -name '*trace*.json' -o -name '*metric*.json' -o -name '*fault*.json' \) \
+            -not -path './.artifacts/*' \
+            -exec cp --parents {} .artifacts/integration/telemetry/ \; || true
+          cat > .artifacts/integration/faults/fault-injection-metadata.json << 'EOF'
+          {
+            "stage": "integration",
+            "clockMode": "${{ env.ITX_CLOCK_MODE }}",
+            "faultInjection": "${{ env.ITX_FAULT_INJECTION }}",
+            "databaseUrl": "${{ env.DATABASE_URL }}"
+          }
+          EOF
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-integration-artifacts
+          path: .artifacts/integration
+          if-no-files-found: warn
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs:
+      - integration
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: workflow
+          POSTGRES_USER: workflow
+          POSTGRES_PASSWORD: workflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U workflow -d workflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare artifacts directory
+        run: mkdir -p .artifacts/e2e/{timeline,telemetry,faults}
+
+      - name: Run e2e suites
+        run: |
+          set -eo pipefail
+          { pnpm --filter workflow-server test:e2e && pnpm --filter workflow-cli test:e2e; } 2>&1 | tee .artifacts/e2e/console.log
+
+      - name: Collect e2e diagnostics snapshots
+        if: always()
+        run: |
+          find . -type f \( -name '*diagnostic*.json' -o -name '*timeline*.json' -o -name '*trace*.json' -o -name '*metric*.json' -o -name '*fault*.json' \) \
+            -not -path './.artifacts/*' \
+            -exec cp --parents {} .artifacts/e2e/telemetry/ \; || true
+          cat > .artifacts/e2e/faults/fault-injection-metadata.json << 'EOF'
+          {
+            "stage": "e2e",
+            "clockMode": "${{ env.ITX_CLOCK_MODE }}",
+            "faultInjection": "${{ env.ITX_FAULT_INJECTION }}",
+            "databaseUrl": "${{ env.DATABASE_URL }}"
+          }
+          EOF
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-e2e-artifacts
+          path: .artifacts/e2e
+          if-no-files-found: warn
+
+  sse-stream:
+    name: sse-stream
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs:
+      - e2e
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: workflow
+          POSTGRES_USER: workflow
+          POSTGRES_PASSWORD: workflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U workflow -d workflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare artifacts directory
+        run: mkdir -p .artifacts/sse-stream
+
+      - name: Run SSE stream tests (T10)
+        run: |
+          set -eo pipefail
+          pnpm ci:sse 2>&1 | tee .artifacts/sse-stream/console.log
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-sse-artifacts
+          path: .artifacts/sse-stream
+          if-no-files-found: warn

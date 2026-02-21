@@ -7,27 +7,27 @@
 Operationalize deterministic quality gates so implementation completeness is provable and regressions are blocked.
 
 ## Implementation Tasks
-- [ ] Define CI stages and order:
+- [x] Define CI stages and order:
   1) build + typecheck
   2) unit tests
   3) integration tests
   4) E2E tests
   5) SSE stream tests (`T10`)
-- [ ] Add hermetic test environment setup:
+- [x] Add hermetic test environment setup:
   - test-local Postgres container
   - seeded reference workflows
   - deterministic clock/fault injection toggles for integration suites
-- [ ] Add behavior coverage ledger:
+- [x] Add behavior coverage ledger:
   - map each `B-*` and `GS-*` to test IDs
   - map each `ITX-*` to test IDs
-- [ ] Add flake controls:
+- [x] Add flake controls:
   - retry policy only for known transient infra failures
   - quarantine process for flaky tests with owner and deadline
-- [ ] Add artifact capture on failure:
+- [x] Add artifact capture on failure:
   - event timeline dumps
   - logs/metrics/traces snapshots
   - fault injection trace metadata
-- [ ] Add release gate requiring all integration-primary tests to pass deterministically.
+- [x] Add release gate requiring all integration-primary tests to pass deterministically.
 
 ## Required Artifacts
 - `.github/workflows/*` (or equivalent CI pipeline config)

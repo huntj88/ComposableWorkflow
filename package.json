@@ -8,6 +8,11 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "ci:build": "pnpm -r build",
+    "ci:unit": "pnpm -r test -- --runInBand=false",
+    "ci:integration": "pnpm --filter workflow-server test -- ITX-",
+    "ci:e2e": "pnpm --filter workflow-server test:e2e && pnpm --filter workflow-cli test:e2e",
+    "ci:sse": "pnpm --filter workflow-server test:e2e -- api-read.spec.ts",
     "lint": "pnpm -r lint",
     "format": "prettier . --write",
     "format:check": "prettier . --check",

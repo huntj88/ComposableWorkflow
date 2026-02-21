@@ -1,0 +1,20 @@
+name: Optional Features
+
+on:
+  workflow_dispatch:
+    inputs:
+      feature-gate:
+        description: Optional feature gate name to execute
+        required: false
+        default: none
+        type: string
+
+jobs:
+  optional-features:
+    name: optional-features
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baseline has no optional gates
+        run: |
+          echo "No optional gates are enabled in the current baseline scope."
+          echo "Requested feature gate: ${{ github.event.inputs.feature-gate }}"

@@ -71,25 +71,25 @@ This is the authoritative requirement-to-test ownership ledger.
 
 | RequirementID | Suite | PlannedTestFile | OwnerTask | Status | FeatureGate |
 |---|---|---|---|---|---|
-| ITX-001 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-001.spec.ts | T14 | planned | required |
-| ITX-002 | integration | packages/workflow-server/test/integration/itx.concurrency.ITX-002.spec.ts | T14 | planned | required |
-| ITX-003 | integration | packages/workflow-server/test/integration/itx.concurrency.ITX-003.spec.ts | T14 | planned | required |
-| ITX-004 | integration | packages/workflow-server/test/integration/itx.start.ITX-004.spec.ts | T14 | planned | required |
-| ITX-005 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-005.spec.ts | T15 | planned | required |
-| ITX-006 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-006.spec.ts | T15 | planned | required |
-| ITX-007 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-007.spec.ts | T15 | planned | required |
-| ITX-008 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-008.spec.ts | T15 | planned | required |
-| ITX-009 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-009.spec.ts | T15 | planned | required |
-| ITX-010 | integration | packages/workflow-server/test/integration/itx.command.ITX-010.spec.ts | T15 | planned | required |
-| ITX-011 | integration | packages/workflow-server/test/integration/itx.command.ITX-011.spec.ts | T15 | planned | required |
-| ITX-012 | integration | packages/workflow-server/test/integration/itx.command.ITX-012.spec.ts | T15 | planned | required |
-| ITX-013 | integration | packages/workflow-server/test/integration/itx.obs.ITX-013.spec.ts | T15 | planned | required |
-| ITX-014 | integration | packages/workflow-server/test/integration/itx.obs.ITX-014.spec.ts | T15 | planned | required |
-| ITX-015 | integration | packages/workflow-server/test/integration/itx.api.ITX-015.spec.ts | T15 | planned | required |
-| ITX-016 | integration | packages/workflow-server/test/integration/itx.api.ITX-016.spec.ts | T14 | planned | required |
-| ITX-017 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-017.spec.ts | T14 | planned | required |
-| ITX-018 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-018.spec.ts | T14 | planned | required |
-| ITX-019 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-019.spec.ts | T15 | planned | required |
+| ITX-001 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-001.spec.ts | T14 | implemented | required |
+| ITX-002 | integration | packages/workflow-server/test/integration/itx.concurrency.ITX-002.spec.ts | T14 | implemented | required |
+| ITX-003 | integration | packages/workflow-server/test/integration/itx.concurrency.ITX-003.spec.ts | T14 | implemented | required |
+| ITX-004 | integration | packages/workflow-server/test/integration/itx.start.ITX-004.spec.ts | T14 | implemented | required |
+| ITX-005 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-005.spec.ts | T15 | implemented | required |
+| ITX-006 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-006.spec.ts | T15 | implemented | required |
+| ITX-007 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-007.spec.ts | T15 | implemented | required |
+| ITX-008 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-008.spec.ts | T15 | implemented | required |
+| ITX-009 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-009.spec.ts | T15 | implemented | required |
+| ITX-010 | integration | packages/workflow-server/test/integration/itx.command.ITX-010.spec.ts | T15 | implemented | required |
+| ITX-011 | integration | packages/workflow-server/test/integration/itx.command.ITX-011.spec.ts | T15 | implemented | required |
+| ITX-012 | integration | packages/workflow-server/test/integration/itx.command.ITX-012.spec.ts | T15 | implemented | required |
+| ITX-013 | integration | packages/workflow-server/test/integration/itx.obs.ITX-013.spec.ts | T15 | implemented | required |
+| ITX-014 | integration | packages/workflow-server/test/integration/itx.obs.ITX-014.spec.ts | T15 | implemented | required |
+| ITX-015 | integration | packages/workflow-server/test/integration/itx.api.ITX-015.spec.ts | T15 | implemented | required |
+| ITX-016 | integration | packages/workflow-server/test/integration/itx.api.ITX-016.spec.ts | T14 | implemented | required |
+| ITX-017 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-017.spec.ts | T14 | implemented | required |
+| ITX-018 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-018.spec.ts | T14 | implemented | required |
+| ITX-019 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-019.spec.ts | T15 | implemented | required |
 
 ## Update Rules
 - Update `Status` to `implemented` when file exists with active test cases.
