@@ -10,7 +10,7 @@ import { createReconcileService } from '../../../src/recovery/reconcile-service.
 import { createStartupReconcileController } from '../../../src/recovery/startup-reconcile.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
 
-describe('api start and summary', () => {
+describe('lifecycle pause/resume guards', () => {
   let container: StartedTestContainer | undefined;
   let databaseUrl: string;
   let runtimeAvailable = true;
@@ -37,27 +37,23 @@ describe('api start and summary', () => {
     await container?.stop();
   });
 
-  it('supports start, summary, tree, list, and definitions contracts', async (context) => {
+  it('accepts valid pause/resume and rejects invalid states with 409', async (context) => {
     if (!runtimeAvailable) {
       context.skip();
     }
 
     const registry = createWorkflowRegistry();
     registry.register({
-      workflowType: 'wf.api.simple',
+      workflowType: 'wf.lifecycle.guards',
       workflowVersion: '1.0.0',
       factory: () => ({
-        initialState: 'start',
+        initialState: 'active',
         states: {
-          start: () => {
+          active: () => {
             return;
           },
         },
-        transitions: [{ from: 'start', to: 'done', name: 'complete' }],
       }),
-      metadata: {
-        displayName: 'Simple API Workflow',
-      },
       packageName: 'test-package',
       packageVersion: '1.0.0',
       source: 'path',
@@ -86,69 +82,65 @@ describe('api start and summary', () => {
       startupReconcile,
     });
 
-    const unknownStart = await server.inject({
-      method: 'POST',
-      url: '/api/v1/workflows/start',
-      payload: {
-        workflowType: 'wf.missing',
-        input: {},
-      },
-    });
-    expect(unknownStart.statusCode).toBe(404);
-
     try {
-      const startResponse = await server.inject({
+      const started = await orchestrator.startRun({
+        workflowType: 'wf.lifecycle.guards',
+        input: {},
+      });
+
+      const paused = await server.inject({
         method: 'POST',
-        url: '/api/v1/workflows/start',
+        url: `/api/v1/workflows/runs/${started.run.runId}/pause`,
         payload: {
-          workflowType: 'wf.api.simple',
-          input: { key: 'value' },
+          reason: 'operator-request',
+          requestedBy: 'test-suite',
         },
       });
+      expect(paused.statusCode).toBe(200);
+      expect(paused.json().lifecycle).toBe('pausing');
 
-      expect(startResponse.statusCode).toBe(201);
-      const started = startResponse.json();
-      expect(started.workflowType).toBe('wf.api.simple');
-      expect(started.lifecycle).toBe('running');
-      expect(started.counters.eventCount).toBe(1);
-
-      const summaryResponse = await server.inject({
-        method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}`,
+      const duplicatePause = await server.inject({
+        method: 'POST',
+        url: `/api/v1/workflows/runs/${started.run.runId}/pause`,
+        payload: {
+          reason: 'operator-request',
+          requestedBy: 'test-suite',
+        },
       });
-      expect(summaryResponse.statusCode).toBe(200);
-      const summary = summaryResponse.json();
-      expect(summary.runId).toBe(started.runId);
-
-      const treeResponse = await server.inject({
-        method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}/tree`,
+      expect(duplicatePause.statusCode).toBe(409);
+      expect(duplicatePause.json().details).toEqual({
+        code: 'INVALID_LIFECYCLE',
+        currentLifecycle: 'paused',
       });
-      expect(treeResponse.statusCode).toBe(200);
-      expect(treeResponse.json().tree.runId).toBe(started.runId);
 
-      const listResponse = await server.inject({
-        method: 'GET',
-        url: '/api/v1/workflows/runs?lifecycle=running&workflowType=wf.api.simple',
-      });
-      expect(listResponse.statusCode).toBe(200);
-      expect(listResponse.json().items).toHaveLength(1);
+      const [resumeA, resumeB] = await Promise.all([
+        server.inject({
+          method: 'POST',
+          url: `/api/v1/workflows/runs/${started.run.runId}/resume`,
+          payload: {
+            reason: 'operator-request',
+            requestedBy: 'test-suite',
+          },
+        }),
+        server.inject({
+          method: 'POST',
+          url: `/api/v1/workflows/runs/${started.run.runId}/resume`,
+          payload: {
+            reason: 'operator-request',
+            requestedBy: 'test-suite',
+          },
+        }),
+      ]);
 
-      const definitionResponse = await server.inject({
-        method: 'GET',
-        url: '/api/v1/workflows/definitions/wf.api.simple',
-      });
-      expect(definitionResponse.statusCode).toBe(200);
-      const definition = definitionResponse.json();
-      expect(definition.states).toContain('start');
-      expect(definition.transitions).toEqual([{ from: 'start', to: 'done', name: 'complete' }]);
+      const statusCodes = [resumeA.statusCode, resumeB.statusCode].sort();
+      expect(statusCodes).toEqual([200, 409]);
 
-      const logsResponse = await server.inject({
+      const finalSummary = await server.inject({
         method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}/logs`,
+        url: `/api/v1/workflows/runs/${started.run.runId}`,
       });
-      expect(logsResponse.statusCode).toBe(200);
-      expect(logsResponse.json().items).toEqual([]);
+      expect(finalSummary.statusCode).toBe(200);
+      expect(finalSummary.json().lifecycle).toBe('running');
     } finally {
       await server.close();
       await pool.end();

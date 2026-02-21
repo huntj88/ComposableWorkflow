@@ -8,22 +8,22 @@ Implement exact lifecycle machine transitions and control endpoints with coopera
 
 ## Implementation Tasks
 - [ ] Implement lifecycle transition guards exactly as spec section 11.1.
-- [ ] Implement control endpoints:
+- [x] Implement control endpoints:
   - `POST /api/v1/workflows/runs/{runId}/pause`
   - `POST /api/v1/workflows/runs/{runId}/resume`
   - `POST /api/v1/workflows/runs/{runId}/cancel`
   - `POST /api/v1/workflows/recovery/reconcile`
-- [ ] Enforce 409 behavior for invalid pause/resume states.
+- [x] Enforce 409 behavior for invalid pause/resume states.
 - [ ] Implement cooperative safe points:
   - between transitions
   - before/after child launch
   - before/after command execution
-- [ ] Implement startup reconciliation before accepting new execution work.
-- [ ] Ensure recovery is idempotent and lock-protected.
-- [ ] Emit exact lifecycle checkpoint events:
+- [x] Implement startup reconciliation before accepting new execution work.
+- [x] Ensure recovery is idempotent and lock-protected.
+- [x] Emit exact lifecycle checkpoint events:
   - `workflow.pausing`, `workflow.paused`, `workflow.resuming`, `workflow.resumed`,
   - `workflow.recovering`, `workflow.recovered`, `workflow.cancelling`, `workflow.cancelled`.
-- [ ] Add unit tests for lifecycle transition matrix and guard evaluation logic.
+- [x] Add unit tests for lifecycle transition matrix and guard evaluation logic.
 
 ## Required Artifacts
 - `packages/workflow-server/src/lifecycle/*`

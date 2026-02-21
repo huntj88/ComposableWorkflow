@@ -10,7 +10,7 @@ import { createReconcileService } from '../../../src/recovery/reconcile-service.
 import { createStartupReconcileController } from '../../../src/recovery/startup-reconcile.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
 
-describe('api start and summary', () => {
+describe('lifecycle cancel propagation', () => {
   let container: StartedTestContainer | undefined;
   let databaseUrl: string;
   let runtimeAvailable = true;
@@ -37,27 +37,40 @@ describe('api start and summary', () => {
     await container?.stop();
   });
 
-  it('supports start, summary, tree, list, and definitions contracts', async (context) => {
+  it('requests cancellation for active descendants when parent is cancelled', async (context) => {
     if (!runtimeAvailable) {
       context.skip();
     }
 
     const registry = createWorkflowRegistry();
     registry.register({
-      workflowType: 'wf.api.simple',
+      workflowType: 'wf.lifecycle.cancel-parent',
       workflowVersion: '1.0.0',
       factory: () => ({
-        initialState: 'start',
+        initialState: 'active',
         states: {
-          start: () => {
+          active: () => {
             return;
           },
         },
-        transitions: [{ from: 'start', to: 'done', name: 'complete' }],
       }),
-      metadata: {
-        displayName: 'Simple API Workflow',
-      },
+      packageName: 'test-package',
+      packageVersion: '1.0.0',
+      source: 'path',
+      sourceValue: '.',
+    });
+
+    registry.register({
+      workflowType: 'wf.lifecycle.cancel-child',
+      workflowVersion: '1.0.0',
+      factory: () => ({
+        initialState: 'active',
+        states: {
+          active: () => {
+            return;
+          },
+        },
+      }),
       packageName: 'test-package',
       packageVersion: '1.0.0',
       source: 'path',
@@ -77,7 +90,6 @@ describe('api start and summary', () => {
       orchestrator,
     });
     const startupReconcile = createStartupReconcileController(reconcileService);
-
     const server = await createApiServer({
       pool,
       orchestrator,
@@ -86,69 +98,63 @@ describe('api start and summary', () => {
       startupReconcile,
     });
 
-    const unknownStart = await server.inject({
-      method: 'POST',
-      url: '/api/v1/workflows/start',
-      payload: {
-        workflowType: 'wf.missing',
-        input: {},
-      },
-    });
-    expect(unknownStart.statusCode).toBe(404);
-
     try {
-      const startResponse = await server.inject({
+      const parent = await orchestrator.startRun({
+        workflowType: 'wf.lifecycle.cancel-parent',
+        input: {},
+      });
+      const child = await orchestrator.startRun({
+        workflowType: 'wf.lifecycle.cancel-child',
+        input: {},
+        parentRunId: parent.run.runId,
+      });
+
+      await pool.query(
+        `
+INSERT INTO workflow_run_children (
+  parent_run_id,
+  child_run_id,
+  parent_workflow_type,
+  child_workflow_type,
+  parent_state,
+  created_at,
+  linked_by_event_id
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`,
+        [
+          parent.run.runId,
+          child.run.runId,
+          'wf.lifecycle.cancel-parent',
+          'wf.lifecycle.cancel-child',
+          'active',
+          new Date().toISOString(),
+          `evt_link_${parent.run.runId}`,
+        ],
+      );
+
+      const response = await server.inject({
         method: 'POST',
-        url: '/api/v1/workflows/start',
+        url: `/api/v1/workflows/runs/${parent.run.runId}/cancel`,
         payload: {
-          workflowType: 'wf.api.simple',
-          input: { key: 'value' },
+          reason: 'operator-request',
+          requestedBy: 'test-suite',
         },
       });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().lifecycle).toBe('cancelling');
 
-      expect(startResponse.statusCode).toBe(201);
-      const started = startResponse.json();
-      expect(started.workflowType).toBe('wf.api.simple');
-      expect(started.lifecycle).toBe('running');
-      expect(started.counters.eventCount).toBe(1);
+      const childLifecycle = await pool.query<{ lifecycle: string }>(
+        'SELECT lifecycle FROM workflow_runs WHERE run_id = $1',
+        [child.run.runId],
+      );
+      expect(childLifecycle.rows[0].lifecycle).toBe('cancelling');
 
-      const summaryResponse = await server.inject({
-        method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}`,
-      });
-      expect(summaryResponse.statusCode).toBe(200);
-      const summary = summaryResponse.json();
-      expect(summary.runId).toBe(started.runId);
-
-      const treeResponse = await server.inject({
-        method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}/tree`,
-      });
-      expect(treeResponse.statusCode).toBe(200);
-      expect(treeResponse.json().tree.runId).toBe(started.runId);
-
-      const listResponse = await server.inject({
-        method: 'GET',
-        url: '/api/v1/workflows/runs?lifecycle=running&workflowType=wf.api.simple',
-      });
-      expect(listResponse.statusCode).toBe(200);
-      expect(listResponse.json().items).toHaveLength(1);
-
-      const definitionResponse = await server.inject({
-        method: 'GET',
-        url: '/api/v1/workflows/definitions/wf.api.simple',
-      });
-      expect(definitionResponse.statusCode).toBe(200);
-      const definition = definitionResponse.json();
-      expect(definition.states).toContain('start');
-      expect(definition.transitions).toEqual([{ from: 'start', to: 'done', name: 'complete' }]);
-
-      const logsResponse = await server.inject({
-        method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}/logs`,
-      });
-      expect(logsResponse.statusCode).toBe(200);
-      expect(logsResponse.json().items).toEqual([]);
+      const childCancellingEvents = await pool.query<{ count: number }>(
+        "SELECT COUNT(*)::int AS count FROM workflow_events WHERE run_id = $1 AND event_type = 'workflow.cancelling'",
+        [child.run.runId],
+      );
+      expect(childCancellingEvents.rows[0].count).toBe(1);
     } finally {
       await server.close();
       await pool.end();

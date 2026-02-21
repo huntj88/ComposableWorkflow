@@ -9,6 +9,8 @@ import {
 import type { Pool } from 'pg';
 
 import type { Orchestrator } from '../orchestrator/orchestrator.js';
+import type { ReconcileService } from '../recovery/reconcile-service.js';
+import type { StartupReconcileController } from '../recovery/startup-reconcile.js';
 import type { WorkflowRegistry } from '../registry/workflow-registry.js';
 import { errorEnvelopeSchema, type ErrorEnvelope } from './schemas.js';
 import { registerDefinitionRoutes } from './routes/definitions.js';
@@ -39,6 +41,8 @@ export interface ApiServerDependencies {
   pool: Pool;
   orchestrator: Orchestrator;
   registry: WorkflowRegistry;
+  reconcileService: ReconcileService;
+  startupReconcile?: StartupReconcileController;
 }
 
 const toErrorEnvelope = (params: {

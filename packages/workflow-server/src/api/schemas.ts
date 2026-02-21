@@ -30,6 +30,54 @@ export const startWorkflowBodySchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+export const workflowLifecycleSchema = z.enum([
+  'pending',
+  'running',
+  'pausing',
+  'paused',
+  'resuming',
+  'recovering',
+  'cancelling',
+  'completed',
+  'failed',
+  'cancelled',
+]);
+
+export const controlRequestBodySchema = z.object({
+  reason: z.string().trim().min(1).optional(),
+  requestedBy: z.string().trim().min(1).optional(),
+});
+
+export const controlResponseSchema = z.object({
+  runId: z.string(),
+  lifecycle: z.enum(['pausing', 'resuming', 'cancelling']),
+  acceptedAt: isoDateTime,
+});
+
+export const invalidLifecycleErrorSchema = z.object({
+  code: z.literal('INVALID_LIFECYCLE'),
+  currentLifecycle: workflowLifecycleSchema,
+});
+
+export const reconcileRequestSchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+    dryRun: z.coerce.boolean().default(false),
+  })
+  .default({
+    limit: 100,
+    dryRun: false,
+  });
+
+export const reconcileResponseSchema = z.object({
+  scanned: z.number().int().nonnegative(),
+  recovered: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  startedAt: isoDateTime,
+  completedAt: isoDateTime,
+});
+
 export const workflowEventSchema = z.object({
   eventId: z.string(),
   runId: z.string(),
@@ -58,7 +106,7 @@ export const runSummarySchema = z.object({
   runId: z.string(),
   workflowType: z.string(),
   workflowVersion: z.string(),
-  lifecycle: z.string(),
+  lifecycle: workflowLifecycleSchema,
   currentState: z.string(),
   currentTransitionContext: z.record(z.unknown()).nullable().optional(),
   parentRunId: z.string().nullable(),

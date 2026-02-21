@@ -7,6 +7,7 @@ import {
   type RunTreeNodeRecord,
   type TransitionEdge,
 } from '../../read-models/run-tree-projection.js';
+import { registerLifecycleControlRoutes } from '../../lifecycle/control-routes.js';
 import { ApiError, type ApiServerDependencies } from '../server.js';
 import {
   errorEnvelopeSchema,
@@ -246,6 +247,8 @@ export const registerRunRoutes = async (
   server: FastifyInstance,
   deps: ApiServerDependencies,
 ): Promise<void> => {
+  await registerLifecycleControlRoutes(server, deps);
+
   server.get(
     '/api/v1/workflows/runs/:runId',
     {

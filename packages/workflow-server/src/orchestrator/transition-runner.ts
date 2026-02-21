@@ -1,5 +1,6 @@
 import type { DbClient } from '../persistence/db.js';
 import type { EventRepository } from '../persistence/event-repository.js';
+import { shouldBlockChildLaunch, type WorkflowLifecycle } from '../lifecycle/lifecycle-machine.js';
 import type { RunRepository, RunSummary } from '../persistence/run-repository.js';
 import type { WorkflowRegistration, WorkflowRegistry } from '../registry/workflow-registry.js';
 
@@ -101,6 +102,85 @@ const toFailure = (error: unknown): WorkflowFailure => {
 const isTerminalLifecycle = (lifecycle: string): boolean =>
   lifecycle === 'completed' || lifecycle === 'failed' || lifecycle === 'cancelled';
 
+const applyLifecycleSafePoint = async (params: {
+  client: DbClient;
+  run: RunSummary;
+  runRepository: RunRepository;
+  eventRepository: EventRepository;
+  now: () => Date;
+  eventIdFactory: () => string;
+}): Promise<TransitionStepResult | null> => {
+  if (params.run.lifecycle === 'pausing') {
+    await params.eventRepository.appendEvent(params.client, {
+      eventId: params.eventIdFactory(),
+      runId: params.run.runId,
+      eventType: 'workflow.paused',
+      timestamp: params.now().toISOString(),
+    });
+
+    const pausedRun = await params.runRepository.upsertRunSummary(params.client, {
+      ...params.run,
+      lifecycle: 'paused',
+    });
+
+    return {
+      run: pausedRun,
+      progressed: true,
+      terminal: false,
+    };
+  }
+
+  if (params.run.lifecycle === 'resuming') {
+    await params.eventRepository.appendEvent(params.client, {
+      eventId: params.eventIdFactory(),
+      runId: params.run.runId,
+      eventType: 'workflow.resumed',
+      timestamp: params.now().toISOString(),
+    });
+
+    const resumedRun = await params.runRepository.upsertRunSummary(params.client, {
+      ...params.run,
+      lifecycle: 'running',
+    });
+
+    return {
+      run: resumedRun,
+      progressed: true,
+      terminal: false,
+    };
+  }
+
+  if (params.run.lifecycle === 'recovering') {
+    await params.eventRepository.appendEvent(params.client, {
+      eventId: params.eventIdFactory(),
+      runId: params.run.runId,
+      eventType: 'workflow.recovered',
+      timestamp: params.now().toISOString(),
+    });
+
+    const recoveredRun = await params.runRepository.upsertRunSummary(params.client, {
+      ...params.run,
+      lifecycle: 'running',
+    });
+
+    return {
+      run: recoveredRun,
+      progressed: true,
+      terminal: false,
+    };
+  }
+
+  if (params.run.lifecycle === 'paused') {
+    return {
+      run: params.run,
+      progressed: false,
+      terminal: false,
+    };
+  }
+
+  return null;
+};
+
 const resolveTransitionName = (
   descriptors: readonly WorkflowTransitionDescriptor[] | undefined,
   from: string,
@@ -146,6 +226,9 @@ const createExecutionContext = (
       };
     },
     launchChild: async () => {
+      if (shouldBlockChildLaunch(run.lifecycle as WorkflowLifecycle)) {
+        throw new Error(`Child launch blocked in lifecycle ${run.lifecycle}`);
+      }
       throw new Error('launchChild is not implemented in the orchestrator MVP');
     },
     runCommand: async (): Promise<unknown> => {
@@ -232,6 +315,18 @@ export const runTransitionStep = async (params: {
   input?: unknown;
 }): Promise<TransitionStepResult> => {
   const now = params.deps.now ?? (() => new Date());
+
+  const safePointResult = await applyLifecycleSafePoint({
+    client: params.client,
+    run: params.run,
+    runRepository: params.deps.runRepository,
+    eventRepository: params.deps.eventRepository,
+    now,
+    eventIdFactory: params.deps.eventIdFactory,
+  });
+  if (safePointResult) {
+    return safePointResult;
+  }
 
   if (params.run.lifecycle === 'cancelling') {
     await params.deps.eventRepository.appendEvent(params.client, {

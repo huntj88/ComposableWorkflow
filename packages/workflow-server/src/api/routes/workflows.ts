@@ -24,6 +24,10 @@ export const registerWorkflowRoutes = async (
     async (request, reply) => {
       const body = startWorkflowBodySchema.parse(request.body);
 
+      if (deps.startupReconcile) {
+        await deps.startupReconcile.waitUntilReady();
+      }
+
       let started;
       try {
         started = await deps.orchestrator.startRun({

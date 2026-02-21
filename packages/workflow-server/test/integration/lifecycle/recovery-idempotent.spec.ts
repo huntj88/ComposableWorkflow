@@ -10,7 +10,7 @@ import { createReconcileService } from '../../../src/recovery/reconcile-service.
 import { createStartupReconcileController } from '../../../src/recovery/startup-reconcile.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
 
-describe('api start and summary', () => {
+describe('lifecycle recovery idempotence', () => {
   let container: StartedTestContainer | undefined;
   let databaseUrl: string;
   let runtimeAvailable = true;
@@ -37,27 +37,23 @@ describe('api start and summary', () => {
     await container?.stop();
   });
 
-  it('supports start, summary, tree, list, and definitions contracts', async (context) => {
+  it('reconcile is deterministic and idempotent for recoverable runs', async (context) => {
     if (!runtimeAvailable) {
       context.skip();
     }
 
     const registry = createWorkflowRegistry();
     registry.register({
-      workflowType: 'wf.api.simple',
+      workflowType: 'wf.lifecycle.recovery',
       workflowVersion: '1.0.0',
       factory: () => ({
-        initialState: 'start',
+        initialState: 'active',
         states: {
-          start: () => {
+          active: () => {
             return;
           },
         },
-        transitions: [{ from: 'start', to: 'done', name: 'complete' }],
       }),
-      metadata: {
-        displayName: 'Simple API Workflow',
-      },
       packageName: 'test-package',
       packageVersion: '1.0.0',
       source: 'path',
@@ -77,7 +73,6 @@ describe('api start and summary', () => {
       orchestrator,
     });
     const startupReconcile = createStartupReconcileController(reconcileService);
-
     const server = await createApiServer({
       pool,
       orchestrator,
@@ -86,69 +81,44 @@ describe('api start and summary', () => {
       startupReconcile,
     });
 
-    const unknownStart = await server.inject({
-      method: 'POST',
-      url: '/api/v1/workflows/start',
-      payload: {
-        workflowType: 'wf.missing',
-        input: {},
-      },
-    });
-    expect(unknownStart.statusCode).toBe(404);
-
     try {
-      const startResponse = await server.inject({
+      const started = await orchestrator.startRun({
+        workflowType: 'wf.lifecycle.recovery',
+        input: {},
+      });
+
+      await pool.query('UPDATE workflow_runs SET lifecycle = $2 WHERE run_id = $1', [
+        started.run.runId,
+        'recovering',
+      ]);
+
+      const first = await server.inject({
         method: 'POST',
-        url: '/api/v1/workflows/start',
+        url: '/api/v1/workflows/recovery/reconcile',
         payload: {
-          workflowType: 'wf.api.simple',
-          input: { key: 'value' },
+          limit: 100,
+          dryRun: false,
         },
       });
+      expect(first.statusCode).toBe(200);
+      expect(first.json().recovered).toBe(1);
 
-      expect(startResponse.statusCode).toBe(201);
-      const started = startResponse.json();
-      expect(started.workflowType).toBe('wf.api.simple');
-      expect(started.lifecycle).toBe('running');
-      expect(started.counters.eventCount).toBe(1);
-
-      const summaryResponse = await server.inject({
-        method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}`,
+      const second = await server.inject({
+        method: 'POST',
+        url: '/api/v1/workflows/recovery/reconcile',
+        payload: {
+          limit: 100,
+          dryRun: false,
+        },
       });
-      expect(summaryResponse.statusCode).toBe(200);
-      const summary = summaryResponse.json();
-      expect(summary.runId).toBe(started.runId);
+      expect(second.statusCode).toBe(200);
+      expect(second.json().recovered).toBe(0);
 
-      const treeResponse = await server.inject({
-        method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}/tree`,
-      });
-      expect(treeResponse.statusCode).toBe(200);
-      expect(treeResponse.json().tree.runId).toBe(started.runId);
-
-      const listResponse = await server.inject({
-        method: 'GET',
-        url: '/api/v1/workflows/runs?lifecycle=running&workflowType=wf.api.simple',
-      });
-      expect(listResponse.statusCode).toBe(200);
-      expect(listResponse.json().items).toHaveLength(1);
-
-      const definitionResponse = await server.inject({
-        method: 'GET',
-        url: '/api/v1/workflows/definitions/wf.api.simple',
-      });
-      expect(definitionResponse.statusCode).toBe(200);
-      const definition = definitionResponse.json();
-      expect(definition.states).toContain('start');
-      expect(definition.transitions).toEqual([{ from: 'start', to: 'done', name: 'complete' }]);
-
-      const logsResponse = await server.inject({
-        method: 'GET',
-        url: `/api/v1/workflows/runs/${started.runId}/logs`,
-      });
-      expect(logsResponse.statusCode).toBe(200);
-      expect(logsResponse.json().items).toEqual([]);
+      const recoveredEvents = await pool.query<{ count: number }>(
+        "SELECT COUNT(*)::int AS count FROM workflow_events WHERE run_id = $1 AND event_type = 'workflow.recovered'",
+        [started.run.runId],
+      );
+      expect(recoveredEvents.rows[0].count).toBe(1);
     } finally {
       await server.close();
       await pool.end();

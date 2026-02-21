@@ -7,6 +7,8 @@ import { createOrchestrator } from '../../../src/orchestrator/orchestrator.js';
 import { withTransaction, createPool } from '../../../src/persistence/db.js';
 import { createEventRepository } from '../../../src/persistence/event-repository.js';
 import { runMigrations } from '../../../src/persistence/migrate.js';
+import { createReconcileService } from '../../../src/recovery/reconcile-service.js';
+import { createStartupReconcileController } from '../../../src/recovery/startup-reconcile.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
 
 describe('api events pagination', () => {
@@ -60,12 +62,25 @@ describe('api events pagination', () => {
     });
 
     const pool = createPool({ connectionString: databaseUrl });
+    const lockProvider = new InMemoryLockProvider();
     const orchestrator = createOrchestrator({
       pool,
       registry,
-      lockProvider: new InMemoryLockProvider(),
+      lockProvider,
     });
-    const server = await createApiServer({ pool, orchestrator, registry });
+    const reconcileService = createReconcileService({
+      pool,
+      lockProvider,
+      orchestrator,
+    });
+    const startupReconcile = createStartupReconcileController(reconcileService);
+    const server = await createApiServer({
+      pool,
+      orchestrator,
+      registry,
+      reconcileService,
+      startupReconcile,
+    });
     const eventRepository = createEventRepository();
     try {
       const started = await orchestrator.startRun({
