@@ -76,6 +76,7 @@ Implement controlled command execution from workflow steps with policy enforceme
   - Expected: policy block occurs pre-spawn; allowed commands execute with expected capture fields.
 - Command: `pnpm --filter workflow-server test -- ITX-010|ITX-012`
   - Expected: policy matrix and non-zero permutations produce correct event semantics.
+- Review status: checklist audited on 2026-02-21; all implementation task items are complete.
 
 ## One-to-One Requirement Mapping
 | Requirement ID | Implementation Artifact | Verification Assertion |
