@@ -7,23 +7,23 @@
 Implement `packages/workflow-lib` as the server-agnostic runtime contract and execution primitive layer.
 
 ## Implementation Tasks
-- [ ] Define and export core types exactly matching spec:
+- [x] Define and export core types exactly matching spec:
   - `WorkflowPackageManifest`, `WorkflowRegistration`
   - `WorkflowLifecycle`, `WorkflowContext`, `WorkflowDefinition`, `WorkflowFactory`
   - `WorkflowEvent` + `WorkflowEventType`
   - child workflow and command request/result contracts
-- [ ] Implement deterministic event emitter utility:
+- [x] Implement deterministic event emitter utility:
   - per-run sequence allocator interface
   - ISO timestamp source via injected clock
   - append-only event construction helpers
-- [ ] Implement runtime guardrails:
+- [x] Implement runtime guardrails:
   - transition validation helper
   - lifecycle compatibility checks for child launch and control actions
   - uncaught state handler errors emit failure event and force terminal `failed`
   - no implicit runtime/server retry helper for state/action failures (FSM-owned retry design)
-- [ ] Define instrumentation interface and invocation points:
+- [x] Define instrumentation interface and invocation points:
   - `onEvent`, `onMetric`, `onTrace`
-- [ ] Add unit tests for:
+- [x] Add unit tests for:
   - event shape correctness
   - monotonic sequence behavior
   - transition validity and failure signaling
