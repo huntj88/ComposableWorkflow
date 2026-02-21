@@ -15,7 +15,7 @@ type WorkflowLifecycleTransitionMap = Readonly<
 >;
 
 const WORKFLOW_LIFECYCLE_TRANSITIONS: WorkflowLifecycleTransitionMap = {
-  pending: new Set<WorkflowLifecycle>(['running', 'cancelling']),
+  pending: new Set<WorkflowLifecycle>(['running']),
   running: new Set<WorkflowLifecycle>([
     'pausing',
     'completed',
@@ -78,9 +78,7 @@ export const canPauseLifecycle = (lifecycle: WorkflowLifecycle): boolean => life
 export const canResumeLifecycle = (lifecycle: WorkflowLifecycle): boolean => lifecycle === 'paused';
 
 export const canCancelLifecycle = (lifecycle: WorkflowLifecycle): boolean =>
-  ['pending', 'running', 'pausing', 'paused', 'resuming', 'recovering', 'cancelling'].includes(
-    lifecycle,
-  );
+  ['running', 'pausing', 'paused', 'resuming'].includes(lifecycle);
 
 export const shouldBlockChildLaunch = (lifecycle: WorkflowLifecycle): boolean =>
   ['pausing', 'paused', 'resuming', 'cancelling', 'recovering'].includes(lifecycle);

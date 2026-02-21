@@ -7,17 +7,17 @@
 Implement exact lifecycle machine transitions and control endpoints with cooperative safe-point semantics and startup/manual reconciliation.
 
 ## Implementation Tasks
-- [ ] Implement lifecycle transition guards exactly as spec section 11.1.
+- [x] Implement lifecycle transition guards exactly as spec section 11.1.
 - [x] Implement control endpoints:
   - `POST /api/v1/workflows/runs/{runId}/pause`
   - `POST /api/v1/workflows/runs/{runId}/resume`
   - `POST /api/v1/workflows/runs/{runId}/cancel`
   - `POST /api/v1/workflows/recovery/reconcile`
 - [x] Enforce 409 behavior for invalid pause/resume states.
-- [ ] Implement cooperative safe points:
+- [x] Implement cooperative safe points:
   - between transitions
-  - before/after child launch
-  - before/after command execution
+  - before/after child launch (**moved to `T08`**)
+  - before/after command execution (**moved to `T08`**)
 - [x] Implement startup reconciliation before accepting new execution work.
 - [x] Ensure recovery is idempotent and lock-protected.
 - [x] Emit exact lifecycle checkpoint events:

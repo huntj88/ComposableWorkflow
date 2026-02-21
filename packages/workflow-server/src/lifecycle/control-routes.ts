@@ -20,7 +20,7 @@ import {
   type WorkflowLifecycle,
 } from './lifecycle-machine.js';
 
-const ACTIVE_FOR_CANCEL = ['pending', 'running', 'pausing', 'paused', 'resuming', 'recovering'];
+const ACTIVE_FOR_CANCEL = ['running', 'pausing', 'paused', 'resuming'];
 
 interface ControlResult {
   runId: string;

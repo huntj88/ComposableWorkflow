@@ -8,6 +8,9 @@ Implement controlled command execution from workflow steps with policy enforceme
 
 ## Implementation Tasks
 - [ ] Implement command runner adapter abstraction (real process + test double).
+- [ ] Implement cooperative safe points around execution paths moved from `T06`:
+  - before/after child launch
+  - before/after command execution
 - [ ] Implement policy engine:
   - command allow/deny
   - cwd restrictions

@@ -22,6 +22,7 @@ describe('lifecycle machine', () => {
     expect(canTransitionLifecycle('recovering', 'paused')).toBe(true);
     expect(canTransitionLifecycle('cancelling', 'cancelled')).toBe(true);
 
+    expect(canTransitionLifecycle('pending', 'cancelling')).toBe(false);
     expect(canTransitionLifecycle('paused', 'running')).toBe(false);
     expect(canTransitionLifecycle('completed', 'running')).toBe(false);
     expect(() => assertLifecycleTransition('paused', 'running')).toThrow(
@@ -37,7 +38,8 @@ describe('lifecycle machine', () => {
     expect(canResumeLifecycle('running')).toBe(false);
 
     expect(canCancelLifecycle('running')).toBe(true);
-    expect(canCancelLifecycle('recovering')).toBe(true);
+    expect(canCancelLifecycle('recovering')).toBe(false);
+    expect(canCancelLifecycle('pending')).toBe(false);
     expect(canCancelLifecycle('completed')).toBe(false);
 
     expect(shouldBlockChildLaunch('running')).toBe(false);
