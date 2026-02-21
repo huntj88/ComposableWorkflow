@@ -7,7 +7,7 @@
 Implement E2E acceptance suite that validates externally visible contracts and full-stack behavior across API, persistence, events, and observability outputs.
 
 ## Implementation Tasks
-- [ ] Implement E2E tests for behavior families:
+- [x] Implement E2E tests for behavior families:
   - loading/registry (`B-LOAD-*`)
   - start/idempotency (`B-START-*`)
   - event integrity (`B-EVT-*`)
@@ -17,18 +17,18 @@ Implement E2E acceptance suite that validates externally visible contracts and f
   - lifecycle controls (`B-LIFE-*`)
   - API reads/queries (`B-API-*`)
   - persistence and observability (`B-DATA-*`, `B-OBS-*`)
-- [ ] Implement golden scenarios:
+- [x] Implement golden scenarios:
   - `GS-001` happy path with child + command
   - `GS-002` child failure propagation
   - `GS-003` pause/resume then completion
   - `GS-004` cancellation propagation
   - `GS-005` crash recovery reconciliation
-- [ ] Ensure tests assert all four dimensions from `behaviors.md` section 1.2:
+- [x] Ensure tests assert all four dimensions from `behaviors.md` section 1.2:
   - API contract
   - persistence
   - event stream correctness
   - observability outputs
-- [ ] Add CLI E2E checks for `B-CLI-001..004` against running server.
+- [x] Add CLI E2E checks for `B-CLI-001..004` against running server.
 
 ## Required Artifacts
 - `packages/workflow-server/test/e2e/*`

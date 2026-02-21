@@ -18,6 +18,7 @@
     "test": "vitest run --passWithNoTests",
     "test:unit": "vitest run test/index.test.ts",
     "test:contract": "vitest run test/contract/**/*.spec.ts",
+    "test:e2e": "vitest run test/e2e --passWithNoTests",
     "workflow": "node dist/index.js",
     "clean": "rm -rf dist"
   },

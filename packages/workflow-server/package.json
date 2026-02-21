@@ -12,6 +12,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src test",
     "test": "vitest run --passWithNoTests",
+    "test:e2e": "vitest run test/e2e/**/*.spec.ts --passWithNoTests",
     "start:test": "tsx src/index.ts",
     "migrate:up": "tsx src/persistence/migrate.ts up",
     "migrate:down": "tsx src/persistence/migrate.ts down",
