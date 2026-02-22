@@ -96,8 +96,9 @@ For parent/child relationships:
 ## B-START-001: Start workflow returns running run metadata
 **Given** a valid `workflowType` and valid input payload
 **When** `POST /api/v1/workflows/start` is called
-**Then** response contains `runId`, `workflowType`, `workflowVersion`, lifecycle (`running` or transitional state if implementation emits quickly), and `startedAt`
-**And** `workflow.started` appears in events for that run
+**Then** response contains `runId`, `workflowType`, `workflowVersion`, lifecycle `running`, and `startedAt`
+**And** acceptance implies execution has started immediately (no operational pending queue state)
+**And** `workflow.started` appears in events for that run as the execution-start checkpoint
 **And** `workflow_runs` contains corresponding row
 
 ## B-START-002: Unknown workflow type is rejected

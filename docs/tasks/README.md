@@ -7,7 +7,7 @@ This folder contains the end-to-end implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute task documents in numeric order (`T00` -> `T19`).
+1. Execute task documents in numeric order (`T00` -> `T20`).
 2. Do not start a task until all `Depends On` items are complete.
 3. If a task is split across PRs, keep all acceptance criteria in the same task document.
 4. Treat optional scopes as gated and explicitly documented.
@@ -34,6 +34,7 @@ This folder contains the end-to-end implementation plan for:
 - `T17` -> `T10`, `T14`, `T15`, `T16`
 - `T18` -> `T17`
 - `T19` -> `T18`
+- `T20` -> `T19`
 
 ## Task Index
 
@@ -57,6 +58,7 @@ This folder contains the end-to-end implementation plan for:
 - `T17` [17-ci-quality-gates.md](./17-ci-quality-gates.md)
 - `T18` [18-spec-drift-corrections.md](./18-spec-drift-corrections.md)
 - `T19` [19-production-server-parity-e2e.md](./19-production-server-parity-e2e.md)
+- `T20` [20-immediate-start-running-alignment.md](./20-immediate-start-running-alignment.md)
 
 ## Phase Alignment (Spec Section 15)
 
@@ -66,7 +68,8 @@ This folder contains the end-to-end implementation plan for:
 | Phase 2 (operator UX) | `T10`, `T11` | Live SSE stream and initial user-facing CLI commands. |
 | Phase 3 (drift remediation) | `T18` | Post-delivery spec-to-implementation drift correction and contract alignment across runtime, API, observability, and CLI surfaces. |
 | Phase 4 (prod parity hardening) | `T19` | Introduce persistent production launcher and enforce black-box E2E parity guarantees with shared composition root. |
-| Phase 5 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
+| Phase 5 (immediate-start lifecycle alignment) | `T20` | Align start path/runtime/API semantics to immediate execution with no operational `pending` queue state. |
+| Phase 6 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
 | Cross-phase verification/gates | `T13`-`T17` | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
 
 ## Coverage Expectations
@@ -81,7 +84,7 @@ This folder contains the end-to-end implementation plan for:
 | Spec Acceptance Criterion | Primary Task Owner(s) |
 |---|---|
 | 1) Package decoupling from server internals | `T01`, `T12` |
-| 2) Dynamic load + start by workflow type | `T03`, `T04`, `T05` |
+| 2) Dynamic load + start by workflow type | `T03`, `T04`, `T05`, `T20` |
 | 3) Parent launches child and awaits typed result | `T07` |
 | 4) API exposes run state, children, linear history | `T05`, `T07` |
 | 5) API exposes definition + runtime graph data | `T05` |

@@ -67,7 +67,7 @@ A workflow is a finite state machine definition with:
 Runtime execution of a workflow definition. Every instance has:
 - unique `workflowRunId`,
 - `workflowType` and package metadata,
-- lifecycle (`pending | running | completed | failed | cancelled`),
+- lifecycle (`running | completed | failed | cancelled` plus control transitional lifecycles),
 - current state,
 - timestamps,
 - parent link (if child),
@@ -170,7 +170,6 @@ export interface WorkflowRegistration<I = unknown, O = unknown> {
 
 ```ts
 export type WorkflowLifecycle =
-  | "pending"
   | "running"
   | "pausing"
   | "paused"
@@ -516,6 +515,11 @@ Response:
 }
 ```
 
+Start semantics:
+- accepting `POST /workflows/start` means execution begins immediately;
+- there is no operational pending queue lifecycle between acceptance and execution;
+- `workflow.started` is emitted at execution-start checkpoint.
+
 ## 8.2 Get Run Summary (Current Insight)
 `GET /workflows/runs/{runId}`
 
@@ -656,7 +660,6 @@ For a run instance:
 ## 11.1 Run State Machine (Exact)
 
 Allowed run lifecycle transitions:
-- `pending -> running`
 - `running -> pausing -> paused`
 - `paused -> resuming -> running`
 - `running -> completed`
