@@ -218,6 +218,7 @@ export const launchChild = async (params: {
       payload: {
         workflowType: params.request.workflowType,
         workflowVersion,
+        ...(params.request.input !== undefined ? { input: params.request.input } : {}),
       },
     });
   }

@@ -272,6 +272,7 @@ export const startRun = async (
       payload: {
         workflowType: request.workflowType,
         workflowVersion,
+        ...(request.input !== undefined ? { input: request.input } : {}),
       },
     });
 

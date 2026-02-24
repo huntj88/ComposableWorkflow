@@ -170,4 +170,116 @@ ORDER BY sequence ASC
       await pool.end();
     }
   });
+
+  it('passes child launch input into awaited child transition handlers', async () => {
+    const registry = createWorkflowRegistry('reject');
+
+    registry.register({
+      workflowType: 'wf.child.requires-input',
+      workflowVersion: '1.0.0',
+      factory: () => ({
+        initialState: 'start',
+        states: {
+          start: (ctx: {
+            input: { requestId?: string };
+            fail: (error: Error) => void;
+            complete: (output: unknown) => void;
+          }) => {
+            if (!ctx.input?.requestId) {
+              ctx.fail(new Error('Missing requestId'));
+              return;
+            }
+
+            ctx.complete({ echoedRequestId: ctx.input.requestId });
+          },
+        },
+      }),
+      packageName: 'pkg-test',
+      packageVersion: '1.0.0',
+      source: 'path',
+      sourceValue: '.',
+    });
+
+    registry.register({
+      workflowType: 'wf.parent.await-input-child',
+      workflowVersion: '1.0.0',
+      factory: () => ({
+        initialState: 'start',
+        states: {
+          start: async (ctx: {
+            launchChild: (request: { workflowType: string; input: unknown }) => Promise<unknown>;
+            complete: (output: unknown) => void;
+          }) => {
+            const childOutput = await ctx.launchChild({
+              workflowType: 'wf.child.requires-input',
+              input: { requestId: 'req-child-1' },
+            });
+            ctx.complete({ parentReceived: childOutput });
+          },
+        },
+      }),
+      packageName: 'pkg-test',
+      packageVersion: '1.0.0',
+      source: 'path',
+      sourceValue: '.',
+    });
+
+    const pool = createPool({ connectionString: databaseUrl });
+    const lockProvider = new InMemoryLockProvider();
+    const orchestrator = createOrchestrator({
+      pool,
+      registry,
+      lockProvider,
+    });
+    const reconcileService = createReconcileService({
+      pool,
+      lockProvider,
+      orchestrator,
+    });
+    const startupReconcile = createStartupReconcileController(reconcileService);
+    const server = await createApiServer({
+      pool,
+      orchestrator,
+      registry,
+      reconcileService,
+      startupReconcile,
+    });
+
+    try {
+      const started = await orchestrator.startRun({
+        workflowType: 'wf.parent.await-input-child',
+        input: {},
+      });
+
+      await orchestrator.resumeRun(started.run.runId);
+
+      const parentSummary = await pool.query<{ lifecycle: string }>(
+        'SELECT lifecycle FROM workflow_runs WHERE run_id = $1',
+        [started.run.runId],
+      );
+      expect(parentSummary.rows[0]?.lifecycle).toBe('completed');
+
+      const parentCompleted = await pool.query<{ payload_jsonb: Record<string, unknown> | null }>(
+        `
+SELECT payload_jsonb
+FROM workflow_events
+WHERE run_id = $1
+  AND event_type = 'workflow.completed'
+ORDER BY sequence DESC
+LIMIT 1
+`,
+        [started.run.runId],
+      );
+      expect(parentCompleted.rows[0]?.payload_jsonb).toEqual({
+        output: {
+          parentReceived: {
+            echoedRequestId: 'req-child-1',
+          },
+        },
+      });
+    } finally {
+      await server.close();
+      await pool.end();
+    }
+  });
 });

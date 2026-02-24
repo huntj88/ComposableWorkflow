@@ -5,7 +5,7 @@ import type { Pool } from 'pg';
 import type { LockProvider } from '../locking/lock-provider.js';
 import type { CommandPolicy } from '../command/command-policy.js';
 import type { CommandRunnerAdapter } from '../command/command-runner.js';
-import { withTransaction } from '../persistence/db.js';
+import { withTransaction, type DbClient } from '../persistence/db.js';
 import { createEventRepository, type EventRepository } from '../persistence/event-repository.js';
 import {
   createIdempotencyRepository,
@@ -59,6 +59,23 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
   const runIdFactory = deps.runIdFactory ?? defaultRunIdFactory;
   const eventIdFactory = deps.eventIdFactory ?? defaultEventIdFactory;
 
+  const resolveRunInput = async (
+    client: DbClient,
+    runId: string,
+    explicitInput: unknown,
+  ): Promise<unknown> => {
+    if (explicitInput !== undefined) {
+      return explicitInput;
+    }
+
+    const startedInput = await eventRepository.getStartedInput?.(client, runId);
+    if (!startedInput?.present) {
+      return undefined;
+    }
+
+    return startedInput.value;
+  };
+
   const orchestrator: Orchestrator = {
     startRun: async (request) => {
       const started = await startRun(
@@ -110,6 +127,8 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
               throw new Error(`Run ${runId} not found`);
             }
 
+            const resolvedInput = await resolveRunInput(client, runId, input);
+
             return runTransitionStep({
               client,
               deps: {
@@ -124,7 +143,7 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
                 now,
               },
               run,
-              input,
+              input: resolvedInput,
             });
           });
 

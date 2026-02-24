@@ -787,6 +787,16 @@ export const runTransitionStep = async (params: {
   input?: unknown;
 }): Promise<TransitionStepResult> => {
   const now = params.deps.now ?? (() => new Date());
+  const startedInput =
+    params.input === undefined
+      ? await params.deps.eventRepository.getStartedInput?.(params.client, params.run.runId)
+      : undefined;
+  const resolvedInput =
+    params.input !== undefined
+      ? params.input
+      : startedInput?.present
+        ? startedInput.value
+        : undefined;
 
   const safePointResult = await applyLifecycleSafePoint({
     client: params.client,
@@ -836,7 +846,7 @@ export const runTransitionStep = async (params: {
     readFailureIntent,
     readTransitionIntent,
     flushPendingLogs,
-  } = createExecutionContext(params.client, params.deps, params.run, params.input);
+  } = createExecutionContext(params.client, params.deps, params.run, resolvedInput);
 
   const definition = registration.factory(context) as RuntimeWorkflowDefinition<unknown, unknown>;
   const handler = definition.states[params.run.currentState];

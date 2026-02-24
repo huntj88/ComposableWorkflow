@@ -597,27 +597,34 @@ export const createInstrumentedEventRepository = (params: {
   baseEventRepository: EventRepository;
   runRepository: RunRepository;
   instrumentation: WorkflowInstrumentation;
-}): EventRepository => ({
-  appendEvent: async (client: DbClient, input: EventInsert): Promise<PersistedEvent> => {
-    const persisted = await params.baseEventRepository.appendEvent(client, input);
-    const runSummary = await params.runRepository.getRunSummary(client, persisted.runId);
+}): EventRepository => {
+  const getLatestTransitionData = params.baseEventRepository.getLatestTransitionData;
+  const getStartedInput = params.baseEventRepository.getStartedInput;
 
-    if (!runSummary) {
+  return {
+    appendEvent: async (client: DbClient, input: EventInsert): Promise<PersistedEvent> => {
+      const persisted = await params.baseEventRepository.appendEvent(client, input);
+      const runSummary = await params.runRepository.getRunSummary(client, persisted.runId);
+
+      if (!runSummary) {
+        return persisted;
+      }
+
+      const event = toWorkflowEvent(persisted, runSummary);
+
+      try {
+        await params.instrumentation.onEvent(event);
+      } catch {
+        return persisted;
+      }
+
       return persisted;
-    }
-
-    const event = toWorkflowEvent(persisted, runSummary);
-
-    try {
-      await params.instrumentation.onEvent(event);
-    } catch {
-      return persisted;
-    }
-
-    return persisted;
-  },
-  getLatestTransitionData: params.baseEventRepository.getLatestTransitionData
-    ? async (client, runId, toState) =>
-        params.baseEventRepository.getLatestTransitionData?.(client, runId, toState)
-    : undefined,
-});
+    },
+    getLatestTransitionData: getLatestTransitionData
+      ? async (client, runId, toState) => getLatestTransitionData(client, runId, toState)
+      : undefined,
+    getStartedInput: getStartedInput
+      ? async (client, runId) => getStartedInput(client, runId)
+      : undefined,
+  };
+};

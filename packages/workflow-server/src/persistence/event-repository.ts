@@ -71,6 +71,21 @@ ORDER BY sequence DESC
 LIMIT 1
 `;
 
+export const SELECT_WORKFLOW_STARTED_INPUT_SQL = `
+SELECT
+  payload_jsonb
+FROM workflow_events
+WHERE run_id = $1
+  AND event_type = 'workflow.started'
+ORDER BY sequence ASC
+LIMIT 1
+`;
+
+export interface StoredRunInput {
+  present: boolean;
+  value: unknown;
+}
+
 export const mapWorkflowEventRow = (row: WorkflowEventRow): PersistedEvent => ({
   eventId: row.event_id,
   runId: row.run_id,
@@ -88,6 +103,7 @@ export interface EventRepository {
     runId: string,
     toState: string,
   ) => Promise<unknown | undefined>;
+  getStartedInput?: (client: DbClient, runId: string) => Promise<StoredRunInput>;
 }
 
 export const createEventRepository = (): EventRepository => ({
@@ -136,5 +152,31 @@ export const createEventRepository = (): EventRepository => ({
     }
 
     return payload.data;
+  },
+  getStartedInput: async (client, runId) => {
+    const result = await client.query<Pick<WorkflowEventRow, 'payload_jsonb'>>(
+      SELECT_WORKFLOW_STARTED_INPUT_SQL,
+      [runId],
+    );
+
+    if (result.rowCount === 0) {
+      return {
+        present: false,
+        value: undefined,
+      };
+    }
+
+    const payload = result.rows[0]?.payload_jsonb;
+    if (!payload || !Object.hasOwn(payload, 'input')) {
+      return {
+        present: false,
+        value: undefined,
+      };
+    }
+
+    return {
+      present: true,
+      value: payload.input,
+    };
   },
 });
