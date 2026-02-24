@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { WorkflowEvent } from '@composable-workflow/workflow-lib/contracts';
 
 import {
+  createInstrumentedEventRepository,
   createWorkflowInstrumentationAdapter,
   projectEventMetrics,
   projectEventToLogRecord,
@@ -12,6 +13,33 @@ import { InMemoryWorkflowMetrics } from '../../../src/observability/metrics.js';
 import { createOtelWorkflowTracing } from '../../../src/observability/tracing.js';
 
 describe('observability instrumentation adapter', () => {
+  it('preserves getLatestTransitionData passthrough on instrumented repository', async () => {
+    const expected = { index: 2, completed: ['req_1:safe-point:1', 'req_1:safe-point:2'] };
+    const getLatestTransitionData = vi.fn(async () => expected);
+
+    const repository = createInstrumentedEventRepository({
+      baseEventRepository: {
+        appendEvent: vi.fn(async () => {
+          throw new Error('appendEvent not expected in this test');
+        }),
+        getLatestTransitionData,
+      },
+      runRepository: {
+        upsertRunSummary: vi.fn(),
+        getRunSummary: vi.fn(),
+      },
+      instrumentation: {
+        onEvent: vi.fn(async () => undefined),
+      },
+    });
+
+    const result = await repository.getLatestTransitionData?.({} as never, 'wr_1', 'checkpoint');
+
+    expect(result).toEqual(expected);
+    expect(getLatestTransitionData).toHaveBeenCalledOnce();
+    expect(getLatestTransitionData).toHaveBeenCalledWith({} as never, 'wr_1', 'checkpoint');
+  });
+
   it('projects required command log fields', () => {
     const event: WorkflowEvent = {
       eventId: 'evt_1',

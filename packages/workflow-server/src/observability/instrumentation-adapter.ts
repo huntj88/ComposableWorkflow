@@ -616,4 +616,8 @@ export const createInstrumentedEventRepository = (params: {
 
     return persisted;
   },
+  getLatestTransitionData: params.baseEventRepository.getLatestTransitionData
+    ? async (client, runId, toState) =>
+        params.baseEventRepository.getLatestTransitionData?.(client, runId, toState)
+    : undefined,
 });
