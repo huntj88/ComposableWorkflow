@@ -2,6 +2,8 @@ pnpm --filter @composable-workflow/workflow-cli run workflow run --type referenc
 
 pnpm --filter @composable-workflow/workflow-cli run workflow run --type reference.success.v1 --input '{"requestId":"req_1","customerId":"cust_1","amountCents":1000,"currency":"USD"}'
 
+pnpm --filter @composable-workflow/workflow-cli run workflow run --type reference.parent-child.v1 --input '{"requestId":"req_1","childInput":{"requestId":"req_1","customerId":"cust_1","amountCents":1000,"currency":"USD"}}'
+
 pnpm --filter @composable-workflow/workflow-cli run workflow inspect --type reference.long-running.v1 --graph
 
 pnpm --filter @composable-workflow/workflow-cli run workflow runs list --workflow-type reference.long-running.v1

@@ -99,8 +99,8 @@ export const defaultCommandPolicy = (): CommandPolicy =>
     allowedCwdPrefixes: [process.cwd()],
     blockedEnvKeys: ['TOKEN', 'SECRET', 'PASSWORD', 'KEY'],
     timeoutMsMax: 30_000,
-    outputMaxBytes: 8_192,
-    redactFields: ['stdin', 'stdout', 'stderr'],
+    outputMaxBytes: 8_192 * 16, // ~128KB
+    redactFields: [],
   });
 
 const startsWithPathPrefix = (value: string, prefix: string): boolean => {
