@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-const describeIfBlackbox =
-  process.env.WORKFLOW_BLACKBOX_REQUIRED === 'true' ? describe : describe.skip;
-
 const resolveBaseUrl = (): string => {
   if (process.env.WORKFLOW_BLACKBOX_BASE_URL) {
     return process.env.WORKFLOW_BLACKBOX_BASE_URL;
@@ -33,7 +30,7 @@ const requestJson = async <T>(path: string, init?: RequestInit): Promise<T> => {
   return (await response.json()) as T;
 };
 
-describeIfBlackbox('e2e.blackbox.server-smoke', () => {
+describe('e2e.blackbox.server-smoke', () => {
   it('serves production API routes from launched server process', async () => {
     const definition = await requestJson<{
       workflowType: string;

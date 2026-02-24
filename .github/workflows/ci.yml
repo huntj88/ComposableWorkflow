@@ -253,10 +253,7 @@ jobs:
       - name: Run black-box e2e suites
         run: |
           set -eo pipefail
-          {
-            pnpm --filter @composable-workflow/workflow-server test:e2e:blackbox
-            pnpm --filter @composable-workflow/workflow-cli test:e2e:blackbox
-          } 2>&1 | tee -a .artifacts/e2e/console.log
+          pnpm ci:e2e:blackbox 2>&1 | tee -a .artifacts/e2e/console.log
 
       - name: Stop production server
         if: always()

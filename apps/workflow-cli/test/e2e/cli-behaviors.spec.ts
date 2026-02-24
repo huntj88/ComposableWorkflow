@@ -4,8 +4,6 @@ import { executeCli, EXIT_CODE_SUCCESS } from '../../src/index.js';
 import { createWorkflowApiClient, type WorkflowApiClient } from '../../src/http/client.js';
 
 const SUCCESS_WORKFLOW_TYPE = 'reference.success.v1';
-const describeIfBlackbox =
-  process.env.WORKFLOW_BLACKBOX_REQUIRED === 'true' ? describe : describe.skip;
 const resolveBaseUrl = (): string => {
   if (process.env.WORKFLOW_BLACKBOX_BASE_URL) {
     return process.env.WORKFLOW_BLACKBOX_BASE_URL;
@@ -19,7 +17,7 @@ const resolveBaseUrl = (): string => {
   return `http://127.0.0.1:${port}`;
 };
 
-describeIfBlackbox('e2e.cli.behaviors', () => {
+describe('e2e.cli.behaviors', () => {
   let baseUrl = '';
   let client: WorkflowApiClient;
   const stdout: string[] = [];

@@ -5,9 +5,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { IntegrationHarness } from '../harness/create-harness.js';
 import { createE2eHarness, SUCCESS_WORKFLOW_TYPE } from '../e2e/setup.js';
 
-const describeIfBlackbox =
-  process.env.WORKFLOW_BLACKBOX_REQUIRED === 'true' ? describe : describe.skip;
-
 interface RunSummary {
   runId: string;
   lifecycle: string;
@@ -85,7 +82,7 @@ const listProductionEvents = async (runId: string): Promise<string[]> => {
   }
 };
 
-describeIfBlackbox('e2e.blackbox.workflow-parity', () => {
+describe('e2e.blackbox.workflow-parity', () => {
   let harness: IntegrationHarness | undefined;
 
   beforeAll(async () => {

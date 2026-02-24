@@ -17,9 +17,9 @@
     "lint": "eslint src test",
     "test": "vitest run --passWithNoTests",
     "test:unit": "vitest run test/index.test.ts",
-    "test:contract": "vitest run test/contract/**/*.spec.ts",
+    "test:contract": "vitest run test/contract",
     "test:e2e": "pnpm test:e2e:blackbox",
-    "test:e2e:blackbox": "WORKFLOW_BLACKBOX_REQUIRED=true vitest run test/e2e --passWithNoTests",
+    "test:e2e:blackbox": "vitest run test/e2e --passWithNoTests",
     "workflow": "node dist/index.js",
     "clean": "rm -rf dist"
   },

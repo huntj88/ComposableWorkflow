@@ -14,7 +14,7 @@
     "test": "vitest run --passWithNoTests",
     "test:system": "vitest run test/e2e/**/*.spec.ts --passWithNoTests",
     "test:e2e": "pnpm test:e2e:blackbox",
-    "test:e2e:blackbox": "WORKFLOW_BLACKBOX_REQUIRED=true vitest run test/e2e-blackbox --passWithNoTests",
+    "test:e2e:blackbox": "vitest run test/e2e-blackbox --passWithNoTests",
     "start": "tsx src/main.ts",
     "start:test": "pnpm start",
     "migrate:up": "tsx src/persistence/migrate.ts up",
