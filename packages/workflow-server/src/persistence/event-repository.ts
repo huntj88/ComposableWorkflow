@@ -60,6 +60,17 @@ RETURNING
   error_jsonb
 `;
 
+export const SELECT_LATEST_TRANSITION_DATA_SQL = `
+SELECT
+  payload_jsonb
+FROM workflow_events
+WHERE run_id = $1
+  AND event_type = 'transition.completed'
+  AND payload_jsonb->>'to' = $2
+ORDER BY sequence DESC
+LIMIT 1
+`;
+
 export const mapWorkflowEventRow = (row: WorkflowEventRow): PersistedEvent => ({
   eventId: row.event_id,
   runId: row.run_id,
@@ -72,6 +83,11 @@ export const mapWorkflowEventRow = (row: WorkflowEventRow): PersistedEvent => ({
 
 export interface EventRepository {
   appendEvent: (client: DbClient, input: EventInsert) => Promise<PersistedEvent>;
+  getLatestTransitionData?: (
+    client: DbClient,
+    runId: string,
+    toState: string,
+  ) => Promise<unknown | undefined>;
 }
 
 export const createEventRepository = (): EventRepository => ({
@@ -103,5 +119,22 @@ export const createEventRepository = (): EventRepository => ({
     }
 
     return mapWorkflowEventRow(eventResult.rows[0]);
+  },
+  getLatestTransitionData: async (client, runId, toState) => {
+    const result = await client.query<Pick<WorkflowEventRow, 'payload_jsonb'>>(
+      SELECT_LATEST_TRANSITION_DATA_SQL,
+      [runId, toState],
+    );
+
+    if (result.rowCount === 0) {
+      return undefined;
+    }
+
+    const payload = result.rows[0]?.payload_jsonb;
+    if (!payload || !Object.hasOwn(payload, 'data')) {
+      return undefined;
+    }
+
+    return payload.data;
   },
 });

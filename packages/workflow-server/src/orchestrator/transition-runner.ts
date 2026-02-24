@@ -840,6 +840,11 @@ export const runTransitionStep = async (params: {
 
   const definition = registration.factory(context) as RuntimeWorkflowDefinition<unknown, unknown>;
   const handler = definition.states[params.run.currentState];
+  const stateData = await params.deps.eventRepository.getLatestTransitionData?.(
+    params.client,
+    params.run.runId,
+    params.run.currentState,
+  );
 
   if (!handler) {
     const failedRun = await failRun({
@@ -861,7 +866,7 @@ export const runTransitionStep = async (params: {
   }
 
   try {
-    await handler(context, undefined);
+    await handler(context, stateData);
     await flushPendingLogs();
   } catch (error) {
     let resolvedError: unknown = error;
