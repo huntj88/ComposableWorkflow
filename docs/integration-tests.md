@@ -160,7 +160,8 @@ A behavior is integration-primary when one or more is true:
 - Crash injector after reconciler processes subset.
 
 **Assertions**
-- Re-running reconcile produces no duplicate recovery side effects.
+- Re-running reconcile produces no duplicate recovery side effects when no post-recovery transition progress occurred.
+- Re-running reconcile is allowed to recover again when transition progress occurred after the latest recovery boundary.
 - Final states converge consistently.
 - Locking prevents concurrent reconcile corruption.
 

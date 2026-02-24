@@ -101,19 +101,35 @@ LIMIT $2
             }
 
             if (run.lifecycle === 'running') {
-              const recoveredAlready = await client.query<{ event_id: string }>(
+              const latestRecovered = await client.query<{ sequence: number }>(
                 `
-SELECT event_id
+SELECT sequence
 FROM workflow_events
 WHERE run_id = $1
   AND event_type = 'workflow.recovered'
+ORDER BY sequence DESC
 LIMIT 1
 `,
                 [run.run_id],
               );
 
-              if ((recoveredAlready.rowCount ?? 0) > 0) {
-                return false;
+              const lastRecoveredSequence = latestRecovered.rows[0]?.sequence;
+              if (typeof lastRecoveredSequence === 'number') {
+                const progressedSinceRecovery = await client.query<{ event_id: string }>(
+                  `
+SELECT event_id
+FROM workflow_events
+WHERE run_id = $1
+  AND sequence > $2
+  AND event_type = 'transition.completed'
+LIMIT 1
+`,
+                  [run.run_id, lastRecoveredSequence],
+                );
+
+                if ((progressedSinceRecovery.rowCount ?? 0) === 0) {
+                  return false;
+                }
               }
             }
 

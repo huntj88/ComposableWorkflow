@@ -673,6 +673,8 @@ Rules:
 - Parent-propagated cancellation is default: cancelling parent requests cancellation on active descendants.
 - While a run is `pausing`, `paused`, `resuming`, `cancelling`, or `recovering`, new child launches are rejected.
 - Recovery is idempotent and lock-protected (single active runner per `runId`).
+- Repeat recovery attempts for a `running` run are allowed only when workflow progression happened since the last recovery boundary (i.e., at least one `transition.completed` event after the latest `workflow.recovered`).
+- If no progression happened since the latest `workflow.recovered`, subsequent reconcile passes must skip duplicate recovery side effects.
 
 Lifecycle event mapping (must mirror lifecycle state machine 1:1):
 - entering `pausing` emits `workflow.pausing`
