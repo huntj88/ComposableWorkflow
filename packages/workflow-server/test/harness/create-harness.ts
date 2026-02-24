@@ -38,7 +38,7 @@ import {
 } from './fault-injector.js';
 import { createFakeClock, type FakeClock } from './fake-clock.js';
 import {
-  createPostgresTestContainer,
+  createSharedPostgresTestContainer,
   type PostgresTestContainerHandle,
   type PostgresTestContainerOptions,
 } from './postgres-container.js';
@@ -202,7 +202,7 @@ export const createIntegrationHarness = async (
 
   let container: PostgresTestContainerHandle | undefined;
   if (options.postgres?.useContainer !== false && !options.postgres?.connectionString) {
-    container = await createPostgresTestContainer(options.postgres);
+    container = await createSharedPostgresTestContainer(options.postgres);
   }
 
   const connectionString = options.postgres?.connectionString ?? container?.connectionString;

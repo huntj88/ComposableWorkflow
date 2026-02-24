@@ -6,49 +6,43 @@ import type { IntegrationHarness } from '../../harness/create-harness.js';
 
 describe('run summary transition context', () => {
   let harness: IntegrationHarness | undefined;
-  let runtimeAvailable = true;
 
   beforeAll(async () => {
-    try {
-      harness = await createIntegrationHarness({
-        registerWorkflows: (registry) => {
-          registry.register({
-            workflowType: 'wf.transition.context.v1',
-            workflowVersion: '1.0.0',
-            factory: () => ({
-              initialState: 'start',
-              transitions: [{ from: 'start', to: 'next', name: 'move-next' }],
-              states: {
-                start: (ctx: WorkflowContext<unknown, unknown>) => {
-                  ctx.transition('next', {
-                    requestId: 'ctx-1',
-                  });
-                },
-                next: () => {
-                  return;
-                },
+    harness = await createIntegrationHarness({
+      registerWorkflows: (registry) => {
+        registry.register({
+          workflowType: 'wf.transition.context.v1',
+          workflowVersion: '1.0.0',
+          factory: () => ({
+            initialState: 'start',
+            transitions: [{ from: 'start', to: 'next', name: 'move-next' }],
+            states: {
+              start: (ctx: WorkflowContext<unknown, unknown>) => {
+                ctx.transition('next', {
+                  requestId: 'ctx-1',
+                });
               },
-            }),
-            packageName: 'test-package',
-            packageVersion: '1.0.0',
-            source: 'path',
-            sourceValue: '.',
-          });
-        },
-      });
-    } catch {
-      runtimeAvailable = false;
-    }
+              next: () => {
+                return;
+              },
+            },
+          }),
+          packageName: 'test-package',
+          packageVersion: '1.0.0',
+          source: 'path',
+          sourceValue: '.',
+        });
+      },
+    });
   }, 120_000);
 
   afterAll(async () => {
     await harness?.shutdown();
   });
 
-  it('populates currentTransitionContext from persisted transition events', async (context) => {
-    if (!runtimeAvailable || !harness) {
-      context.skip();
-      return;
+  it('populates currentTransitionContext from persisted transition events', async () => {
+    if (!harness) {
+      throw new Error('Test runtime unavailable');
     }
 
     const integrationHarness = harness;

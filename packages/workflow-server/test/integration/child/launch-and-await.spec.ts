@@ -1,47 +1,31 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import {
+  createSharedPostgresTestContainer,
+  type PostgresTestContainerHandle,
+} from '../../harness/postgres-container.js';
 
 import { createApiServer } from '../../../src/api/server.js';
 import { InMemoryLockProvider } from '../../../src/locking/lock-provider.js';
 import { createOrchestrator } from '../../../src/orchestrator/orchestrator.js';
 import { createPool } from '../../../src/persistence/db.js';
-import { runMigrations } from '../../../src/persistence/migrate.js';
 import { createReconcileService } from '../../../src/recovery/reconcile-service.js';
 import { createStartupReconcileController } from '../../../src/recovery/startup-reconcile.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
 
 describe('child launch and await', () => {
-  let container: StartedTestContainer | undefined;
+  let postgres: PostgresTestContainerHandle | undefined;
   let databaseUrl: string;
-  let runtimeAvailable = true;
 
   beforeAll(async () => {
-    try {
-      container = await new GenericContainer('postgres:16-alpine')
-        .withEnvironment({
-          POSTGRES_DB: 'workflow',
-          POSTGRES_USER: 'workflow',
-          POSTGRES_PASSWORD: 'workflow',
-        })
-        .withExposedPorts(5432)
-        .start();
-
-      databaseUrl = `postgresql://workflow:workflow@${container.getHost()}:${container.getMappedPort(5432)}/workflow`;
-      await runMigrations({ databaseUrl, direction: 'up' });
-    } catch {
-      runtimeAvailable = false;
-    }
+    postgres = await createSharedPostgresTestContainer();
+    databaseUrl = postgres.connectionString;
   }, 120_000);
 
   afterAll(async () => {
-    await container?.stop();
+    await postgres?.stop();
   });
 
-  it('launches a child run, awaits completion, and exposes lineage in run tree', async (context) => {
-    if (!runtimeAvailable) {
-      context.skip();
-    }
-
+  it('launches a child run, awaits completion, and exposes lineage in run tree', async () => {
     const registry = createWorkflowRegistry('reject');
 
     registry.register({
@@ -50,7 +34,7 @@ describe('child launch and await', () => {
       factory: () => ({
         initialState: 'start',
         states: {
-          start: (ctx) => {
+          start: (ctx: { complete: (output: unknown) => void }) => {
             ctx.complete({ value: 42 });
           },
         },
@@ -67,7 +51,10 @@ describe('child launch and await', () => {
       factory: () => ({
         initialState: 'start',
         states: {
-          start: async (ctx) => {
+          start: async (ctx: {
+            launchChild: (request: { workflowType: string; input: unknown }) => Promise<unknown>;
+            complete: (output: unknown) => void;
+          }) => {
             const childOutput = await ctx.launchChild({
               workflowType: 'wf.child.success',
               input: { value: 42 },

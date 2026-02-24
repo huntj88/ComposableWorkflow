@@ -1,44 +1,28 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import {
+  createSharedPostgresTestContainer,
+  type PostgresTestContainerHandle,
+} from '../../harness/postgres-container.js';
 
 import { createOrchestrator } from '../../../src/orchestrator/orchestrator.js';
 import { createPool } from '../../../src/persistence/db.js';
-import { runMigrations } from '../../../src/persistence/migrate.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
 import { createPostgresAdvisoryLockProvider } from '../../../src/locking/postgres-advisory-lock.js';
 
 describe('orchestrator single runner lock', () => {
-  let container: StartedTestContainer | undefined;
+  let postgres: PostgresTestContainerHandle | undefined;
   let databaseUrl: string;
-  let runtimeAvailable = true;
 
   beforeAll(async () => {
-    try {
-      container = await new GenericContainer('postgres:16-alpine')
-        .withEnvironment({
-          POSTGRES_DB: 'workflow',
-          POSTGRES_USER: 'workflow',
-          POSTGRES_PASSWORD: 'workflow',
-        })
-        .withExposedPorts(5432)
-        .start();
-
-      databaseUrl = `postgresql://workflow:workflow@${container.getHost()}:${container.getMappedPort(5432)}/workflow`;
-      await runMigrations({ databaseUrl, direction: 'up' });
-    } catch {
-      runtimeAvailable = false;
-    }
+    postgres = await createSharedPostgresTestContainer();
+    databaseUrl = postgres.connectionString;
   }, 120_000);
 
   afterAll(async () => {
-    await container?.stop();
+    await postgres?.stop();
   });
 
-  it('allows only one concurrent runner to mutate run state', async (context) => {
-    if (!runtimeAvailable) {
-      context.skip();
-    }
-
+  it('allows only one concurrent runner to mutate run state', async () => {
     let unblockStateHandler: (() => void) | undefined;
     const stateBlocker = new Promise<void>((resolve) => {
       unblockStateHandler = resolve;
@@ -51,11 +35,11 @@ describe('orchestrator single runner lock', () => {
       factory: () => ({
         initialState: 'start',
         states: {
-          start: async (ctx) => {
+          start: async (ctx: { transition: (to: string) => void }) => {
             await stateBlocker;
             ctx.transition('done');
           },
-          done: (ctx) => {
+          done: (ctx: { complete: (output: unknown) => void }) => {
             ctx.complete({ ok: true });
           },
         },

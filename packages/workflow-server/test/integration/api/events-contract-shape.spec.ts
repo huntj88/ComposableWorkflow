@@ -11,24 +11,18 @@ import type { IntegrationHarness } from '../../harness/create-harness.js';
 
 describe('events API contract shape', () => {
   let harness: IntegrationHarness | undefined;
-  let runtimeAvailable = true;
 
   beforeAll(async () => {
-    try {
-      harness = await createE2eHarness();
-    } catch {
-      runtimeAvailable = false;
-    }
+    harness = await createE2eHarness();
   }, 120_000);
 
   afterAll(async () => {
     await harness?.shutdown();
   });
 
-  it('returns typed workflow event fields in events payload', async (context) => {
-    if (!runtimeAvailable || !harness) {
-      context.skip();
-      return;
+  it('returns typed workflow event fields in events payload', async () => {
+    if (!harness) {
+      throw new Error('Test runtime unavailable');
     }
 
     const integrationHarness = harness;

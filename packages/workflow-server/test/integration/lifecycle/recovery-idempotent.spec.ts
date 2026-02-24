@@ -1,47 +1,30 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import {
+  createSharedPostgresTestContainer,
+  type PostgresTestContainerHandle,
+} from '../../harness/postgres-container.js';
 
 import { createApiServer } from '../../../src/api/server.js';
 import { InMemoryLockProvider } from '../../../src/locking/lock-provider.js';
 import { createOrchestrator } from '../../../src/orchestrator/orchestrator.js';
 import { createPool } from '../../../src/persistence/db.js';
-import { runMigrations } from '../../../src/persistence/migrate.js';
 import { createReconcileService } from '../../../src/recovery/reconcile-service.js';
-import { createStartupReconcileController } from '../../../src/recovery/startup-reconcile.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
 
 describe('lifecycle recovery idempotence', () => {
-  let container: StartedTestContainer | undefined;
+  let postgres: PostgresTestContainerHandle | undefined;
   let databaseUrl: string;
-  let runtimeAvailable = true;
 
   beforeAll(async () => {
-    try {
-      container = await new GenericContainer('postgres:16-alpine')
-        .withEnvironment({
-          POSTGRES_DB: 'workflow',
-          POSTGRES_USER: 'workflow',
-          POSTGRES_PASSWORD: 'workflow',
-        })
-        .withExposedPorts(5432)
-        .start();
-
-      databaseUrl = `postgresql://workflow:workflow@${container.getHost()}:${container.getMappedPort(5432)}/workflow`;
-      await runMigrations({ databaseUrl, direction: 'up' });
-    } catch {
-      runtimeAvailable = false;
-    }
+    postgres = await createSharedPostgresTestContainer();
+    databaseUrl = postgres.connectionString;
   }, 120_000);
 
   afterAll(async () => {
-    await container?.stop();
+    await postgres?.stop();
   });
 
-  it('reconcile is deterministic and idempotent for recoverable runs', async (context) => {
-    if (!runtimeAvailable) {
-      context.skip();
-    }
-
+  it('reconcile is deterministic and idempotent for recoverable runs', async () => {
     const registry = createWorkflowRegistry();
     registry.register({
       workflowType: 'wf.lifecycle.recovery',
@@ -72,13 +55,11 @@ describe('lifecycle recovery idempotence', () => {
       lockProvider,
       orchestrator,
     });
-    const startupReconcile = createStartupReconcileController(reconcileService);
     const server = await createApiServer({
       pool,
       orchestrator,
       registry,
       reconcileService,
-      startupReconcile,
     });
 
     try {
@@ -92,27 +73,17 @@ describe('lifecycle recovery idempotence', () => {
         'recovering',
       ]);
 
-      const first = await server.inject({
-        method: 'POST',
-        url: '/api/v1/workflows/recovery/reconcile',
-        payload: {
-          limit: 100,
-          dryRun: false,
-        },
+      const first = await reconcileService.reconcile({
+        limit: 100,
+        dryRun: false,
       });
-      expect(first.statusCode).toBe(200);
-      expect(first.json().recovered).toBe(1);
+      expect(first.recovered).toBe(1);
 
-      const second = await server.inject({
-        method: 'POST',
-        url: '/api/v1/workflows/recovery/reconcile',
-        payload: {
-          limit: 100,
-          dryRun: false,
-        },
+      const second = await reconcileService.reconcile({
+        limit: 100,
+        dryRun: false,
       });
-      expect(second.statusCode).toBe(200);
-      expect(second.json().recovered).toBe(0);
+      expect(second.recovered).toBe(0);
 
       const recoveredEvents = await pool.query<{ count: number }>(
         "SELECT COUNT(*)::int AS count FROM workflow_events WHERE run_id = $1 AND event_type = 'workflow.recovered'",

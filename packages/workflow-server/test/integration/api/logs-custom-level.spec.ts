@@ -8,47 +8,41 @@ import type { IntegrationHarness } from '../../harness/create-harness.js';
 
 describe('logs custom level and normalization', () => {
   let harness: IntegrationHarness | undefined;
-  let runtimeAvailable = true;
 
   beforeAll(async () => {
-    try {
-      harness = await createIntegrationHarness({
-        registerWorkflows: (registry) => {
-          registry.register({
-            workflowType: 'wf.logs.custom.v1',
-            workflowVersion: '1.0.0',
-            factory: () => ({
-              initialState: 'start',
-              states: {
-                start: (ctx: WorkflowContext<unknown, unknown>) => {
-                  ctx.log({
-                    level: 'warn',
-                    message: 'custom-workflow-log',
-                  });
-                  ctx.complete({ ok: true });
-                },
+    harness = await createIntegrationHarness({
+      registerWorkflows: (registry) => {
+        registry.register({
+          workflowType: 'wf.logs.custom.v1',
+          workflowVersion: '1.0.0',
+          factory: () => ({
+            initialState: 'start',
+            states: {
+              start: (ctx: WorkflowContext<unknown, unknown>) => {
+                ctx.log({
+                  level: 'warn',
+                  message: 'custom-workflow-log',
+                });
+                ctx.complete({ ok: true });
               },
-            }),
-            packageName: 'test-package',
-            packageVersion: '1.0.0',
-            source: 'path',
-            sourceValue: '.',
-          });
-        },
-      });
-    } catch {
-      runtimeAvailable = false;
-    }
+            },
+          }),
+          packageName: 'test-package',
+          packageVersion: '1.0.0',
+          source: 'path',
+          sourceValue: '.',
+        });
+      },
+    });
   }, 120_000);
 
   afterAll(async () => {
     await harness?.shutdown();
   });
 
-  it('persists ctx.log events and exposes them via logs API with authored level', async (context) => {
-    if (!runtimeAvailable || !harness) {
-      context.skip();
-      return;
+  it('persists ctx.log events and exposes them via logs API with authored level', async () => {
+    if (!harness) {
+      throw new Error('Test runtime unavailable');
     }
 
     const integrationHarness = harness;
@@ -87,10 +81,9 @@ describe('logs custom level and normalization', () => {
     expect(customLog?.level).toBe('warn');
   });
 
-  it('normalizes severity-only log payloads to deterministic level values', async (context) => {
-    if (!runtimeAvailable || !harness) {
-      context.skip();
-      return;
+  it('normalizes severity-only log payloads to deterministic level values', async () => {
+    if (!harness) {
+      throw new Error('Test runtime unavailable');
     }
 
     const integrationHarness = harness;

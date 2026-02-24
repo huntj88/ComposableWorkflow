@@ -1,12 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import {
+  createSharedPostgresTestContainer,
+  type PostgresTestContainerHandle,
+} from '../../harness/postgres-container.js';
 
 import { createApiServer } from '../../../src/api/server.js';
 import { InMemoryLockProvider } from '../../../src/locking/lock-provider.js';
 import { createOrchestrator } from '../../../src/orchestrator/orchestrator.js';
 import { withTransaction, createPool } from '../../../src/persistence/db.js';
 import { createEventRepository } from '../../../src/persistence/event-repository.js';
-import { runMigrations } from '../../../src/persistence/migrate.js';
 import { createReconcileService } from '../../../src/recovery/reconcile-service.js';
 import { createStartupReconcileController } from '../../../src/recovery/startup-reconcile.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
@@ -83,37 +85,19 @@ const collectStreamFrames = async (url: string, expectedCount: number): Promise<
 };
 
 describe('stream sse ordering and reconnect', () => {
-  let container: StartedTestContainer | undefined;
+  let postgres: PostgresTestContainerHandle | undefined;
   let databaseUrl: string;
-  let runtimeAvailable = true;
 
   beforeAll(async () => {
-    try {
-      container = await new GenericContainer('postgres:16-alpine')
-        .withEnvironment({
-          POSTGRES_DB: 'workflow',
-          POSTGRES_USER: 'workflow',
-          POSTGRES_PASSWORD: 'workflow',
-        })
-        .withExposedPorts(5432)
-        .start();
-
-      databaseUrl = `postgresql://workflow:workflow@${container.getHost()}:${container.getMappedPort(5432)}/workflow`;
-      await runMigrations({ databaseUrl, direction: 'up' });
-    } catch {
-      runtimeAvailable = false;
-    }
+    postgres = await createSharedPostgresTestContainer();
+    databaseUrl = postgres.connectionString;
   }, 120_000);
 
   afterAll(async () => {
-    await container?.stop();
+    await postgres?.stop();
   });
 
-  it('streams ordered events and reconnects without losing events', async (context) => {
-    if (!runtimeAvailable) {
-      context.skip();
-    }
-
+  it('streams ordered events and reconnects without losing events', async () => {
     const registry = createWorkflowRegistry();
     registry.register({
       workflowType: 'wf.api.stream',

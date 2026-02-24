@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { createIntegrationHarness } from '../../harness/create-harness.js';
-import { createPostgresTestContainer } from '../../harness/postgres-container.js';
+import { createSharedPostgresTestContainer } from '../../harness/postgres-container.js';
 import type { IntegrationHarness } from '../../harness/create-harness.js';
 
 const GS005_TYPE = 'e2e.gs005.recovery.v1';
@@ -18,7 +18,7 @@ describe('e2e.golden.GS-005', () => {
   });
 
   it('reconciles interrupted work idempotently and on startup before admitting new work', async () => {
-    const postgres = await createPostgresTestContainer();
+    const postgres = await createSharedPostgresTestContainer();
     stopContainer = postgres.stop;
 
     harnessOne = await createIntegrationHarness({

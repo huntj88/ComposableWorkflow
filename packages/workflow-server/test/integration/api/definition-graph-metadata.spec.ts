@@ -5,24 +5,18 @@ import type { IntegrationHarness } from '../../harness/create-harness.js';
 
 describe('definition graph metadata', () => {
   let harness: IntegrationHarness | undefined;
-  let runtimeAvailable = true;
 
   beforeAll(async () => {
-    try {
-      harness = await createIntegrationHarness();
-    } catch {
-      runtimeAvailable = false;
-    }
+    harness = await createIntegrationHarness();
   }, 120_000);
 
   afterAll(async () => {
     await harness?.shutdown();
   });
 
-  it('returns states/transitions/child launch annotations from DB fallback metadata', async (context) => {
-    if (!runtimeAvailable || !harness) {
-      context.skip();
-      return;
+  it('returns states/transitions/child launch annotations from DB fallback metadata', async () => {
+    if (!harness) {
+      throw new Error('Test runtime unavailable');
     }
 
     const integrationHarness = harness;
