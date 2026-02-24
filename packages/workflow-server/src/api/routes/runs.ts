@@ -65,7 +65,6 @@ LEFT JOIN LATERAL (
     COUNT(*)::int AS total,
     COUNT(*) FILTER (
       WHERE child.lifecycle IN (
-        'pending',
         'running',
         'pausing',
         'paused',

@@ -53,13 +53,15 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
   const ownerIdFactory = deps.ownerIdFactory ?? defaultOwnerIdFactory;
   const lockTtlMs = deps.lockTtlMs ?? 30_000;
   const maxIterations = deps.maxIterations ?? 256;
+  const lockAcquireRetryDelayMs = 10;
+  const lockAcquireMaxAttempts = 200;
   const now = deps.now ?? (() => new Date());
   const runIdFactory = deps.runIdFactory ?? defaultRunIdFactory;
   const eventIdFactory = deps.eventIdFactory ?? defaultEventIdFactory;
 
-  return {
-    startRun: (request) =>
-      startRun(
+  const orchestrator: Orchestrator = {
+    startRun: async (request) => {
+      const started = await startRun(
         {
           pool: deps.pool,
           registry: deps.registry,
@@ -71,10 +73,30 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
           eventIdFactory,
         },
         request,
-      ),
+      );
+
+      if (started.created) {
+        setImmediate(() => {
+          void orchestrator.resumeRun(started.run.runId, request.input).catch(() => undefined);
+        });
+      }
+
+      return started;
+    },
     resumeRun: async (runId, input) => {
       const ownerId = ownerIdFactory();
-      const acquired = await deps.lockProvider.acquire(runId, ownerId, lockTtlMs);
+      let acquired = false;
+
+      for (let attempt = 0; attempt < lockAcquireMaxAttempts; attempt += 1) {
+        acquired = await deps.lockProvider.acquire(runId, ownerId, lockTtlMs);
+        if (acquired) {
+          break;
+        }
+
+        await new Promise((resolve) => {
+          setTimeout(resolve, lockAcquireRetryDelayMs);
+        });
+      }
 
       if (!acquired) {
         return;
@@ -119,4 +141,6 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
       }
     },
   };
+
+  return orchestrator;
 };

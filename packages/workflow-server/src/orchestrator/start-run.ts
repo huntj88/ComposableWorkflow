@@ -268,7 +268,7 @@ export const startRun = async (
       eventId: eventIdFactory(),
       runId: runSummary.runId,
       eventType: 'workflow.started',
-      timestamp: now().toISOString(),
+      timestamp: startedAt,
       payload: {
         workflowType: request.workflowType,
         workflowVersion,

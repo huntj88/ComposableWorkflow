@@ -82,6 +82,9 @@ describe('itx.lifecycle.ITX-007', () => {
       input: { branch: 2 },
     });
 
+    await harness.orchestrator.resumeRun(runOne.run.runId);
+    await harness.orchestrator.resumeRun(runTwo.run.runId);
+
     await harness.db.pool.query(
       'UPDATE workflow_runs SET lifecycle = $2 WHERE run_id = ANY($1::text[])',
       [[runOne.run.runId, runTwo.run.runId], 'recovering'],

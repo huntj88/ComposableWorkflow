@@ -1,5 +1,4 @@
 export type WorkflowLifecycle =
-  | 'pending'
   | 'running'
   | 'pausing'
   | 'paused'
@@ -15,7 +14,6 @@ type WorkflowLifecycleTransitionMap = Readonly<
 >;
 
 const WORKFLOW_LIFECYCLE_TRANSITIONS: WorkflowLifecycleTransitionMap = {
-  pending: new Set<WorkflowLifecycle>(['running']),
   running: new Set<WorkflowLifecycle>([
     'pausing',
     'completed',

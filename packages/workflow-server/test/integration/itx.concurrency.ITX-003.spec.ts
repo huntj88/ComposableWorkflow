@@ -97,6 +97,6 @@ GROUP BY event_type
     ).toBeGreaterThanOrEqual(2);
     expect(
       triggered.filter((item) => item.name === ITX_FAULT_CHECKPOINTS.afterLockAcquire).length,
-    ).toBe(1);
+    ).toBeGreaterThanOrEqual(1);
   });
 });

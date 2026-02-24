@@ -52,7 +52,7 @@ export const startWorkflow = async (params: {
     lifecycle: string;
     workflowType: string;
     workflowVersion: string;
-    currentState: string;
+    startedAt: string;
   };
 };
 

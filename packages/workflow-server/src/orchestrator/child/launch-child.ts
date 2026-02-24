@@ -198,6 +198,7 @@ export const launchChild = async (params: {
     }
     childRun = existingRun;
   } else {
+    const childStartedAt = params.deps.now().toISOString();
     childRun = await params.deps.runRepository.upsertRunSummary(params.client, {
       runId: decision.runId,
       workflowType: params.request.workflowType,
@@ -205,7 +206,7 @@ export const launchChild = async (params: {
       lifecycle: 'running',
       currentState: initialState,
       parentRunId: params.parentRun.runId,
-      startedAt: params.deps.now().toISOString(),
+      startedAt: childStartedAt,
       endedAt: null,
     });
 
@@ -213,7 +214,7 @@ export const launchChild = async (params: {
       eventId: params.deps.eventIdFactory(),
       runId: childRun.runId,
       eventType: 'workflow.started',
-      timestamp: params.deps.now().toISOString(),
+      timestamp: childStartedAt,
       payload: {
         workflowType: params.request.workflowType,
         workflowVersion,

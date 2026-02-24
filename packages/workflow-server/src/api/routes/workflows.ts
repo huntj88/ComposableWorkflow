@@ -1,8 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 
 import { ApiError, type ApiServerDependencies } from '../server.js';
-import { errorEnvelopeSchema, runSummarySchema, startWorkflowBodySchema } from '../schemas.js';
-import { getRunSummaryById } from './runs.js';
+import {
+  errorEnvelopeSchema,
+  startWorkflowBodySchema,
+  startWorkflowResponseSchema,
+} from '../schemas.js';
 
 export const registerWorkflowRoutes = async (
   server: FastifyInstance,
@@ -14,8 +17,8 @@ export const registerWorkflowRoutes = async (
       schema: {
         body: startWorkflowBodySchema,
         response: {
-          200: runSummarySchema,
-          201: runSummarySchema,
+          200: startWorkflowResponseSchema,
+          201: startWorkflowResponseSchema,
           400: errorEnvelopeSchema,
           404: errorEnvelopeSchema,
         },
@@ -47,17 +50,14 @@ export const registerWorkflowRoutes = async (
         throw error;
       }
 
-      const summary = await getRunSummaryById(deps, started.run.runId);
-      if (!summary) {
-        throw new ApiError({
-          statusCode: 500,
-          code: 'RUN_SUMMARY_MISSING',
-          message: `Run ${started.run.runId} was created but could not be loaded`,
-        });
-      }
-
       const statusCode = started.created ? 201 : 200;
-      return reply.code(statusCode).send(summary);
+      return reply.code(statusCode).send({
+        runId: started.run.runId,
+        workflowType: started.run.workflowType,
+        workflowVersion: started.run.workflowVersion,
+        lifecycle: 'running',
+        startedAt: started.run.startedAt,
+      });
     },
   );
 };

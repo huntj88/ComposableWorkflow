@@ -110,7 +110,7 @@ describe('api start and summary', () => {
       const started = startResponse.json();
       expect(started.workflowType).toBe('wf.api.simple');
       expect(started.lifecycle).toBe('running');
-      expect(started.counters.eventCount).toBe(1);
+      expect(typeof started.startedAt).toBe('string');
 
       const summaryResponse = await server.inject({
         method: 'GET',

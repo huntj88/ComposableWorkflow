@@ -7,13 +7,13 @@
 Align runtime and API start semantics with the lifecycle decision that `POST /api/v1/workflows/start` begins execution immediately, with no operational `pending` queue state, and with `workflow.started` emitted at execution-start checkpoint.
 
 ## Implementation Tasks
-- [ ] Remove operational `pending` lifecycle handling from start-path orchestration and state transitions.
-- [ ] Ensure start acceptance performs immediate execution stepping (or immediate equivalent handoff) in the same start path.
-- [ ] Keep `running` semantics strict: `running` means actively executing only.
-- [ ] Preserve control transitional lifecycle semantics (`pausing|paused|resuming|recovering|cancelling`).
-- [ ] Ensure child launch paths and run-linkage behavior remain consistent when parent execution starts immediately.
-- [ ] Update route/start response mapping so accepted starts surface active execution semantics.
-- [ ] Add/adjust tests to prove no pending-queue behavior is required/assumed.
+- [x] Remove operational `pending` lifecycle handling from start-path orchestration and state transitions.
+- [x] Ensure start acceptance performs immediate execution stepping (or immediate equivalent handoff) in the same start path.
+- [x] Keep `running` semantics strict: `running` means actively executing only.
+- [x] Preserve control transitional lifecycle semantics (`pausing|paused|resuming|recovering|cancelling`).
+- [x] Ensure child launch paths and run-linkage behavior remain consistent when parent execution starts immediately.
+- [x] Update route/start response mapping so accepted starts surface active execution semantics.
+- [x] Add/adjust tests to prove no pending-queue behavior is required/assumed.
 
 ## Required Artifacts
 - `packages/workflow-server/src/orchestrator/start-run.ts`

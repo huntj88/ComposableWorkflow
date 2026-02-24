@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
+import { randomUUID } from 'node:crypto';
 import type {
   WorkflowEvent,
   WorkflowInstrumentation,
@@ -44,9 +45,9 @@ import {
 
 type IdFactory = () => string;
 
-const createDeterministicIdFactory = (prefix: string): IdFactory => {
+const createDeterministicIdFactory = (prefix: string, namespace: string): IdFactory => {
   let sequence = 0;
-  return () => `${prefix}_${++sequence}`;
+  return () => `${prefix}_${namespace}_${++sequence}`;
 };
 
 const wrapRunRepositoryWithFaults = (base: RunRepository, fault: FaultInjector): RunRepository => ({
@@ -189,11 +190,15 @@ export const createIntegrationHarness = async (
   const faultInjector = createFaultInjector(barrier);
   const clock = options.clock ?? createFakeClock('2026-02-21T00:00:00.000Z');
   const captureSink = createCaptureSink();
+  const idNamespace = randomUUID().replace(/-/g, '').slice(0, 8);
 
   const now = () => clock.now();
-  const runIdFactory = options.ids?.runIdFactory ?? createDeterministicIdFactory('run');
-  const eventIdFactory = options.ids?.eventIdFactory ?? createDeterministicIdFactory('evt');
-  const ownerIdFactory = options.ids?.ownerIdFactory ?? createDeterministicIdFactory('owner');
+  const runIdFactory =
+    options.ids?.runIdFactory ?? createDeterministicIdFactory('run', idNamespace);
+  const eventIdFactory =
+    options.ids?.eventIdFactory ?? createDeterministicIdFactory('evt', idNamespace);
+  const ownerIdFactory =
+    options.ids?.ownerIdFactory ?? createDeterministicIdFactory('owner', idNamespace);
 
   let container: PostgresTestContainerHandle | undefined;
   if (options.postgres?.useContainer !== false && !options.postgres?.connectionString) {

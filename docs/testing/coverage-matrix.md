@@ -32,6 +32,11 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | B-START-002 | e2e | packages/workflow-server/test/e2e/behaviors/start.spec.ts | T16 | implemented | required |
 | B-START-003 | e2e | packages/workflow-server/test/e2e/behaviors/start.spec.ts | T16 | implemented | required |
 | B-START-004 | e2e | packages/workflow-server/test/e2e/behaviors/start.spec.ts | T16 | implemented | required |
+| B-START-001 | e2e | packages/workflow-server/test/e2e/behaviors/start-immediate-running.spec.ts | T20 | implemented | required |
+| B-START-003 | e2e | packages/workflow-server/test/e2e/behaviors/start-immediate-running.spec.ts | T20 | implemented | required |
+| B-EVT-002 | e2e | packages/workflow-server/test/e2e/behaviors/start-immediate-running.spec.ts | T20 | implemented | required |
+| B-LIFE-001 | e2e | packages/workflow-server/test/e2e/behaviors/start-immediate-running.spec.ts | T20 | implemented | required |
+| B-LIFE-003 | e2e | packages/workflow-server/test/e2e/behaviors/start-immediate-running.spec.ts | T20 | implemented | required |
 | B-EVT-001 | e2e | packages/workflow-server/test/e2e/behaviors/events-integrity.spec.ts | T16 | implemented | required |
 | B-EVT-002 | e2e | packages/workflow-server/test/e2e/behaviors/events-integrity.spec.ts | T16 | implemented | required |
 | B-EVT-003 | e2e | packages/workflow-server/test/e2e/behaviors/events-integrity.spec.ts | T16 | implemented | required |
@@ -100,6 +105,10 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | ITX-017 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-017.spec.ts | T14 | implemented | required |
 | ITX-018 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-018.spec.ts | T14 | implemented | required |
 | ITX-019 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-019.spec.ts | T15 | implemented | required |
+| LifecycleStart-001-NoPendingQueue | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
+| LifecycleStart-002-ImmediateStepHandoff | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
+| LifecycleStart-004-ExecutionStartCheckpoint | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
+| LifecycleStart-005-ChildLaunchCompatibility | integration | packages/workflow-server/test/e2e/behaviors/start-immediate-running.spec.ts | T20 | implemented | required |
 | Spec-6.4-WorkflowEventContract | integration | packages/workflow-server/test/integration/api/events-contract-shape.spec.ts | T18 | implemented | required |
 | Spec-4.3-WorkflowCustomLogs | integration | packages/workflow-server/test/integration/api/logs-custom-level.spec.ts | T18 | implemented | required |
 | Spec-8.2-RunSummaryTransitionContext | integration | packages/workflow-server/test/integration/api/run-summary-transition-context.spec.ts | T18 | implemented | required |

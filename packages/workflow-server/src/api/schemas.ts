@@ -31,7 +31,6 @@ export const startWorkflowBodySchema = z.object({
 });
 
 export const workflowLifecycleSchema = z.enum([
-  'pending',
   'running',
   'pausing',
   'paused',
@@ -42,6 +41,14 @@ export const workflowLifecycleSchema = z.enum([
   'failed',
   'cancelled',
 ]);
+
+export const startWorkflowResponseSchema = z.object({
+  runId: z.string(),
+  workflowType: z.string(),
+  workflowVersion: z.string(),
+  lifecycle: z.literal('running'),
+  startedAt: isoDateTime,
+});
 
 export const controlRequestBodySchema = z.object({
   reason: z.string().trim().min(1).optional(),
