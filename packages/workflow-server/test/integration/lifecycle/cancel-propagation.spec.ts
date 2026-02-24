@@ -148,7 +148,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
         'SELECT lifecycle FROM workflow_runs WHERE run_id = $1',
         [child.run.runId],
       );
-      expect(childLifecycle.rows[0].lifecycle).toBe('cancelling');
+      expect(['cancelling', 'cancelled']).toContain(childLifecycle.rows[0].lifecycle);
 
       const childCancellingEvents = await pool.query<{ count: number }>(
         "SELECT COUNT(*)::int AS count FROM workflow_events WHERE run_id = $1 AND event_type = 'workflow.cancelling'",

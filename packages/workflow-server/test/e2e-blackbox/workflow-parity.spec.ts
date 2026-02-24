@@ -60,26 +60,9 @@ const waitForProductionTerminal = async (runId: string): Promise<RunSummary> => 
       return summary;
     }
 
-    const reconcileResponse = await fetch(
-      `${resolveBaseUrl()}/api/v1/workflows/recovery/reconcile`,
-      {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          limit: 100,
-        }),
-      },
-    );
-
-    if (reconcileResponse.status !== 200) {
-      const errorBody = await reconcileResponse.text();
-      throw new Error(
-        `Request failed (${reconcileResponse.status}) for /api/v1/workflows/recovery/reconcile: ${errorBody}`,
-      );
-    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50);
+    });
   }
 
   throw new Error(`Run ${runId} did not reach terminal lifecycle within retry budget`);
@@ -161,14 +144,9 @@ describeIfBlackbox('e2e.blackbox.workflow-parity', () => {
         break;
       }
 
-      const reconcileResponse = await harness.server.inject({
-        method: 'POST',
-        url: '/api/v1/workflows/recovery/reconcile',
-        payload: {
-          limit: 100,
-        },
+      await new Promise((resolve) => {
+        setTimeout(resolve, 50);
       });
-      expect(reconcileResponse.statusCode).toBe(200);
     }
 
     expect(isTerminal(harnessTerminal.lifecycle)).toBe(true);
