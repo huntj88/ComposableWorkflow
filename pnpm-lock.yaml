@@ -45,6 +45,15 @@ importers:
         specifier: ^7.16.0
         version: 7.22.0
 
+  packages/workflow-app-builder:
+    dependencies:
+      '@agentclientprotocol/sdk':
+        specifier: ^0.14.1
+        version: 0.14.1(zod@3.25.76)
+      '@composable-workflow/workflow-lib':
+        specifier: workspace:*
+        version: link:../workflow-lib
+
   packages/workflow-lib: {}
 
   packages/workflow-package-reference:
@@ -97,6 +106,11 @@ importers:
         version: 4.21.0
 
 packages:
+
+  '@agentclientprotocol/sdk@0.14.1':
+    resolution: {integrity: sha512-b6r3PS3Nly+Wyw9U+0nOr47bV8tfS476EgyEMhoKvJCZLbgqoDFN7DJwkxL88RR0aiOqOYV1ZnESHqb+RmdH8w==}
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
 
   '@balena/dockerignore@1.0.2':
     resolution: {integrity: sha512-wMue2Sy4GAVTk6Ic4tJVcnfdau+gx2EnG7S+uAEe+TWJFqE4YoWN4/H8MSLj4eYJKxGg26lZwboEniNiNwZQ6Q==}
@@ -1899,6 +1913,10 @@ packages:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
 snapshots:
+
+  '@agentclientprotocol/sdk@0.14.1(zod@3.25.76)':
+    dependencies:
+      zod: 3.25.76
 
   '@balena/dockerignore@1.0.2': {}
 

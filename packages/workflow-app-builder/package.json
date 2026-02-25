@@ -1,0 +1,31 @@
+{
+  "name": "@composable-workflow/workflow-app-builder",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/manifest.js",
+  "types": "dist/manifest.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/manifest.d.ts",
+      "default": "./dist/manifest.js"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "default": "./dist/manifest.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@agentclientprotocol/sdk": "^0.14.1",
+    "@composable-workflow/workflow-lib": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  }
+}

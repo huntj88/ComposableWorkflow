@@ -50,6 +50,7 @@ describe('server config', () => {
   it('resolves default command policy when no override is provided', () => {
     const policy = resolveCommandPolicy(undefined);
     expect(policy.allowCommands.length).toBeGreaterThan(0);
+    expect(policy.allowCommands).toContain('copilot');
     expect(policy.timeoutMsMax).toBeGreaterThan(0);
   });
 });

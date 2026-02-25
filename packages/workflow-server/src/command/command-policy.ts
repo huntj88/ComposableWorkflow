@@ -94,7 +94,7 @@ export const normalizeCommandPolicy = (policy: CommandPolicy): CommandPolicy => 
 
 export const defaultCommandPolicy = (): CommandPolicy =>
   normalizeCommandPolicy({
-    allowCommands: ['node', 'pnpm', 'npm'],
+    allowCommands: ['node', 'pnpm', 'npm', 'copilot'],
     denyCommands: [],
     allowedCwdPrefixes: [process.cwd()],
     blockedEnvKeys: ['TOKEN', 'SECRET', 'PASSWORD', 'KEY'],
