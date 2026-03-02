@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/app-builder/spec-doc/consistency-check-output.schema.json",
+  "title": "SpecConsistencyCheckOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "nextState",
+    "isImplementationReady",
+    "blockingIssueCount",
+    "blockingIssues",
+    "readinessChecklist"
+  ],
+  "properties": {
+    "nextState": {
+      "type": "string",
+      "enum": [
+        "OpenEndedHumanRequest",
+        "NumberedOptionsHumanRequest"
+      ],
+      "description": "Exact target state for deterministic branching after consistency analysis. Done is intentionally excluded; completion requires explicit user confirmation via NumberedOptionsHumanRequest."
+    },
+    "isImplementationReady": {
+      "type": "boolean"
+    },
+    "blockingIssueCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "blockingIssues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "severity"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "section": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "followUpQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "prompt"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "open-ended",
+            "numbered-options"
+          ]
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "label"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "readinessChecklist": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hasScopeAndObjective",
+        "hasNonGoals",
+        "hasConstraintsAndAssumptions",
+        "hasInterfacesOrContracts",
+        "hasTestableAcceptanceCriteria",
+        "hasNoBlockingQuestions"
+      ],
+      "properties": {
+        "hasScopeAndObjective": {
+          "type": "boolean"
+        },
+        "hasNonGoals": {
+          "type": "boolean"
+        },
+        "hasConstraintsAndAssumptions": {
+          "type": "boolean"
+        },
+        "hasInterfacesOrContracts": {
+          "type": "boolean"
+        },
+        "hasTestableAcceptanceCriteria": {
+          "type": "boolean"
+        },
+        "hasNoBlockingQuestions": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "nextState": {
+            "enum": [
+              "OpenEndedHumanRequest",
+              "NumberedOptionsHumanRequest"
+            ]
+          }
+        },
+        "required": [
+          "nextState"
+        ]
+      },
+      "then": {
+        "required": [
+          "followUpQuestion"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "nextState": {
+            "const": "OpenEndedHumanRequest"
+          }
+        },
+        "required": [
+          "nextState"
+        ]
+      },
+      "then": {
+        "properties": {
+          "followUpQuestion": {
+            "properties": {
+              "mode": {
+                "const": "open-ended"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "nextState": {
+            "const": "NumberedOptionsHumanRequest"
+          }
+        },
+        "required": [
+          "nextState"
+        ]
+      },
+      "then": {
+        "properties": {
+          "followUpQuestion": {
+            "required": [
+              "mode",
+              "options"
+            ],
+            "properties": {
+              "mode": {
+                "const": "numbered-options"
+              },
+              "options": {
+                "minItems": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "isImplementationReady": {
+            "const": true
+          }
+        },
+        "required": [
+          "isImplementationReady"
+        ]
+      },
+      "then": {
+        "properties": {
+          "nextState": {
+            "const": "NumberedOptionsHumanRequest"
+          },
+          "readinessChecklist": {
+            "properties": {
+              "hasScopeAndObjective": {
+                "const": true
+              },
+              "hasNonGoals": {
+                "const": true
+              },
+              "hasConstraintsAndAssumptions": {
+                "const": true
+              },
+              "hasInterfacesOrContracts": {
+                "const": true
+              },
+              "hasTestableAcceptanceCriteria": {
+                "const": true
+              },
+              "hasNoBlockingQuestions": {
+                "const": true
+              }
+            }
+          },
+          "blockingIssueCount": {
+            "const": 0
+          },
+          "blockingIssues": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "readinessChecklist": {
+            "properties": {
+              "hasNoBlockingQuestions": {
+                "const": true
+              }
+            },
+            "required": [
+              "hasNoBlockingQuestions"
+            ]
+          }
+        },
+        "required": [
+          "readinessChecklist"
+        ]
+      },
+      "then": {
+        "properties": {
+          "nextState": {
+            "const": "NumberedOptionsHumanRequest"
+          },
+          "followUpQuestion": {
+            "properties": {
+              "mode": {
+                "const": "numbered-options"
+              },
+              "options": {
+                "minItems": 2
+              }
+            },
+            "required": [
+              "mode",
+              "options"
+            ]
+          },
+          "blockingIssueCount": {
+            "const": 0
+          },
+          "blockingIssues": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

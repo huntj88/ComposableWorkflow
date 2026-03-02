@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/app-builder/spec-doc/spec-doc-generation-output.schema.json",
+  "title": "SpecDocGenerationOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "specPath",
+    "summary",
+    "artifacts"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "const": "completed"
+    },
+    "specPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\.md$"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "loopsUsed",
+        "unresolvedQuestions"
+      ],
+      "properties": {
+        "loopsUsed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unresolvedQuestions": {
+          "type": "integer",
+          "const": 0
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "integrationPasses",
+        "consistencyCheckPasses"
+      ],
+      "properties": {
+        "integrationPasses": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "consistencyCheckPasses": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

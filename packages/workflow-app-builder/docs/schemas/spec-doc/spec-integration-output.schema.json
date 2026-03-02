@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/app-builder/spec-doc/spec-integration-output.schema.json",
+  "title": "SpecIntegrationOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "specPath",
+    "changeSummary",
+    "resolvedQuestionIds",
+    "remainingQuestionIds"
+  ],
+  "properties": {
+    "specPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\.md$",
+      "description": "Workspace-relative markdown file path for the latest working draft after integration."
+    },
+    "changeSummary": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Human-readable summary of applied changes from this integration pass."
+    },
+    "resolvedQuestionIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "IDs of questions now considered resolved by this pass."
+    },
+    "remainingQuestionIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "IDs still unresolved after integration."
+    }
+  }
+}

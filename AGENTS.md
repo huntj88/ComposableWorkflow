@@ -1,5 +1,7 @@
 # Agent Policy
 
+This is a greenfield project with no users. Backwards compatibility is not a focus, refactor as needed to keep implementation simple.
+
 ## Mandatory Pre-Commit Enforcement
 - Pre-commit hooks are mandatory for this repository.
 - Skipping hooks is not allowed (`--no-verify`, `HUSKY=0`, or equivalent bypasses are prohibited).

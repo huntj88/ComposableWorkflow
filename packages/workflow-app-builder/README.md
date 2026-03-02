@@ -122,3 +122,5 @@ The following are the currently supported top-level options from local `copilot 
 - If `outputSchema` is provided, a second ACP prompt runs in the same ACP session using the session ID from `session/new`.
 - The follow-up prompt must return JSON; otherwise the workflow fails.
 - If your server uses default policy, `copilot` is allowed by default in this repository.
+
+For app-builder spec generation workflows, the preferred schema/output contract is a markdown file path reference (for example `specPath`) rather than embedding full markdown bodies in schema-validated JSON.

@@ -18,7 +18,6 @@ export interface WorkflowRegistration<I = unknown, O = unknown> {
 }
 
 export type WorkflowLifecycle =
-  | 'pending'
   | 'running'
   | 'pausing'
   | 'paused'

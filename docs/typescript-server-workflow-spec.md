@@ -260,6 +260,10 @@ export type WorkflowEventType =
   | "transition.requested"
   | "transition.completed"
   | "transition.failed"
+  | "human-feedback.requested"
+  | "human-feedback.received"
+  | "human-feedback.timed_out"
+  | "human-feedback.cancelled"
   | "command.started"
   | "command.completed"
   | "command.failed"
@@ -347,6 +351,50 @@ Example user CLI commands:
 - `workflow runs list --status running`
 - `workflow runs events --run-id wr_123 --follow`
 - `workflow inspect --package <path> --type billing.invoice.v1 --graph`
+
+## 6.8 Server-Provided Human Feedback Workflow Contract (Default)
+
+Human feedback collection is a server/runtime concern and must not be implemented as transport logic inside feature workflow packages.
+
+Default workflow contract (server-owned):
+
+```ts
+// Recommended default workflowType: "server.human-feedback.v1"
+export interface HumanFeedbackRequestInput {
+  prompt: string;
+  mode: "open-ended" | "numbered-options";
+  options?: Array<{
+    id: string;
+    label: string;
+    description?: string;
+  }>;
+  constraints?: string[];
+  correlationId?: string;
+  timeoutMs?: number;
+  requestedByRunId: string;
+  requestedByWorkflowType: string;
+  requestedByState?: string;
+}
+
+export interface HumanFeedbackRequestOutput {
+  status: "responded" | "timed_out" | "cancelled";
+  response?: {
+    selectedOptionIds?: string[];
+    text?: string;
+  };
+  respondedAt?: string;
+  timedOutAt?: string;
+  cancelledAt?: string;
+}
+```
+
+Required behavior:
+- A parent workflow requests human feedback by launching this workflow via `ctx.launchChild(...)`.
+- Waiting/resume mechanics and response transport are server-owned concerns.
+- App/feature workflows (for example app-builder workflows) depend only on this contract and child result.
+- If timeout occurs, output returns `status: "timed_out"`; parent workflow handles next transition explicitly.
+- If cancellation occurs, output returns `status: "cancelled"`; parent cancellation policies apply.
+- Server emits `human-feedback.requested|received|timed_out|cancelled` events with run linkage metadata.
 
 ---
 
@@ -599,6 +647,45 @@ Returns static metadata to render flowchart:
 
 Used by future UI for near-real-time visualization.
 
+## 8.10 Submit Human Feedback Response
+`POST /human-feedback/requests/{feedbackRunId}/respond`
+
+Request:
+```json
+{
+  "response": {
+    "selectedOptionIds": ["2"],
+    "text": "Choose option 2 with stricter API constraints"
+  },
+  "respondedBy": "user-or-system-id"
+}
+```
+
+Response:
+```json
+{
+  "feedbackRunId": "wr_feedback_...",
+  "status": "accepted",
+  "acceptedAt": "2026-02-19T00:00:00.000Z"
+}
+```
+
+Behavior:
+- Valid only while feedback run lifecycle is `running` and awaiting response.
+- Duplicate submissions are idempotent by feedback run state; first accepted response wins.
+- On acceptance, feedback run completes and parent run may resume at next safe point.
+- If feedback request is already terminal, return `409` with current lifecycle/status.
+
+## 8.11 Get Human Feedback Request Status
+`GET /human-feedback/requests/{feedbackRunId}`
+
+Response includes:
+- feedback request lifecycle/status,
+- prompt/mode/options metadata,
+- response payload (if present),
+- timeout metadata,
+- parent run linkage fields.
+
 ---
 
 ## 9) Observability, Logging, Telemetry
@@ -672,6 +759,7 @@ Rules:
 - Pause/resume/cancel are cooperative and only finalize at safe points (between transitions, before launching child, before/after command execution).
 - Parent-propagated cancellation is default: cancelling parent requests cancellation on active descendants.
 - While a run is `pausing`, `paused`, `resuming`, `cancelling`, or `recovering`, new child launches are rejected.
+- Human-feedback waits are safe points; pausing/cancelling during wait must not lose pending feedback correlation state.
 - Recovery is idempotent and lock-protected (single active runner per `runId`).
 - Repeat recovery attempts for a `running` run are allowed only when workflow progression happened since the last recovery boundary (i.e., at least one `transition.completed` event after the latest `workflow.recovered`).
 - If no progression happened since the latest `workflow.recovered`, subsequent reconcile passes must skip duplicate recovery side effects.
@@ -757,6 +845,14 @@ Response:
 - `reconcile`: idempotent; safe to call on startup and manually.
 - Server startup must invoke reconciliation automatically before accepting new run execution work.
 
+## 11.3 Human Feedback Wait/Resume Semantics
+
+- Parent workflows may block on server-provided feedback child runs (default `server.human-feedback.v1`).
+- Response submission completes the feedback child run and unblocks parent progression.
+- Parent pause/cancel requests while waiting for feedback must follow cooperative lifecycle rules.
+- Recovery reconcile must restore waiting feedback runs without duplicating question issuance or response acceptance.
+- Replayed/reconciled feedback runs must preserve first-response-wins idempotency.
+
 ---
 
 ## 12) Failure Handling and Reliability
@@ -795,7 +891,8 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
    - package loading,
    - API correctness,
    - persistence and event ordering,
-   - observability hooks.
+  - observability hooks,
+  - human feedback request/response API and run linkage behavior.
 4. Workflow-invoked command execution tests:
   - run command behavior from workflow state handlers,
   - timeout/non-zero exit handling,
@@ -809,6 +906,11 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
   - lifecycle checkpoint events are emitted for pause/resume/recovery transitions (`workflow.pausing`, `workflow.paused`, `workflow.resuming`, `workflow.resumed`, `workflow.recovering`, `workflow.recovered`),
   - crash recovery reconciliation and idempotent re-run behavior,
   - parent/child behavior during pause, resume, and propagated cancel.
+7. Human feedback orchestration tests:
+  - parent workflow blocks on feedback child and resumes on response,
+  - feedback response endpoint first-response-wins idempotency,
+  - timeout and cancellation behavior for unresolved feedback,
+  - no duplicate feedback side effects across recovery reconciliation.
 
 ---
 
@@ -847,6 +949,7 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
 9. Cancellation uses cooperative stop mechanics and parent-propagated scope by default, and cancelled runs end with `workflow.cancelled`.
 10. Runs can be paused, resumed, and recovered after crash/shutdown using the defined lifecycle transitions and recovery endpoints.
 11. Pause/resume/recovery transitions emit matching lifecycle events as required observable checkpoints.
+12. Human feedback collection is available as a server-owned default workflow contract and is consumable by workflow packages without transport coupling.
 
 ---
 
