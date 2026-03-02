@@ -15,7 +15,7 @@ Feature workflow packages (for example `workflow-app-builder`) must consume thes
 
 - `numbered-question-item.schema.json`
   - Transport-level shape for numbered-options questions.
-  - Includes `questionId`, `prompt`, `options`, `allowsCustomPrompt`.
+  - Includes `questionId`, `prompt`, `options`.
   - Does **not** include workflow-specific semantics (for example app-builder `kind` values).
 
 - `numbered-options-response-input.schema.json`

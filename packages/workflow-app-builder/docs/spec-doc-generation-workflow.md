@@ -411,7 +411,6 @@ Question-generation rules:
   - prompt,
   - options with unique contiguous integer ids starting at 1,
   - per-option `description` that includes concise `Pros:` and `Cons:`,
-  - allowsCustomPrompt=true,
   - kind in {issue-resolution, completion-confirmation}.
 - Keep followUpQuestions ordering deterministic.
 

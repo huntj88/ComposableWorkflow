@@ -7,14 +7,17 @@
   "required": [
     "questionId",
     "prompt",
-    "options",
-    "allowsCustomPrompt"
+    "options"
   ],
   "properties": {
     "questionId": {
       "type": "string",
       "minLength": 1,
       "description": "Stable question identifier for deterministic response correlation, replay, and diagnostics."
+    },
+    "kind": {
+      "type": "string",
+      "description": "Optional workflow-specific question classification tag. Transport/runtime treats this as opaque metadata."
     },
     "prompt": {
       "type": "string",
@@ -45,11 +48,6 @@
           }
         }
       }
-    },
-    "allowsCustomPrompt": {
-      "type": "boolean",
-      "const": true,
-      "description": "Custom prompt text is always allowed in addition to numbered selections."
     }
   }
 }

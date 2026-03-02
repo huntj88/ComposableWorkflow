@@ -358,7 +358,7 @@ Example user CLI commands:
 - `workflow runs events --run-id wr_123 --follow`
 - `workflow inspect --package <path> --type billing.invoice.v1 --graph`
 - `workflow feedback list --status awaiting_response`
-- `workflow feedback respond --feedback-run-id wr_feedback_123 --response '{"selectedOptionIds":[2],"text":"..."}' --responded-by operator_a`
+- `workflow feedback respond --feedback-run-id wr_feedback_123 --response '{"questionId":"q_scope_001","selectedOptionIds":[2],"text":"..."}' --responded-by operator_a`
 
 Human-feedback CLI scope decision (locked):
 - MVP includes minimal operator CLI support for human feedback (`feedback list`, `feedback respond`).
@@ -382,7 +382,7 @@ Default workflow contract (server-owned):
 // Recommended default workflowType: "server.human-feedback.v1"
 export interface HumanFeedbackRequestInput {
   prompt: string;
-  options?: Array<{
+  options: Array<{
     id: number; // unique contiguous integers starting at 1 within a single question
     label: string;
     description?: string;
@@ -398,6 +398,7 @@ export interface HumanFeedbackRequestInput {
 export interface HumanFeedbackRequestOutput {
   status: "responded" | "cancelled";
   response?: {
+    questionId: string;
     selectedOptionIds?: number[];
     text?: string;
   };
@@ -730,6 +731,7 @@ Request:
 ```json
 {
   "response": {
+    "questionId": "q_constraints_002",
     "selectedOptionIds": [2],
     "text": "Choose option 2 with stricter API constraints"
   },
@@ -749,7 +751,7 @@ Response:
 Behavior:
 - Valid only while feedback run lifecycle is `running` and awaiting response.
 - Missing `questionId` is a request-validation error (`400`).
-- Request payload should conform to `docs/schemas/human-input/numbered-options-response-input.schema.json`.
+- `response` must conform to `docs/schemas/human-input/numbered-options-response-input.schema.json`.
 - If any submitted `selectedOptionIds` do not exist in the request's offered options, return `400` validation error and keep feedback status unchanged (`awaiting_response`).
 - For completion-confirmation numbered questions, `selectedOptionIds` must contain exactly one option; otherwise return `400` validation error and keep feedback status unchanged (`awaiting_response`).
 - No protocol-level `response.text` max is enforced in MVP; if an implementation applies local limits, it must return `400` with validation details.
