@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/server/human-input/numbered-options-response-input.schema.json",
+  "title": "HumanInputNumberedOptionsResponseInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "questionId"
+  ],
+  "properties": {
+    "questionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable question identifier that must match the active numbered-options request."
+    },
+    "selectedOptionIds": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "description": "Each selected option ID must match an offered option ID on the referenced question."
+    },
+    "text": {
+      "type": "string",
+      "description": "Optional custom prompt/answer text submitted alongside numbered selections."
+    }
+  }
+}

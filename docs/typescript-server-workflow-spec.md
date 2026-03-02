@@ -262,7 +262,6 @@ export type WorkflowEventType =
   | "transition.failed"
   | "human-feedback.requested"
   | "human-feedback.received"
-  | "human-feedback.timed_out"
   | "human-feedback.cancelled"
   | "command.started"
   | "command.completed"
@@ -309,6 +308,11 @@ export interface WorkflowEvent {
     stack?: string;
   };
 }
+
+Human-feedback event shape decision (locked):
+- Human-feedback event metadata is carried in the existing generic `payload` envelope for MVP.
+- `WorkflowEvent` does not add a dedicated typed `humanFeedback` field in MVP.
+- Payload conventions for `human-feedback.requested|received|cancelled` must remain documented and stable across `workflow-lib` and `workflow-server`.
 ```
 
 ## 6.5 Instrumentation Hooks
@@ -344,6 +348,8 @@ User CLI responsibilities:
 - inspect run tree and linear event history,
 - stream logs/events for operational debugging,
 - stream transition/events to stdout,
+- list pending human-feedback requests,
+- submit human-feedback response by feedback run id,
 - optional graph metadata dump.
 
 Example user CLI commands:
@@ -351,10 +357,24 @@ Example user CLI commands:
 - `workflow runs list --status running`
 - `workflow runs events --run-id wr_123 --follow`
 - `workflow inspect --package <path> --type billing.invoice.v1 --graph`
+- `workflow feedback list --status awaiting_response`
+- `workflow feedback respond --feedback-run-id wr_feedback_123 --response '{"selectedOptionIds":[2],"text":"..."}' --responded-by operator_a`
+
+Human-feedback CLI scope decision (locked):
+- MVP includes minimal operator CLI support for human feedback (`feedback list`, `feedback respond`).
+- Advanced feedback UX (watch mode, rich formatting, bulk actions, escalation tooling) is out of scope for MVP.
 
 ## 6.8 Server-Provided Human Feedback Workflow Contract (Default)
 
 Human feedback collection is a server/runtime concern and must not be implemented as transport logic inside feature workflow packages.
+
+Schema artifacts (server-owned):
+- `docs/schemas/human-input/numbered-question-item.schema.json`
+- `docs/schemas/human-input/numbered-options-response-input.schema.json`
+
+Usage contract:
+- Numbered human feedback requests should shape question envelopes to `numbered-question-item.schema.json`.
+- Numbered response payload validation should apply `numbered-options-response-input.schema.json` before workflow-specific interpretation.
 
 Default workflow contract (server-owned):
 
@@ -362,28 +382,26 @@ Default workflow contract (server-owned):
 // Recommended default workflowType: "server.human-feedback.v1"
 export interface HumanFeedbackRequestInput {
   prompt: string;
-  mode: "open-ended" | "numbered-options";
   options?: Array<{
-    id: string;
+    id: number; // unique contiguous integers starting at 1 within a single question
     label: string;
     description?: string;
   }>;
   constraints?: string[];
+  questionId: string;
   correlationId?: string;
-  timeoutMs?: number;
   requestedByRunId: string;
   requestedByWorkflowType: string;
   requestedByState?: string;
 }
 
 export interface HumanFeedbackRequestOutput {
-  status: "responded" | "timed_out" | "cancelled";
+  status: "responded" | "cancelled";
   response?: {
-    selectedOptionIds?: string[];
+    selectedOptionIds?: number[];
     text?: string;
   };
   respondedAt?: string;
-  timedOutAt?: string;
   cancelledAt?: string;
 }
 ```
@@ -392,9 +410,26 @@ Required behavior:
 - A parent workflow requests human feedback by launching this workflow via `ctx.launchChild(...)`.
 - Waiting/resume mechanics and response transport are server-owned concerns.
 - App/feature workflows (for example app-builder workflows) depend only on this contract and child result.
-- If timeout occurs, output returns `status: "timed_out"`; parent workflow handles next transition explicitly.
+- For numbered-options queues, workflows must set `questionId` to the stable queue item identifier to support deterministic response correlation, replay, and diagnostics.
+- For feedback queue processors, each queue item must launch exactly one feedback child run (1:1 question-to-feedback-run mapping).
+- For numbered-options questions, option `id` values must be unique contiguous integers starting at `1` for each question.
+- For numbered-options responses, every `selectedOptionId` must match an offered option `id` for that request.
+- Asked numbered-options questions are immutable once issued; clarifications must append a new question with a new `questionId` instead of mutating prior question text/options.
+- For clarification-driven follow-up generation, the new question must be scheduled as the immediate next queue item to avoid context switching.
+- Clarifying-question vs custom-answer interpretation is workflow-level behavior; for `app-builder.spec-doc.v1`, classification is delegated to `app-builder.copilot.prompt.v1` using schema-validated structured output.
+- Numbered-options completion semantics do not require canonical option IDs; completion vs continue behavior is defined by the authored question/options and optional custom response text.
+- `response.text` has no protocol-level maximum length in MVP; implementations may enforce operational guardrails without changing the API contract.
+- Human feedback waits have no timeout semantics in MVP; requests remain pending until explicit response or cancellation.
+- When a valid response is accepted, the feedback child run completes with `status: "responded"` and the parent resumes from the waiting checkpoint.
 - If cancellation occurs, output returns `status: "cancelled"`; parent cancellation policies apply.
-- Server emits `human-feedback.requested|received|timed_out|cancelled` events with run linkage metadata.
+- Server emits `human-feedback.requested|received|cancelled` events with run linkage metadata.
+
+Implementation ownership/package decision (locked):
+- The default human feedback workflow is implemented as a first-class internal monorepo package and auto-registered by `workflow-server` at bootstrap.
+- It is server-owned and required for startup; it is not optional plugin behavior.
+- Feature workflow packages consume only the workflow contract (`workflowType` + input/output shape) and must not depend on internal implementation modules.
+- Runtime replacement/override of `server.human-feedback.v1` is not permitted in MVP.
+- Any future extension mechanism must preserve the default contract and first-response-wins semantics.
 
 ---
 
@@ -529,6 +564,47 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (parent_run_id, child_run_id) DO NOTHING;
 ```
 
+Human feedback persistence decision (locked):
+- Canonical source-of-truth remains the append-only `workflow_events` stream.
+- MVP adds a materialized query table `human_feedback_requests` for efficient pending/terminal status reads.
+- `human_feedback_requests` is a projection/snapshot of canonical event state, not an alternate source-of-truth.
+- Projection writes for feedback lifecycle changes must occur in the same transaction boundary as their corresponding feedback event append when technically feasible with the current persistence adapter.
+- Canonical request status derivation from `workflow_events` uses `event_type` progression: `human-feedback.requested -> awaiting_response`, `human-feedback.received -> responded`, `human-feedback.cancelled -> cancelled`.
+
+`human_feedback_requests` minimum columns:
+- `feedback_run_id` (PK, FK -> `workflow_runs.run_id`),
+- `parent_run_id` (FK -> `workflow_runs.run_id`),
+- `parent_workflow_type`,
+- `parent_state`,
+- `question_id` (required; non-null),
+- `request_event_id` (unique),
+- `prompt`,
+- `options_json` (nullable JSON),
+- `constraints_json` (nullable JSON),
+- `correlation_id` (nullable),
+- `status` (`awaiting_response | responded | cancelled`),
+- `requested_at`,
+- `responded_at` (nullable),
+- `cancelled_at` (nullable),
+- `response_json` (nullable JSON),
+- `responded_by` (nullable).
+
+Required constraints/indexes:
+- primary key on `feedback_run_id`,
+- index on `status` for pending request scans,
+- index on `parent_run_id` for linkage/read APIs,
+- index on `question_id` for question-level diagnostics and correlation queries,
+- unique `request_event_id` to prevent duplicate projection writes during retries/recovery.
+
+Queue-correlation write semantics:
+- For feedback queue processors, projection writes must persist `question_id` from `HumanFeedbackRequestInput.questionId`.
+- `question_id` must remain stable for the lifecycle of its feedback run and align with emitted request/response events.
+
+Idempotency semantics:
+- first terminal feedback outcome wins (`responded` or `cancelled`),
+- subsequent competing terminal writes must be no-ops and preserve the first terminalized result,
+- reconcile/replay paths must not create divergent projection rows from canonical event history.
+
 Connection config (server):
 - `DATABASE_URL=postgresql://workflow:workflow@localhost:5432/workflow`
 - schema migrations are required at startup (or CI/CD deploy step) before accepting traffic.
@@ -654,7 +730,7 @@ Request:
 ```json
 {
   "response": {
-    "selectedOptionIds": ["2"],
+    "selectedOptionIds": [2],
     "text": "Choose option 2 with stricter API constraints"
   },
   "respondedBy": "user-or-system-id"
@@ -672,18 +748,23 @@ Response:
 
 Behavior:
 - Valid only while feedback run lifecycle is `running` and awaiting response.
-- Duplicate submissions are idempotent by feedback run state; first accepted response wins.
+- Missing `questionId` is a request-validation error (`400`).
+- Request payload should conform to `docs/schemas/human-input/numbered-options-response-input.schema.json`.
+- If any submitted `selectedOptionIds` do not exist in the request's offered options, return `400` validation error and keep feedback status unchanged (`awaiting_response`).
+- For completion-confirmation numbered questions, `selectedOptionIds` must contain exactly one option; otherwise return `400` validation error and keep feedback status unchanged (`awaiting_response`).
+- No protocol-level `response.text` max is enforced in MVP; if an implementation applies local limits, it must return `400` with validation details.
+- First accepted response wins.
+- Any subsequent response submission for the same `feedbackRunId` must return `409` (strict conflict model), including duplicate payloads.
 - On acceptance, feedback run completes and parent run may resume at next safe point.
-- If feedback request is already terminal, return `409` with current lifecycle/status.
+- `409` response must include current feedback status and terminal timestamp metadata (`respondedAt` or `cancelledAt`).
 
 ## 8.11 Get Human Feedback Request Status
 `GET /human-feedback/requests/{feedbackRunId}`
 
 Response includes:
 - feedback request lifecycle/status,
-- prompt/mode/options metadata,
+- prompt/options metadata,
 - response payload (if present),
-- timeout metadata,
 - parent run linkage fields.
 
 ---
@@ -848,7 +929,9 @@ Response:
 ## 11.3 Human Feedback Wait/Resume Semantics
 
 - Parent workflows may block on server-provided feedback child runs (default `server.human-feedback.v1`).
-- Response submission completes the feedback child run and unblocks parent progression.
+- Human feedback waits have no timeout semantics in MVP; they remain pending until response or cancellation.
+- While a feedback request is pending, the feedback child run lifecycle remains `running` and request status is `awaiting_response`.
+- Response submission completes the feedback child run and unblocks parent progression from the waiting checkpoint where it paused.
 - Parent pause/cancel requests while waiting for feedback must follow cooperative lifecycle rules.
 - Recovery reconcile must restore waiting feedback runs without duplicating question issuance or response acceptance.
 - Replayed/reconciled feedback runs must preserve first-response-wins idempotency.
@@ -908,8 +991,9 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
   - parent/child behavior during pause, resume, and propagated cancel.
 7. Human feedback orchestration tests:
   - parent workflow blocks on feedback child and resumes on response,
+  - invalid `selectedOptionIds` are rejected with `400` and do not terminalize pending feedback,
   - feedback response endpoint first-response-wins idempotency,
-  - timeout and cancellation behavior for unresolved feedback,
+  - unresolved feedback remains pending until response or cancellation,
   - no duplicate feedback side effects across recovery reconciliation.
 
 ---

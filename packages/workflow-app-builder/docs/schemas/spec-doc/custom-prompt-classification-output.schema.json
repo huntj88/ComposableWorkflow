@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/app-builder/spec-doc/custom-prompt-classification-output.schema.json",
+  "title": "CustomPromptClassificationOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "intent"
+  ],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "enum": [
+        "clarifying-question",
+        "custom-answer"
+      ]
+    },
+    "clarifyingQuestionText": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Clarifying question text that should be expanded into a follow-up numbered question."
+    },
+    "customAnswerText": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Custom answer text to buffer with the current numbered response set."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "intent": {
+            "const": "clarifying-question"
+          }
+        },
+        "required": [
+          "intent"
+        ]
+      },
+      "then": {
+        "required": [
+          "clarifyingQuestionText"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent": {
+            "const": "custom-answer"
+          }
+        },
+        "required": [
+          "intent"
+        ]
+      },
+      "then": {
+        "required": [
+          "customAnswerText"
+        ]
+      }
+    }
+  ]
+}

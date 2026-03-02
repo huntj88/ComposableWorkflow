@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/app-builder/spec-doc/numbered-question-item.schema.json",
+  "title": "AppBuilderSpecDocNumberedQuestionItem",
+  "allOf": [
+    {
+      "$ref": "../../../../../docs/schemas/human-input/numbered-question-item.schema.json"
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "issue-resolution",
+            "completion-confirmation"
+          ],
+          "description": "App-builder workflow semantics layered on top of the server-owned numbered question envelope."
+        }
+      }
+    }
+  ]
+}

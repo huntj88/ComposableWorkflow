@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/app-builder/spec-doc/spec-integration-input.schema.json",
+  "title": "SpecIntegrationInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source",
+    "request"
+  ],
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "workflow-input",
+        "numbered-options-feedback"
+      ],
+      "description": "Identifies whether this integration pass is initialized from workflow input or from exhausted numbered-options feedback."
+    },
+    "request": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Original user request carried throughout the workflow as base intent context."
+    },
+    "targetPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional preferred output markdown path."
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "specPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\.md$",
+      "description": "Existing working draft markdown path from prior integration pass."
+    },
+    "answers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/normalizedAnswer"
+      },
+      "description": "Accumulated normalized answers from numbered-options interactions."
+    }
+  },
+  "$defs": {
+    "normalizedAnswer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "questionId",
+        "selectedOptionIds",
+        "answeredAt"
+      ],
+      "properties": {
+        "questionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selectedOptionIds": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "May be empty when only custom prompt text is supplied."
+        },
+        "text": {
+          "type": "string"
+        },
+        "answeredAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source": {
+            "const": "numbered-options-feedback"
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "then": {
+        "required": [
+          "answers"
+        ]
+      }
+    }
+  ]
+}

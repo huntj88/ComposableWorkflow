@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/server/human-input/numbered-question-item.schema.json",
+  "title": "HumanInputNumberedQuestionItem",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "questionId",
+    "prompt",
+    "options",
+    "allowsCustomPrompt"
+  ],
+  "properties": {
+    "questionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable question identifier for deterministic response correlation, replay, and diagnostics."
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "options": {
+      "type": "array",
+      "minItems": 2,
+      "description": "Option IDs must be unique contiguous integers starting at 1 within each question.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "allowsCustomPrompt": {
+      "type": "boolean",
+      "const": true,
+      "description": "Custom prompt text is always allowed in addition to numbered selections."
+    }
+  }
+}

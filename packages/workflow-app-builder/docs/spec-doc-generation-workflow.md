@@ -2,7 +2,7 @@
 
 ## 1) Purpose
 
-Define a finite state machine workflow that converts an open-ended human request into an implementation-ready specification document.
+Define a finite state machine workflow that converts an initial human request into an implementation-ready specification document.
 
 This document describes the first workflow in a planned series of app/feature builder workflows.
 
@@ -77,58 +77,173 @@ export interface SpecDocGenerationOutput {
 
 ```plantuml
 @startuml
-[*] --> OpenEndedHumanRequest
-OpenEndedHumanRequest --> IntegrateIntoSpec
-IntegrateIntoSpec --> LogicalConsistencyCheckCreateFollowUpQuestions
-LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest
-NumberedOptionsHumanRequest --> IntegrateIntoSpec
+title App Builder Spec Generation Workflow (app-builder.spec-doc.v1)
 
-NumberedOptionsHumanRequest --> OpenEndedHumanRequest
-LogicalConsistencyCheckCreateFollowUpQuestions --> OpenEndedHumanRequest
-NumberedOptionsHumanRequest --> Done
+[*] --> IntegrateIntoSpec : workflow input received
+IntegrateIntoSpec --> LogicalConsistencyCheckCreateFollowUpQuestions : integration pass complete
+
+LogicalConsistencyCheckCreateFollowUpQuestions : checks for issues and creates follow-up questions
+LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest : nextState=NumberedOptionsHumanRequest
+
+NumberedOptionsHumanRequest : one feedback child run per queue item
+NumberedOptionsHumanRequest : questionId required
+NumberedOptionsHumanRequest : option ids are integers 1..N per question
+NumberedOptionsHumanRequest : asked questions are immutable (append new questionId)
+NumberedOptionsHumanRequest : responses are buffered until queue exhaustion
+
+NumberedOptionsHumanRequest --> NumberedOptionsHumanRequest : more queued questions remain
+NumberedOptionsHumanRequest --> Done : queue exhausted + completion-confirmation selected\n(exactly one selected option required)
+NumberedOptionsHumanRequest --> IntegrateIntoSpec : queue exhausted + collected responses require updates
+NumberedOptionsHumanRequest --> ClassifyCustomPrompt : custom prompt text provided
+
+state ClassifyCustomPrompt
+ClassifyCustomPrompt : classify intent via app-builder.copilot.prompt.v1\n(schema-validated structuredOutput)
+
+ClassifyCustomPrompt --> ExpandQuestionWithClarification : intent=clarifying-question
+ClassifyCustomPrompt --> NumberedOptionsHumanRequest : intent=custom-answer\n(buffer answer; continue queue processing)
+
+state ExpandQuestionWithClarification
+ExpandQuestionWithClarification : generate related follow-up question\nusing clarifying details
+ExpandQuestionWithClarification : append new queue item with new questionId
+ExpandQuestionWithClarification : insert as immediate next queue item\n(no context switch)
+
+ExpandQuestionWithClarification --> NumberedOptionsHumanRequest : ask expanded question next
+
+Done : terminal\nstatus=completed
 @enduml
 ```
 
 ## 6.2 State Semantics
 
-1. `OpenEndedHumanRequest`
-   - Capture free-form clarifications from the user.
-   - Used when ambiguity is high or options are not yet known.
-
-2. `IntegrateIntoSpec`
+1. `IntegrateIntoSpec`
    - Merge latest human answer(s) into working spec draft.
+  - Initial pass integrates `SpecDocGenerationInput` from workflow start (no dedicated feedback start state).
+  - Subsequent passes integrate accumulated normalized numbered-options responses after queue exhaustion.
    - Preserve prior accepted decisions unless explicitly overridden.
 
-3. `LogicalConsistencyCheckCreateFollowUpQuestions`
+2. `LogicalConsistencyCheckCreateFollowUpQuestions`
    - Validate internal consistency of scope, constraints, contracts, and acceptance criteria.
    - Generate follow-up questions when inconsistencies or missing decisions are detected.
-  - When no logical consistency issues remain, route to `NumberedOptionsHumanRequest` to ask whether the spec is done or needs additional implementation detail.
+  - Route to `NumberedOptionsHumanRequest` with numbered follow-up questions for either unresolved issues or completion confirmation.
 
-4. `NumberedOptionsHumanRequest`
+3. `NumberedOptionsHumanRequest`
    - Request user selection among explicit choices.
   - Used when decision branches are clear and mutually exclusive.
-  - Used both for resolving logical consistency issues and for explicit completion confirmation.
+  - If multiple numbered follow-up questions exist, this state self-loops question-by-question until all answers are captured.
+  - User may answer by selecting numbered options or by providing a custom prompt; responses are accumulated until the numbered queue is exhausted.
+  - If custom prompt text is provided, route through `ClassifyCustomPrompt`; classification results return to numbered-options processing.
+  - If no unresolved questions remain, this state asks explicit completion confirmation (`Done` vs additional work for `IntegrateIntoSpec`).
 
-5. `Done`
+4. `ClassifyCustomPrompt`
+  - Uses `app-builder.copilot.prompt.v1` with schema-validated `structuredOutput` to classify custom prompt intent as either clarifying-question or custom-answer.
+  - Does not transition directly to `IntegrateIntoSpec`; custom-answer returns to `NumberedOptionsHumanRequest`, while clarifying-question transitions to `ExpandQuestionWithClarification`.
+
+5. `ExpandQuestionWithClarification`
+  - Materializes a related follow-up question from clarifying intent.
+  - Appends a new immutable queue item with a new `questionId` and inserts it as immediate next question.
+
+6. `Done`
    - Terminal state.
    - Spec is internally consistent and implementation-ready under current constraints.
 
 ## 6.3 Transition Rules and Guards
 
-- `OpenEndedHumanRequest -> IntegrateIntoSpec`
-  - Guard: user input received.
+- `[*] -> IntegrateIntoSpec`
+  - Guard: workflow input is available and validated.
 - `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`
   - Guard: integration pass complete.
 - `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest`
-  - Guard: unresolved decisions can be represented as explicit options, or consistency checks pass and user completion confirmation is required.
-- `LogicalConsistencyCheckCreateFollowUpQuestions -> OpenEndedHumanRequest`
-  - Guard: unresolved ambiguity requires exploratory prompt.
+  - Guard: consistency-check pass produces numbered follow-up questions and/or explicit completion confirmation choices.
+- `NumberedOptionsHumanRequest -> NumberedOptionsHumanRequest`
+  - Guard: additional numbered follow-up questions remain to be asked and answered, and no custom prompt text is provided with the current response.
 - `NumberedOptionsHumanRequest -> IntegrateIntoSpec`
-  - Guard: user selected numbered options that require spec updates.
-- `NumberedOptionsHumanRequest -> OpenEndedHumanRequest`
-  - Guard: user requests additional implementation details not covered by existing options.
+  - Guard: numbered queue is exhausted and collected responses (selected options and/or custom-answer text) require spec updates.
+- `NumberedOptionsHumanRequest -> ClassifyCustomPrompt`
+  - Guard: custom prompt text is provided with current response (takes precedence over direct queue self-loop evaluation for that response).
+- `ClassifyCustomPrompt -> NumberedOptionsHumanRequest`
+  - Guard: intent is custom-answer, so answer is buffered and queue processing continues.
+- `ClassifyCustomPrompt -> ExpandQuestionWithClarification`
+  - Guard: intent is clarifying-question.
+- `ExpandQuestionWithClarification -> NumberedOptionsHumanRequest`
+  - Guard: follow-up question has been materialized and inserted as immediate next queue item.
 - `NumberedOptionsHumanRequest -> Done`
-  - Guard: user explicitly confirms spec is done.
+  - Guard: numbered queue is exhausted and completion-confirmation is selected with exactly one selected option.
+
+## 6.4 NumberedOptionsHumanRequest Implementation Detail (MVP)
+
+Execution model:
+- This state is implemented as a deterministic question queue processor.
+- Input queue is created from `LogicalConsistencyCheckCreateFollowUpQuestions` output and stored in workflow context/state data.
+- Each queue item is a numbered-options question with stable `questionId`, `prompt`, and `options[]`.
+- Within each question, option IDs are unique contiguous integers starting at `1`.
+
+Question queue construction:
+- If consistency checks report unresolved issues, generate one or more numbered questions mapped to those issues.
+- If no unresolved issues remain, generate a completion-confirmation numbered question that includes a done option.
+- Canonical completion option IDs are not required; done is interpreted from the selected option as authored for that specific question.
+- Queue order must be stable across retries/recovery (deterministic ordering by generated `questionId`).
+- Clarification-generated follow-up questions must be inserted as the immediate next queue item (ahead of older unresolved items) to avoid context switching.
+
+Per-question execution:
+- For the current queue item, request human feedback through the server-owned feedback workflow.
+- Launch one feedback child run per queue item (no batching of multiple questions into one feedback run).
+- Populate `HumanFeedbackRequestInput.questionId` with the queue item's stable `questionId` when launching each feedback request.
+- Expect server feedback projection persistence to store this value as `human_feedback_requests.question_id` for question-level diagnostics and replay correlation.
+- Accept response payload with `selectedOptionIds?: number[]` and optional `text?: string` custom prompt.
+- Treat invalid `selectedOptionIds` as request-validation errors from the feedback API (no answer recorded; question remains pending until valid response).
+- For completion-confirmation questions, require exactly one selected option; treat zero or multi-select responses as request-validation errors.
+- Assume no protocol-level max for custom `text` in MVP; handle any implementation-local validation errors as retryable feedback submission failures.
+- Persist normalized answer record in state data:
+  - `questionId`,
+  - `selectedOptionIds` (possibly empty),
+  - `text` (possibly empty),
+  - `answeredAt` timestamp.
+
+Custom prompt handling:
+- Custom prompt text is additive context, not a replacement for numbered options.
+- Custom prompt intent classification (clarifying-question vs custom-answer) is delegated to `app-builder.copilot.prompt.v1`.
+- Classification must be derived from schema-validated `structuredOutput` (not ad-hoc local heuristics) before choosing the next transition.
+- Example: alternative answer text augments selected option intent, is buffered with the current answer set, and is carried into `IntegrateIntoSpec` after queue exhaustion.
+- Example: clarifying question text may produce an additional numbered follow-up queue item; that item is inserted next, and transition remains `NumberedOptionsHumanRequest -> NumberedOptionsHumanRequest`.
+- Asked numbered-options questions are immutable once issued; clarifications must append a new queue item with a new `questionId`.
+
+Transition resolution after each response:
+- If custom prompt text is provided, transition to `ClassifyCustomPrompt` first for intent classification.
+- If custom prompt intent is clarifying-question, transition to `ExpandQuestionWithClarification`, insert the generated follow-up as immediate next, then transition to `NumberedOptionsHumanRequest`.
+- If custom prompt intent is custom-answer, buffer it and continue numbered queue processing.
+- If unasked queue items remain and no custom prompt text is pending classification, transition to `NumberedOptionsHumanRequest` (self-loop).
+- If queue is exhausted and completion-confirmation indicates done with exactly one selected option, transition to `Done`.
+- Otherwise transition to `IntegrateIntoSpec` with accumulated normalized answers (including buffered custom-answer prompts) as integration input.
+
+Loop accounting:
+- Every `NumberedOptionsHumanRequest` self-loop increments clarification-loop usage.
+- Exceeding `maxClarificationLoops` fails the run per section 11.
+
+## 6.5 IntegrateIntoSpec Input Contract (MVP)
+
+`IntegrateIntoSpec` consumes a normalized state input that supports both initial draft creation and later feedback-driven updates.
+
+```ts
+export interface IntegrateIntoSpecInput {
+  source: "workflow-input" | "numbered-options-feedback";
+  request: string;
+  targetPath?: string;
+  constraints?: string[];
+  specPath?: string;
+  answers?: Array<{
+    questionId: string;
+    selectedOptionIds: number[];
+    text?: string;
+    answeredAt: string; // ISO-8601 timestamp
+  }>;
+}
+```
+
+Contract notes:
+- `source: "workflow-input"` is used for the first pass and carries workflow input fields.
+- `source: "numbered-options-feedback"` is used after numbered queue exhaustion when accumulated responses require spec updates.
+- `answers` is optional for initial pass and, when present, is the normalized answer record accumulated in `NumberedOptionsHumanRequest`.
+- `specPath` allows integration into an existing working draft path from prior passes.
 
 ## 7) Dependency on `app-builder.copilot.prompt.v1`
 
@@ -142,21 +257,37 @@ This workflow is primarily an orchestration layer that composes repeated calls t
 
 For deterministic orchestration, every `app-builder.copilot.prompt.v1` call in this workflow must provide `outputSchema` and parse `structuredOutput` instead of branching from unstructured text.
 
-## 7.1 Required Output Schemas
+## 7.1 Required Schemas
 
 Schema artifacts for this workflow:
+- `packages/workflow-app-builder/docs/schemas/spec-doc/numbered-question-item.schema.json`
+- `packages/workflow-app-builder/docs/schemas/spec-doc/spec-integration-input.schema.json`
 - `packages/workflow-app-builder/docs/schemas/spec-doc/spec-integration-output.schema.json`
 - `packages/workflow-app-builder/docs/schemas/spec-doc/consistency-check-output.schema.json`
+- `packages/workflow-app-builder/docs/schemas/spec-doc/custom-prompt-classification-output.schema.json`
+- `packages/workflow-app-builder/docs/schemas/spec-doc/clarification-follow-up-output.schema.json`
 - `packages/workflow-app-builder/docs/schemas/spec-doc/spec-doc-generation-output.schema.json`
+
+Schema ownership boundary:
+- `packages/workflow-app-builder/docs/schemas/spec-doc/numbered-question-item.schema.json` extends the server-owned base envelope in `docs/schemas/human-input/numbered-question-item.schema.json` by adding app-builder-specific `kind` semantics.
+- Numbered response transport validation remains server-owned via `docs/schemas/human-input/numbered-options-response-input.schema.json`.
 
 Minimum usage contract by FSM state:
 - `IntegrateIntoSpec`
+  - `inputSchema` must use `spec-integration-input.schema.json`.
   - `outputSchema` must use `spec-integration-output.schema.json`.
   - `structuredOutput.specPath` is the markdown file path for the updated working draft.
 - `LogicalConsistencyCheckCreateFollowUpQuestions`
   - `outputSchema` must use `consistency-check-output.schema.json`.
   - `structuredOutput.nextState` is the single source of truth for transition routing.
-  - `structuredOutput.followUpQuestion` provides payload for either open-ended or numbered-options feedback request.
+  - `structuredOutput.followUpQuestions` provides deterministic ordered numbered-options question queue payload.
+  - each queue item must conform to `numbered-question-item.schema.json`.
+- `ClassifyCustomPrompt`
+  - `outputSchema` must use `custom-prompt-classification-output.schema.json`.
+  - `structuredOutput.intent` is the single source of truth for intent routing (`clarifying-question` vs `custom-answer`).
+- `ExpandQuestionWithClarification`
+  - `outputSchema` must use `clarification-follow-up-output.schema.json`.
+  - `structuredOutput.followUpQuestion` must conform to `numbered-question-item.schema.json` and be inserted as immediate next queue item.
 - `Done`
   - terminal payload must conform to `spec-doc-generation-output.schema.json`.
 
@@ -165,18 +296,22 @@ File output rule:
 - Schemas must validate routing/metadata contracts and file references, not embed full spec body text.
 
 Transition mapping from structured consistency output:
-- if `nextState === "OpenEndedHumanRequest"`: transition to `OpenEndedHumanRequest`.
 - if `nextState === "NumberedOptionsHumanRequest"`: transition to `NumberedOptionsHumanRequest`.
 
 Transition mapping from numbered-options response:
-- if user selects completion confirmation option: transition to `Done`.
-- if user selects option(s) requiring edits: transition to `IntegrateIntoSpec`.
-- if user indicates additional open-ended direction: transition to `OpenEndedHumanRequest`.
+- if custom prompt text is provided: transition to `ClassifyCustomPrompt` (evaluate this first for the current response).
+- if custom prompt intent is classified as clarifying-question: transition to `ExpandQuestionWithClarification`, insert related follow-up as immediate next, then transition to `NumberedOptionsHumanRequest`.
+- if user selects completion confirmation option and the numbered queue is exhausted with exactly one selected option: transition to `Done`.
+- if custom prompt intent is classified as custom-answer: buffer response and transition to `NumberedOptionsHumanRequest`.
+- if user selects non-completion numbered option(s) while questions remain: record response and transition to `NumberedOptionsHumanRequest`.
+- if additional numbered follow-up questions remain and no custom prompt text is provided: transition to `NumberedOptionsHumanRequest`.
+- if queue is exhausted and collected responses require updates (including custom-answer text): transition to `IntegrateIntoSpec`.
 
 Numbered-options prompt requirements:
-- For completion-confirmation prompts (no logical consistency blockers), options must include at least:
-  - one explicit "spec is done" option,
-  - one explicit "needs more implementation detail" option.
+- For completion-confirmation prompts (no logical consistency blockers), options must include at least one explicit "spec is done" numbered option.
+- Completion-confirmation prompts do not require canonical/standardized option IDs.
+- Numbered option IDs must be unique contiguous integers starting at `1` for each question.
+- Numbered-options prompts must allow optional custom prompt text in addition to numbered selections.
 
 Validation behavior:
 - If `structuredOutput` is not valid JSON, fail the run.
@@ -198,7 +333,7 @@ Server-spec placement requirement:
 
 Per run, emit events for:
 - entering each FSM state,
-- question generated (open-ended vs numbered-options),
+- question generated (numbered-options follow-up/confirmation),
 - user response received,
 - spec integration pass completed,
 - consistency-check outcome,
@@ -221,7 +356,8 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 
 - `Done` is reachable only from `NumberedOptionsHumanRequest`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`.
-- Consistency-check structured output `nextState` is limited to `OpenEndedHumanRequest | NumberedOptionsHumanRequest`.
+- `LogicalConsistencyCheckCreateFollowUpQuestions` transitions only to `NumberedOptionsHumanRequest`.
+- Consistency-check structured output `nextState` is limited to `NumberedOptionsHumanRequest`.
 - If `isImplementationReady === true`, consistency output must route to `NumberedOptionsHumanRequest` with no blocking issues.
 - Completion confirmation is explicit user intent selected in `NumberedOptionsHumanRequest`.
 - Terminal completed output must satisfy:

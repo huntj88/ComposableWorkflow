@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/app-builder/spec-doc/clarification-follow-up-output.schema.json",
+  "title": "ClarificationFollowUpOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "nextState",
+    "insertPosition",
+    "followUpQuestion"
+  ],
+  "properties": {
+    "nextState": {
+      "type": "string",
+      "const": "NumberedOptionsHumanRequest",
+      "description": "Deterministic next state after appending clarification follow-up question."
+    },
+    "insertPosition": {
+      "type": "string",
+      "const": "immediate-next",
+      "description": "Follow-up question insertion policy; must avoid context switching."
+    },
+    "followUpQuestion": {
+      "$ref": "./numbered-question-item.schema.json"
+    }
+  },
+  "allOf": [
+    {
+      "properties": {
+        "followUpQuestion": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "issue-resolution"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -9,16 +9,14 @@
     "isImplementationReady",
     "blockingIssueCount",
     "blockingIssues",
+    "followUpQuestions",
     "readinessChecklist"
   ],
   "properties": {
     "nextState": {
       "type": "string",
-      "enum": [
-        "OpenEndedHumanRequest",
-        "NumberedOptionsHumanRequest"
-      ],
-      "description": "Exact target state for deterministic branching after consistency analysis. Done is intentionally excluded; completion requires explicit user confirmation via NumberedOptionsHumanRequest."
+      "const": "NumberedOptionsHumanRequest",
+      "description": "Exact target state for deterministic branching after consistency analysis. Consistency check always routes to NumberedOptionsHumanRequest; Done is intentionally excluded because completion requires explicit user confirmation."
     },
     "isImplementationReady": {
       "type": "boolean"
@@ -60,50 +58,13 @@
         }
       }
     },
-    "followUpQuestion": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "mode",
-        "prompt"
-      ],
-      "properties": {
-        "mode": {
-          "type": "string",
-          "enum": [
-            "open-ended",
-            "numbered-options"
-          ]
-        },
-        "prompt": {
-          "type": "string",
-          "minLength": 1
-        },
-        "options": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "id",
-              "label"
-            ],
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "label": {
-                "type": "string",
-                "minLength": 1
-              },
-              "description": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
+    "followUpQuestions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "./numbered-question-item.schema.json"
+      },
+      "description": "Deterministically ordered numbered-options question queue for NumberedOptionsHumanRequest."
     },
     "readinessChecklist": {
       "type": "object",
@@ -142,82 +103,6 @@
     {
       "if": {
         "properties": {
-          "nextState": {
-            "enum": [
-              "OpenEndedHumanRequest",
-              "NumberedOptionsHumanRequest"
-            ]
-          }
-        },
-        "required": [
-          "nextState"
-        ]
-      },
-      "then": {
-        "required": [
-          "followUpQuestion"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "nextState": {
-            "const": "OpenEndedHumanRequest"
-          }
-        },
-        "required": [
-          "nextState"
-        ]
-      },
-      "then": {
-        "properties": {
-          "followUpQuestion": {
-            "properties": {
-              "mode": {
-                "const": "open-ended"
-              }
-            },
-            "required": [
-              "mode"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "nextState": {
-            "const": "NumberedOptionsHumanRequest"
-          }
-        },
-        "required": [
-          "nextState"
-        ]
-      },
-      "then": {
-        "properties": {
-          "followUpQuestion": {
-            "required": [
-              "mode",
-              "options"
-            ],
-            "properties": {
-              "mode": {
-                "const": "numbered-options"
-              },
-              "options": {
-                "minItems": 2
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
           "isImplementationReady": {
             "const": true
           }
@@ -228,9 +113,6 @@
       },
       "then": {
         "properties": {
-          "nextState": {
-            "const": "NumberedOptionsHumanRequest"
-          },
           "readinessChecklist": {
             "properties": {
               "hasScopeAndObjective": {
@@ -258,6 +140,19 @@
           },
           "blockingIssues": {
             "maxItems": 0
+          },
+          "followUpQuestions": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "completion-confirmation"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            }
           }
         }
       }
@@ -282,28 +177,27 @@
       },
       "then": {
         "properties": {
-          "nextState": {
-            "const": "NumberedOptionsHumanRequest"
-          },
-          "followUpQuestion": {
-            "properties": {
-              "mode": {
-                "const": "numbered-options"
-              },
-              "options": {
-                "minItems": 2
-              }
-            },
-            "required": [
-              "mode",
-              "options"
-            ]
-          },
           "blockingIssueCount": {
             "const": 0
           },
           "blockingIssues": {
             "maxItems": 0
+          },
+          "followUpQuestions": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "completion-confirmation"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            }
+          },
+          "isImplementationReady": {
+            "const": true
           }
         }
       }
