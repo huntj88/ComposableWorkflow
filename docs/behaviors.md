@@ -20,7 +20,8 @@ Primary source: `docs/typescript-server-workflow-spec.md`.
   - a simple success workflow,
   - a workflow with deterministic failure,
   - a parent workflow that launches a child workflow,
-  - a workflow step that invokes `ctx.runCommand(...)`.
+  - a workflow step that invokes `ctx.runCommand(...)`,
+  - a workflow that requests human feedback via `server.human-feedback.v1` child launch.
 
 ## 1.2 Assertion Types
 Each behavior should validate all relevant dimensions:
@@ -181,7 +182,95 @@ For parent/child relationships:
 
 ---
 
-## 6) Workflow-Invoked Command Execution Behaviors
+## 6) Human Feedback Orchestration Behaviors
+
+## B-HFB-001: Parent requests human feedback via child workflow launch
+**Given** a parent workflow state handler calls `ctx.launchChild(...)` with `workflowType = "server.human-feedback.v1"`
+**When** the feedback child run starts
+**Then** `child.started` is emitted on the parent stream with child run linkage
+**And** `human-feedback.requested` is emitted with request metadata (`prompt`, `options`, `questionId`, linkage fields)
+**And** feedback child run lifecycle is `running` with request status `awaiting_response`
+**And** `human_feedback_requests` projection row is created in the same transaction boundary as the request event append
+
+## B-HFB-002: Feedback response completes child and unblocks parent
+**Given** a pending feedback child run with status `awaiting_response`
+**When** a valid response is submitted via `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond`
+**Then** `human-feedback.received` event is emitted with response payload
+**And** feedback child run completes with output `status: "responded"`
+**And** parent run resumes from the waiting checkpoint
+**And** `human_feedback_requests` projection status becomes `responded`
+
+## B-HFB-003: First-response-wins idempotency for feedback
+**Given** a feedback child run that has already accepted a response (status `responded`)
+**When** another response submission is attempted for the same `feedbackRunId`
+**Then** response is `409` with current feedback status and terminal timestamp metadata (`respondedAt` or `cancelledAt`)
+**And** no duplicate `human-feedback.received` event is emitted
+**And** projection row is unchanged
+
+## B-HFB-004: Invalid selectedOptionIds rejected with 400
+**Given** a pending feedback request with defined option IDs
+**When** response includes `selectedOptionIds` that do not match offered option IDs
+**Then** response is `400` with validation error details
+**And** feedback status remains `awaiting_response`
+**And** no `human-feedback.received` event is emitted
+
+## B-HFB-005: Feedback waits have no timeout in MVP
+**Given** a pending feedback request
+**When** no response or cancellation is submitted
+**Then** request remains in `awaiting_response` indefinitely
+**And** feedback child run lifecycle remains `running`
+
+## B-HFB-006: Pause/cancel during feedback wait preserves correlation state
+**Given** a parent run waiting on a feedback child run
+**When** parent pause or cancel is requested
+**Then** cooperative lifecycle rules apply (human-feedback waits are safe points)
+**And** pending feedback correlation state is not lost
+**And** feedback child run follows parent cancellation propagation policy if cancelled
+
+## B-HFB-007: Recovery reconcile restores waiting feedback runs without duplication
+**Given** a feedback child run was interrupted mid-wait (crash/shutdown)
+**When** recovery reconciliation executes
+**Then** waiting feedback run is restored to consistent state
+**And** no duplicate question issuance or response acceptance occurs
+**And** first-response-wins idempotency is preserved after recovery
+
+## B-HFB-008: Feedback cancellation returns cancelled output
+**Given** a pending feedback request
+**When** cancellation occurs (direct or parent-propagated)
+**Then** `human-feedback.cancelled` event is emitted
+**And** feedback child run completes with output `status: "cancelled"`
+**And** `human_feedback_requests` projection status becomes `cancelled`
+**And** parent cancellation policies apply
+
+## B-HFB-009: Numbered options are contiguous starting at 1
+**Given** a numbered-options feedback request payload
+**When** request metadata is validated prior to issuance
+**Then** option `id` values are unique contiguous integers starting at `1`
+**And** invalid numbering is rejected before a pending feedback request is created
+
+## B-HFB-010: Asked numbered questions are immutable and clarifications append new questionId
+**Given** a numbered-options question has already been issued
+**When** clarification is required
+**Then** the previously issued question text/options are not mutated
+**And** a new question is appended with a new `questionId`
+**And** clarification follow-up is scheduled as the immediate next queue item
+
+## B-HFB-011: Completion-confirmation questions require exactly one selected option
+**Given** a pending completion-confirmation numbered-options feedback request
+**When** a response is submitted with `selectedOptionIds` containing zero or more than one option
+**Then** response is `400` with validation details
+**And** feedback status remains `awaiting_response`
+**And** no `human-feedback.received` event is emitted
+
+## B-HFB-012: Feedback response text has no protocol max in MVP
+**Given** a pending feedback request
+**When** a response with large `response.text` is submitted
+**Then** protocol-level validation does not reject solely due to text length
+**And** if implementation-specific operational limits are enforced, the endpoint returns `400` with validation details
+
+---
+
+## 7) Workflow-Invoked Command Execution Behaviors
 
 ## B-CMD-001: Command execution from workflow state succeeds with full capture
 **Given** workflow step invokes `ctx.runCommand(...)` with allowed command
@@ -216,7 +305,7 @@ For parent/child relationships:
 
 ---
 
-## 7) Lifecycle Control Behaviors (Pause/Resume/Cancel/Recovery)
+## 8) Lifecycle Control Behaviors (Pause/Resume/Cancel/Recovery)
 
 ## B-LIFE-001: Pause accepted only from running
 **Given** run lifecycle is `running`
@@ -269,7 +358,7 @@ For parent/child relationships:
 
 ---
 
-## 8) API Read/Query Behaviors
+## 9) API Read/Query Behaviors
 
 ## B-API-001: Run summary reflects current authoritative state
 Endpoint: `GET /api/v1/workflows/runs/{runId}`
@@ -302,9 +391,25 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/stream` (SSE)
 - Emits new events in sequence order.
 - Reconnection behavior (if supported) preserves no-loss semantics under documented cursor strategy.
 
+## B-API-007: Submit feedback response endpoint validates and accepts
+Endpoint: `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond`
+- Valid only while feedback run lifecycle is `running` and status is `awaiting_response`.
+- Request body must include `response` conforming to `numbered-options-response-input.schema.json`.
+- Missing `questionId` returns `400`.
+- Invalid `selectedOptionIds` (not matching offered options) returns `400` without terminalizing feedback.
+- For completion-confirmation numbered questions, `selectedOptionIds` must contain exactly one option or return `400` without terminalizing feedback.
+- No protocol-level `response.text` maximum is enforced in MVP; implementation-specific limits may return `400` with validation details.
+- First accepted response returns success; subsequent submissions return `409` with current status and terminal timestamps.
+- On acceptance, feedback child run completes and parent may resume at next safe point.
+
+## B-API-008: Get feedback request status returns metadata and linkage
+Endpoint: `GET /api/v1/human-feedback/requests/{feedbackRunId}`
+- Returns feedback request lifecycle/status, prompt/options metadata, response payload (if present), and parent run linkage fields.
+- Values are consistent with `human_feedback_requests` projection and canonical event stream.
+
 ---
 
-## 9) Persistence and Durability Behaviors
+## 10) Persistence and Durability Behaviors
 
 ## B-DATA-001: Durable append before critical transition acknowledgment
 **Given** a critical transition/lifecycle event
@@ -322,9 +427,17 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/stream` (SSE)
 **When** querying `workflow_run_children`
 **Then** relation matches event lineage and run tree API output
 
+## B-DATA-004: Feedback projection consistency with canonical events
+**Given** human feedback lifecycle events exist in `workflow_events`
+**When** querying `human_feedback_requests` projection table
+**Then** projection status matches canonical event-derived status (`human-feedback.requested` → `awaiting_response`, `human-feedback.received` → `responded`, `human-feedback.cancelled` → `cancelled`)
+**And** projection writes occur in the same transaction boundary as corresponding feedback event appends
+**And** duplicate retries/recovery do not create divergent projection rows
+**And** `question_id` is stable for the lifecycle of its feedback run
+
 ---
 
-## 10) Observability Behaviors
+## 11) Observability Behaviors
 
 ## B-OBS-001: Logging hook invoked for major lifecycle and transition points
 - start/end/fail/cancel
@@ -332,6 +445,7 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/stream` (SSE)
 - transition request/success/failure
 - command start/complete/fail
 - child start/complete/fail
+- human feedback request/receive/cancel
 - custom workflow logs
 
 Assertions:
@@ -343,6 +457,7 @@ Validate at least:
 - transition counts/failures,
 - command counts/failures/timeouts,
 - child launch counts/failures,
+- human feedback request/response/cancellation counts,
 - duration histograms,
 - active run gauges.
 
@@ -355,13 +470,13 @@ Validate at least:
 
 ---
 
-## 11) Security and Multi-Tenancy (Out of Scope)
+## 12) Security and Multi-Tenancy (Out of Scope)
 
 Security and multi-tenancy are not goals of this project and are intentionally excluded from the behavior catalog.
 
 ---
 
-## 12) CLI Behaviors (`apps/workflow-cli`)
+## 13) CLI Behaviors (`apps/workflow-cli`)
 
 ## B-CLI-001: `workflow run` starts run via server API
 CLI command sends expected payload and surfaces run id/lifecycle.
@@ -375,9 +490,15 @@ CLI follow mode renders new events in server order and handles reconnect/errors 
 ## B-CLI-004: `workflow inspect --graph` resolves definition metadata
 CLI can fetch graph metadata and print/export a representation from definition endpoint.
 
+## B-CLI-005: `workflow feedback list` lists pending feedback requests
+CLI command queries server API and displays pending human feedback requests with status, prompt, and parent run linkage.
+
+## B-CLI-006: `workflow feedback respond` submits feedback response
+CLI command submits a response payload for a given `feedbackRunId` via the server feedback response API and surfaces acceptance/rejection result.
+
 ---
 
-## 13) End-to-End Golden Scenarios
+## 14) End-to-End Golden Scenarios
 
 These scenarios should be implemented as top-level E2E tests because they validate multiple behavior families at once.
 
@@ -431,9 +552,37 @@ Must assert:
 - no duplicate logical progression,
 - consistent final run state.
 
+## GS-006: Human feedback request-response round trip
+1. Start parent workflow that reaches a state requiring human feedback.
+2. Parent launches `server.human-feedback.v1` child with prompt/options.
+3. Verify feedback child run is `running` and `human_feedback_requests` status is `awaiting_response`.
+4. Submit valid response via feedback response endpoint.
+5. Verify feedback child completes with `status: "responded"`.
+6. Verify parent resumes and eventually completes.
+
+Must assert:
+- `human-feedback.requested` and `human-feedback.received` events are emitted with correct linkage.
+- `human_feedback_requests` projection transitions `awaiting_response` → `responded`.
+- Parent-child event streams are linked and complete.
+- Duplicate response submission returns `409`.
+- Run tree endpoint shows feedback child within parent hierarchy.
+- Invalid `selectedOptionIds` submission returns `400` without terminalizing feedback.
+
+## GS-007: Feedback cancellation propagation
+1. Start parent workflow that launches a feedback child.
+2. Cancel parent while feedback is pending.
+3. Verify cancellation propagates to feedback child.
+4. Verify both runs reach terminal `cancelled` state.
+
+Must assert:
+- `human-feedback.cancelled` event emitted.
+- Feedback projection status becomes `cancelled`.
+- No response acceptance after cancellation.
+- Final states consistent across summary/tree/events.
+
 ---
 
-## 14) Coverage Matrix (Spec Acceptance Criteria → E2E Behaviors)
+## 15) Coverage Matrix (Spec Acceptance Criteria → E2E Behaviors)
 
 1. Decoupled package build/publish without server internals → `B-LOAD-001`, `B-LOAD-002`.
 2. Dynamic loading + start by type → `B-LOAD-001`, `B-START-001`.
@@ -446,12 +595,14 @@ Must assert:
 9. Cooperative cancellation + parent propagation + cancelled terminal event → `B-LIFE-006`, `B-CHILD-004`, `GS-004`.
 10. Pause/resume/recovery lifecycle + endpoints → `B-LIFE-001..008`, `GS-003`, `GS-005`.
 11. Required lifecycle checkpoint events emitted → `B-LIFE-001`, `B-LIFE-003`, `B-LIFE-007`.
+12. Human feedback collection available as server-owned default workflow contract → `B-HFB-001..012`, `B-API-007`, `B-API-008`, `B-DATA-004`, `B-CLI-005`, `B-CLI-006`, `GS-006`, `GS-007`.
 
 ---
 
-## 15) Exit Criteria for MVP E2E Suite
+## 16) Exit Criteria for MVP E2E Suite
 
 MVP is considered behaviorally complete when:
-- All critical behaviors in sections 2–10 pass in CI for at least one reference workflow package.
-- Golden scenarios `GS-001` through `GS-005` pass reliably.
+- All critical behaviors in sections 2–11 pass in CI for at least one reference workflow package.
+- Golden scenarios `GS-001` through `GS-007` pass reliably.
+- Human feedback orchestration behaviors (`B-HFB-001..012`) pass for at least one feedback-requesting workflow.
 - Failures provide enough diagnostics via events/logs/traces to identify root cause without code-level debugging.

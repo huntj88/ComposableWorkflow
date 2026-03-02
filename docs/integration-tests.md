@@ -321,13 +321,157 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-LIFE-008`, `GS-005`.
 
+## ITX-020: Feedback response first-wins idempotency under concurrent submission
+**Why not E2E-only:** race window between concurrent response submissions is narrow and flaky in black-box mode.
+
+**Setup**
+- Launch feedback child run and hold at `awaiting_response`.
+- Fire concurrent response submissions from multiple threads/processes.
+
+**Assertions**
+- Exactly one response is accepted and produces `human-feedback.received` event.
+- Remaining submissions return `409` with terminal status metadata.
+- `human_feedback_requests` projection terminates to `responded` exactly once.
+- No duplicate `human-feedback.received` events for same `feedbackRunId`.
+
+**Related behaviors:** `B-HFB-003`, `B-API-007`.
+
+## ITX-021: Feedback projection write transactionality with event append
+**Why not E2E-only:** requires precise validation of transaction boundaries between event append and projection write.
+
+**Setup**
+- Inject fault between feedback event append and projection write.
+- Verify recovery/retry behavior.
+
+**Assertions**
+- `human_feedback_requests` projection row is written in the same transaction boundary as the corresponding feedback event append.
+- Duplicate retries/recovery do not create divergent projection rows from canonical event history.
+- `question_id` remains stable for the lifecycle of its feedback run.
+- `request_event_id` unique constraint prevents duplicate projection writes.
+
+**Related behaviors:** `B-DATA-004`, `B-HFB-001`.
+
+## ITX-022: Invalid feedback option validation permutations
+**Why not E2E-only:** combinatorial coverage across option ID validation, missing questionId, and schema conformance is too broad for E2E cost.
+
+**Setup**
+- Issue feedback responses with: non-existent `selectedOptionIds`, missing `questionId`, malformed schema, valid option IDs.
+
+**Assertions**
+- Invalid `selectedOptionIds` returns `400` and keeps feedback status `awaiting_response`.
+- Missing `questionId` returns `400`.
+- Response conforming to `numbered-options-response-input.schema.json` is validated before acceptance.
+- No `human-feedback.received` event emitted for rejected submissions.
+- Valid submissions after prior rejections still succeed.
+
+**Related behaviors:** `B-HFB-004`, `B-API-007`.
+
+## ITX-023: Feedback wait safe-point semantics during pause/cancel
+**Why not E2E-only:** requires precise lifecycle interleavings at the feedback wait boundary.
+
+**Setup**
+- Start parent workflow waiting on feedback child.
+- Inject pause or cancel request while parent is blocked at feedback wait.
+
+**Assertions**
+- Human-feedback waits are treated as safe points for lifecycle transitions.
+- Pause/cancel during feedback wait does not lose pending feedback correlation state.
+- Feedback child run follows parent cancellation propagation policy when cancelled.
+- `human-feedback.cancelled` emitted if feedback is cancelled via propagation.
+- `human_feedback_requests` projection reflects correct terminal status.
+
+**Related behaviors:** `B-HFB-006`, `B-LIFE-001`, `B-LIFE-006`.
+
+## ITX-024: Recovery reconcile for interrupted feedback-waiting runs
+**Why not E2E-only:** requires direct control over crash markers and feedback run state seeding.
+
+**Setup**
+- Seed interrupted feedback runs in `awaiting_response` state with partially written events.
+- Crash injector after reconciler processes subset.
+
+**Assertions**
+- Recovery restores waiting feedback runs to consistent state without duplicate question issuance.
+- First-response-wins idempotency is preserved after recovery.
+- Re-running reconcile produces no duplicate feedback side effects.
+- Reconciled feedback runs accept responses correctly post-recovery.
+
+**Related behaviors:** `B-HFB-007`, `B-LIFE-007`, `GS-005`.
+
+## ITX-025: Feedback child launch rejection in forbidden lifecycles
+**Why not E2E-only:** requires precise lifecycle interleavings identical to ITX-009 but specific to feedback child type.
+
+**Setup**
+- Force parent lifecycle to `pausing|paused|resuming|cancelling|recovering`, then attempt to launch `server.human-feedback.v1` child.
+
+**Assertions**
+- Launch rejected with deterministic runtime error.
+- No feedback child run row/event created.
+- No `human_feedback_requests` projection row created.
+- No `workflow_run_children` lineage row created.
+
+**Related behaviors:** `B-LIFE-005`, `B-HFB-001`.
+
+## ITX-026: Completion-confirmation response requires exactly one selected option
+**Why not E2E-only:** validation permutations around completion-confirmation question type and terminalization side effects are better covered with deterministic in-process checks.
+
+**Setup**
+- Launch completion-confirmation feedback request and hold at `awaiting_response`.
+- Submit responses with zero, one, and multiple `selectedOptionIds`.
+
+**Assertions**
+- Zero or multiple selections return `400` and keep status `awaiting_response`.
+- Exactly one valid selection is accepted and produces `human-feedback.received`.
+- Rejected permutations do not emit `human-feedback.received`.
+
+**Related behaviors:** `B-HFB-011`, `B-API-007`.
+
+## ITX-027: Numbered-options request numbering contract enforcement
+**Why not E2E-only:** request-shape contract validation across authored queues and workflow-generated prompts is combinatorial and easier to isolate in harness tests.
+
+**Setup**
+- Attempt feedback request issuance with valid numbering and invalid numbering (duplicates, gaps, non-1 start).
+
+**Assertions**
+- Only unique contiguous numbering starting at `1` is accepted.
+- Invalid numbering is rejected before pending feedback request creation.
+- No feedback run/events/projection rows are created for rejected numbering.
+
+**Related behaviors:** `B-HFB-009`, `B-HFB-001`.
+
+## ITX-028: Question immutability and clarification queue ordering
+**Why not E2E-only:** verifying no mutation of prior issued question payloads plus immediate-next follow-up insertion requires direct queue/projection inspection.
+
+**Setup**
+- Issue a numbered question, then trigger clarification path.
+
+**Assertions**
+- Original question payload remains immutable after issuance.
+- Clarification creates a new question with a new `questionId`.
+- Clarification question is inserted as the immediate next queue item.
+
+**Related behaviors:** `B-HFB-010`.
+
+## ITX-029: Response text length semantics (no protocol max)
+**Why not E2E-only:** requires controlled validation-path assertions across large payload handling and optional local limit enforcement.
+
+**Setup**
+- Submit large but schema-valid `response.text` payloads.
+- Run with and without configured implementation-specific operational text limits.
+
+**Assertions**
+- Without local text limit, request is not rejected solely by text length.
+- With local limit enabled, endpoint returns `400` with validation details.
+- Rejections do not terminalize pending feedback requests.
+
+**Related behaviors:** `B-HFB-012`, `B-API-007`.
+
 ## 5) Integration vs E2E Ownership Matrix
 
 ## 5.1 Integration-Primary
-- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019.
+- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019, 020, 021, 024, 027, 028, 029.
 
 ## 5.2 Shared Coverage (Integration + E2E)
-- ITX-008, 009, 012, 015.
+- ITX-008, 009, 012, 015, 022, 023, 025, 026.
 
 Guideline:
 - Keep one happy-path proof in E2E.
@@ -340,7 +484,7 @@ Guideline:
 - `packages/workflow-lib/test/integration/...`
   - runtime transitions, child orchestration, command policies, hook contracts.
 - `packages/workflow-server/test/integration/...`
-  - loader/registry, API adapter + persistence behavior, reconcile/locking.
+  - loader/registry, API adapter + persistence behavior, reconcile/locking, human feedback API + projection.
 - `packages/workflow-server/test/harness/...`
   - fake clock, fault injector, barrier primitives, sink capture.
 
@@ -360,7 +504,8 @@ Integration suite is complete when:
    - lifecycle controls,
    - reconciliation,
    - command policy/redaction,
-   - instrumentation isolation.
+   - instrumentation isolation,
+   - human feedback response idempotency, projection transactionality, and option validation.
 4. Every integration-primary test maps to one or more `docs/behaviors.md` behavior IDs.
 
 ---
