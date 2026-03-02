@@ -59,7 +59,8 @@ Each behavior should validate all relevant dimensions:
 **Given** run is in `LogicalConsistencyCheckCreateFollowUpQuestions`
 **When** consistency check completes with `consistency-check-output.schema.json` output
 **Then** transition is always to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected)
-**And** `followUpQuestions` from output populate the question queue
+**And** `followUpQuestions` from output populate the question queue when present
+**And** if output `followUpQuestions` is empty, workflow logic synthesizes one completion-confirmation question with an explicit "spec is done" option
 **And** `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`
 
 ## B-SD-TRANS-004: NumberedOptionsHumanRequest self-loops for remaining queued questions
@@ -106,11 +107,12 @@ Each behavior should validate all relevant dimensions:
 **Then** new queue item with new `questionId` is inserted as immediate next question
 **And** run transitions to `NumberedOptionsHumanRequest` to ask the expanded question
 
-## B-SD-TRANS-011: Completion-confirmation questions imply no blocking issues
-**Given** `LogicalConsistencyCheckCreateFollowUpQuestions` output includes a `completion-confirmation` follow-up question
-**When** transition payload is validated before routing to `NumberedOptionsHumanRequest`
-**Then** `blockingIssues` is empty
-**And** completion-confirmation options include an explicit "spec is done" choice
+## B-SD-TRANS-011: Empty follow-up output synthesizes completion-confirmation question
+**Given** `LogicalConsistencyCheckCreateFollowUpQuestions` output has empty `followUpQuestions`
+**When** workflow prepares queue payload before routing to `NumberedOptionsHumanRequest`
+**Then** workflow logic synthesizes exactly one `completion-confirmation` question
+**And** the synthesized question includes an explicit "spec is done" choice
+**And** `blockingIssues` is empty
 
 ---
 
@@ -171,7 +173,9 @@ Each behavior should validate all relevant dimensions:
 **Given** `consistency-check-output.schema.json` output with `followUpQuestions`
 **When** questions are validated
 **Then** each item conforms to `numbered-question-item.schema.json`
-**And** each question has a stable `questionId`, `prompt`, `options` with unique contiguous integer IDs starting at `1`, and `kind`
+**And** each consistency-check question has `kind: "issue-resolution"`
+**And** each question has a stable `questionId`, `prompt`, `options` with unique contiguous integer IDs starting at `1`
+**And** completion-confirmation questions are synthesized by workflow logic (not required in consistency-check output)
 
 ## B-SD-SCHEMA-005: Clarification follow-up conforms to server-owned base schema
 **Given** `ExpandQuestionWithClarification` produces a follow-up question
@@ -353,7 +357,7 @@ All events include `runId`, `workflowType`, `state`, and sequence ordering.
 ## GS-SD-001: Happy path — single loop to completion
 1. Start `app-builder.spec-doc.v1` with valid input.
 2. `IntegrateIntoSpec` produces initial draft.
-3. `LogicalConsistencyCheckCreateFollowUpQuestions` finds no blocking issues; generates completion-confirmation question.
+3. `LogicalConsistencyCheckCreateFollowUpQuestions` finds no blocking issues and returns empty follow-up questions; workflow logic synthesizes completion-confirmation question.
 4. User selects completion-confirmation option with exactly one selected option.
 5. Run transitions to `Done`.
 
@@ -368,7 +372,7 @@ Must assert:
 2. First consistency check finds blocking issues; generates multiple questions.
 3. User answers questions across multiple self-loops.
 4. Queue exhaustion routes to `IntegrateIntoSpec` for second pass.
-5. Second consistency check generates completion-confirmation.
+5. Second consistency check returns no follow-up questions; workflow logic synthesizes completion-confirmation.
 6. User confirms completion.
 
 Must assert:

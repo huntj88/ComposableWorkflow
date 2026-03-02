@@ -46,11 +46,26 @@
     },
     "followUpQuestions": {
       "type": "array",
-      "minItems": 1,
+      "minItems": 0,
       "items": {
-        "$ref": "./numbered-question-item.schema.json"
+        "allOf": [
+          {
+            "$ref": "./numbered-question-item.schema.json"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "issue-resolution"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        ]
       },
-      "description": "Deterministically ordered numbered-options question queue for NumberedOptionsHumanRequest."
+      "description": "Deterministically ordered issue-resolution question queue from consistency check. May be empty; workflow logic synthesizes completion-confirmation when empty."
     },
     "readinessChecklist": {
       "type": "object",
@@ -84,107 +99,19 @@
   "allOf": [
     {
       "if": {
-        "allOf": [
-          {
-            "properties": {
-              "readinessChecklist": {
-                "properties": {
-                  "hasScopeAndObjective": {
-                    "const": true
-                  },
-                  "hasNonGoals": {
-                    "const": true
-                  },
-                  "hasConstraintsAndAssumptions": {
-                    "const": true
-                  },
-                  "hasInterfacesOrContracts": {
-                    "const": true
-                  },
-                  "hasTestableAcceptanceCriteria": {
-                    "const": true
-                  }
-                }
-              }
-            },
-            "required": [
-              "readinessChecklist"
-            ]
-          },
-          {
-            "properties": {
-              "blockingIssues": {
-                "maxItems": 0
-              }
-            },
-            "required": [
-              "blockingIssues"
-            ]
-          }
-        ]
-      },
-      "then": {
         "properties": {
-          "followUpQuestions": {
-            "contains": {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "completion-confirmation"
-                }
-              },
-              "required": [
-                "kind"
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "followUpQuestions": {
-            "contains": {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "completion-confirmation"
-                }
-              },
-              "required": [
-                "kind"
-              ]
-            }
+          "blockingIssues": {
+            "minItems": 1
           }
         },
         "required": [
-          "followUpQuestions"
+          "blockingIssues"
         ]
       },
       "then": {
         "properties": {
-          "blockingIssues": {
-            "maxItems": 0
-          },
-          "readinessChecklist": {
-            "properties": {
-              "hasScopeAndObjective": {
-                "const": true
-              },
-              "hasNonGoals": {
-                "const": true
-              },
-              "hasConstraintsAndAssumptions": {
-                "const": true
-              },
-              "hasInterfacesOrContracts": {
-                "const": true
-              },
-              "hasTestableAcceptanceCriteria": {
-                "const": true
-              }
-            }
+          "followUpQuestions": {
+            "minItems": 1
           }
         }
       }

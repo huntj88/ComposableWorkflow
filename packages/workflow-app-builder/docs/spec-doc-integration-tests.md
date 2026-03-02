@@ -164,7 +164,7 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** requires combinatorial coverage of valid/invalid completion responses.
 
 **Setup**
-- Configure consistency check to produce a completion-confirmation question.
+- Configure consistency check to return empty `followUpQuestions` with no blocking issues so workflow logic synthesizes a completion-confirmation question.
 - Submit responses with: exactly one option (valid), zero options, multiple options, non-existent option IDs.
 
 **Assertions**
@@ -251,7 +251,8 @@ A behavior is integration-primary when one or more is true:
 - All consistency-check questions conform to `numbered-question-item.schema.json`.
 - Option IDs are unique contiguous integers starting at `1` per question.
 - Each option includes `description` with pros/cons content.
-- Each question has `kind` in `{issue-resolution, completion-confirmation}`.
+- Each consistency-check question has `kind: "issue-resolution"`.
+- Completion-confirmation question is synthesized in workflow logic when consistency output is empty.
 - Clarification follow-up questions conform to server-owned base schema plus `kind: "issue-resolution"`.
 
 **Related behaviors:** `B-SD-SCHEMA-004`, `B-SD-SCHEMA-005`, `B-SD-SCHEMA-006`.
@@ -276,13 +277,13 @@ A behavior is integration-primary when one or more is true:
 **Setup**
 - Configure consistency check to return:
   - blocking issues with issue-resolution questions,
-  - no blocking issues with completion-confirmation question,
+  - no blocking issues with empty follow-up questions,
   - edge case with empty `blockingIssues` but present follow-up questions.
 
 **Assertions**
 - Transition is always to `NumberedOptionsHumanRequest` regardless of output content.
 - No direct transition to `Done`, `IntegrateIntoSpec`, or any other state.
-- If `completion-confirmation` follow-up question is present, `blockingIssues` is empty.
+- If output follow-up questions are empty, workflow logic synthesizes one completion-confirmation question with explicit "spec is done" option.
 
 **Related behaviors:** `B-SD-TRANS-003`, `B-SD-TRANS-011`, `B-SD-DONE-001`.
 

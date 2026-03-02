@@ -430,6 +430,7 @@ Implementation ownership/package decision (locked):
 - It is server-owned and required for startup; it is not optional plugin behavior.
 - Feature workflow packages consume only the workflow contract (`workflowType` + input/output shape) and must not depend on internal implementation modules.
 - Runtime replacement/override of `server.human-feedback.v1` is not permitted in MVP.
+- Enforcement in MVP uses dual guards: bootstrap reserves and registers `server.human-feedback.v1`, and registry collision checks reject any competing registration for that workflow type.
 - Any future extension mechanism must preserve the default contract and first-response-wins semantics.
 
 ---
@@ -569,7 +570,8 @@ Human feedback persistence decision (locked):
 - Canonical source-of-truth remains the append-only `workflow_events` stream.
 - MVP adds a materialized query table `human_feedback_requests` for efficient pending/terminal status reads.
 - `human_feedback_requests` is a projection/snapshot of canonical event state, not an alternate source-of-truth.
-- Projection writes for feedback lifecycle changes must occur in the same transaction boundary as their corresponding feedback event append when technically feasible with the current persistence adapter.
+- In this repository migration sequence, the projection schema is introduced in `packages/workflow-server/migrations/004_add_human_feedback_requests.ts`.
+- For Postgres MVP, projection writes for feedback lifecycle changes must occur in the same transaction boundary as their corresponding feedback event append.
 - Canonical request status derivation from `workflow_events` uses `event_type` progression: `human-feedback.requested -> awaiting_response`, `human-feedback.received -> responded`, `human-feedback.cancelled -> cancelled`.
 
 `human_feedback_requests` minimum columns:

@@ -179,7 +179,7 @@ Execution model:
 
 Question queue construction:
 - If consistency checks report unresolved issues, generate one or more numbered questions mapped to those issues.
-- If no unresolved issues remain, generate a completion-confirmation numbered question that includes a done option.
+- If consistency checks return zero follow-up questions, workflow logic must synthesize a completion-confirmation numbered question that includes an explicit "spec is done" option.
 - Canonical completion option IDs are not required; done is interpreted from the selected option as authored for that specific question.
 - Each generated option should include concise pros/cons to help user decision-making (use option `description` with a clear `Pros:` / `Cons:` format).
 - Queue order must be stable across retries/recovery (deterministic ordering by generated `questionId`).
@@ -280,8 +280,9 @@ Minimum usage contract by FSM state:
   - `structuredOutput.specPath` is the markdown file path for the updated working draft.
 - `LogicalConsistencyCheckCreateFollowUpQuestions`
   - `outputSchema` must use `consistency-check-output.schema.json`.
-  - `structuredOutput.followUpQuestions` provides deterministic ordered numbered-options question queue payload.
-  - each queue item must conform to `numbered-question-item.schema.json`.
+  - `structuredOutput.followUpQuestions` provides deterministic ordered issue-resolution question queue payload and may be empty.
+  - each queue item must conform to `numbered-question-item.schema.json` with `kind: "issue-resolution"`.
+  - if `structuredOutput.followUpQuestions` is empty, workflow logic synthesizes one completion-confirmation queue item with an explicit "spec is done" option before entering `NumberedOptionsHumanRequest`.
 - `ClassifyCustomPrompt`
   - `outputSchema` must use `custom-prompt-classification-output.schema.json`.
   - `structuredOutput.intent` is the single source of truth for intent routing (`clarifying-question` vs `custom-answer`).
@@ -296,6 +297,7 @@ File output rule:
 - Schemas must validate routing/metadata contracts and file references, not embed full spec body text.
 
 Transition mapping from consistency-check output:
+- if `followUpQuestions` is empty, synthesize one completion-confirmation numbered question in workflow logic (with explicit "spec is done" option) and enqueue it.
 - transition to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected state).
 
 Transition mapping from numbered-options response:
@@ -307,9 +309,9 @@ Transition mapping from numbered-options response:
 - if additional numbered follow-up questions remain and no custom prompt text is provided: transition to `NumberedOptionsHumanRequest`.
 - if queue is exhausted and collected responses require updates (including custom-answer text): transition to `IntegrateIntoSpec`.
 
-Numbered-options prompt requirements:
-- For completion-confirmation prompts (no logical consistency blockers), options must include at least one explicit "spec is done" numbered option.
-- Completion-confirmation prompts do not require canonical/standardized option IDs.
+Numbered-options question requirements:
+- For workflow-synthesized completion-confirmation questions, options must include at least one explicit "spec is done" numbered option.
+- Completion-confirmation questions do not require canonical/standardized option IDs.
 - Numbered option IDs must be unique contiguous integers starting at `1` for each question.
 - Numbered-options prompts must allow optional custom prompt text in addition to numbered selections.
 - Each option should include decision support details by populating `description` with concise `Pros:` and `Cons:` bullets.
@@ -403,15 +405,14 @@ Evaluation checklist (must map to readinessChecklist booleans):
 5) Acceptance criteria testable.
 
 Question-generation rules:
-- Always return at least one followUpQuestion.
 - If blocking issues exist: generate issue-resolution questions for each blocking decision gap.
-- If no blocking issues remain: generate one completion-confirmation question containing an explicit "spec is done" option.
+- If no blocking issues remain: return an empty `followUpQuestions` array (completion-confirmation question is synthesized by workflow logic).
 - Each question must include:
   - stable deterministic questionId,
   - prompt,
   - options with unique contiguous integer ids starting at 1,
   - per-option `description` that includes concise `Pros:` and `Cons:`,
-  - kind in {issue-resolution, completion-confirmation}.
+  - kind set to `issue-resolution`.
 - Keep followUpQuestions ordering deterministic.
 
 ```
@@ -523,7 +524,7 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions` transitions only to `NumberedOptionsHumanRequest`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions` always transitions to `NumberedOptionsHumanRequest` via fixed workflow logic.
-- If consistency output includes a `completion-confirmation` follow-up question, `blockingIssues` must be empty.
+- If consistency output has empty `followUpQuestions`, workflow logic synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
 - Completion confirmation is explicit user intent selected in `NumberedOptionsHumanRequest`.
 - Terminal completed output must satisfy:
   - `status === "completed"`

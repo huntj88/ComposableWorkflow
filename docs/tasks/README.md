@@ -7,7 +7,7 @@ This folder contains the end-to-end implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute task documents in numeric order (`T00` -> `T20`).
+1. Execute task documents in numeric order (`T00` -> `T23`).
 2. Do not start a task until all `Depends On` items are complete.
 3. If a task is split across PRs, keep all acceptance criteria in the same task document.
 4. Treat optional scopes as gated and explicitly documented.
@@ -35,6 +35,9 @@ This folder contains the end-to-end implementation plan for:
 - `T18` -> `T17`
 - `T19` -> `T18`
 - `T20` -> `T19`
+- `T21` -> `T06`, `T20`
+- `T22` -> `T02`, `T04`, `T05`, `T07`
+- `T23` -> `T11`, `T13`, `T22`
 
 ## Task Index
 
@@ -59,6 +62,9 @@ This folder contains the end-to-end implementation plan for:
 - `T18` [18-spec-drift-corrections.md](./18-spec-drift-corrections.md)
 - `T19` [19-production-server-parity-e2e.md](./19-production-server-parity-e2e.md)
 - `T20` [20-immediate-start-running-alignment.md](./20-immediate-start-running-alignment.md)
+- `T21` [21-recovery-progress-aware-reconcile.md](./21-recovery-progress-aware-reconcile.md)
+- `T22` [22-server-human-feedback-runtime.md](./22-server-human-feedback-runtime.md)
+- `T23` [23-feedback-api-cli-and-coverage.md](./23-feedback-api-cli-and-coverage.md)
 
 ## Phase Alignment (Spec Section 15)
 
@@ -69,7 +75,10 @@ This folder contains the end-to-end implementation plan for:
 | Phase 3 (drift remediation) | `T18` | Post-delivery spec-to-implementation drift correction and contract alignment across runtime, API, observability, and CLI surfaces. |
 | Phase 4 (prod parity hardening) | `T19` | Introduce persistent production launcher and enforce black-box E2E parity guarantees with shared composition root. |
 | Phase 5 (immediate-start lifecycle alignment) | `T20` | Align start path/runtime/API semantics to immediate execution with no operational `pending` queue state. |
-| Phase 6 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
+| Phase 6 (recovery progress gating) | `T21` | Enforce repeat-recovery gating on observed post-boundary progression and skip duplicate reconcile side effects. |
+| Phase 7 (human feedback runtime) | `T22` | Deliver server-owned default human feedback workflow contract, event semantics, and transactional projection. |
+| Phase 8 (feedback API and operator UX) | `T23` | Deliver strict feedback API validation/conflict semantics, CLI feedback commands, and expanded integration/E2E coverage. |
+| Phase 9 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
 | Cross-phase verification/gates | `T13`-`T17` | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
 
 ## Coverage Expectations
@@ -94,6 +103,7 @@ This folder contains the end-to-end implementation plan for:
 | 9) Cooperative + parent-propagated cancellation | `T06`, `T07` |
 | 10) Pause/resume/recovery lifecycle + endpoints | `T06` |
 | 11) Required lifecycle checkpoint events emitted | `T06`, `T15`, `T16` |
+| 12) Server-owned human feedback default workflow contract | `T22`, `T23` |
 
 ## Task Document Contract (Mandatory Sections)
 
