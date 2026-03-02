@@ -5,28 +5,14 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "nextState",
-    "isImplementationReady",
-    "blockingIssueCount",
     "blockingIssues",
     "followUpQuestions",
     "readinessChecklist"
   ],
   "properties": {
-    "nextState": {
-      "type": "string",
-      "const": "NumberedOptionsHumanRequest",
-      "description": "Exact target state for deterministic branching after consistency analysis. Consistency check always routes to NumberedOptionsHumanRequest; Done is intentionally excluded because completion requires explicit user confirmation."
-    },
-    "isImplementationReady": {
-      "type": "boolean"
-    },
-    "blockingIssueCount": {
-      "type": "integer",
-      "minimum": 0
-    },
     "blockingIssues": {
       "type": "array",
+      "description": "Authoritative list of unresolved blocking issues for this pass.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -74,8 +60,7 @@
         "hasNonGoals",
         "hasConstraintsAndAssumptions",
         "hasInterfacesOrContracts",
-        "hasTestableAcceptanceCriteria",
-        "hasNoBlockingQuestions"
+        "hasTestableAcceptanceCriteria"
       ],
       "properties": {
         "hasScopeAndObjective": {
@@ -92,9 +77,6 @@
         },
         "hasTestableAcceptanceCriteria": {
           "type": "boolean"
-        },
-        "hasNoBlockingQuestions": {
-          "type": "boolean"
         }
       }
     }
@@ -102,45 +84,47 @@
   "allOf": [
     {
       "if": {
-        "properties": {
-          "isImplementationReady": {
-            "const": true
+        "allOf": [
+          {
+            "properties": {
+              "readinessChecklist": {
+                "properties": {
+                  "hasScopeAndObjective": {
+                    "const": true
+                  },
+                  "hasNonGoals": {
+                    "const": true
+                  },
+                  "hasConstraintsAndAssumptions": {
+                    "const": true
+                  },
+                  "hasInterfacesOrContracts": {
+                    "const": true
+                  },
+                  "hasTestableAcceptanceCriteria": {
+                    "const": true
+                  }
+                }
+              }
+            },
+            "required": [
+              "readinessChecklist"
+            ]
+          },
+          {
+            "properties": {
+              "blockingIssues": {
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "blockingIssues"
+            ]
           }
-        },
-        "required": [
-          "isImplementationReady"
         ]
       },
       "then": {
         "properties": {
-          "readinessChecklist": {
-            "properties": {
-              "hasScopeAndObjective": {
-                "const": true
-              },
-              "hasNonGoals": {
-                "const": true
-              },
-              "hasConstraintsAndAssumptions": {
-                "const": true
-              },
-              "hasInterfacesOrContracts": {
-                "const": true
-              },
-              "hasTestableAcceptanceCriteria": {
-                "const": true
-              },
-              "hasNoBlockingQuestions": {
-                "const": true
-              }
-            }
-          },
-          "blockingIssueCount": {
-            "const": 0
-          },
-          "blockingIssues": {
-            "maxItems": 0
-          },
           "followUpQuestions": {
             "contains": {
               "type": "object",
@@ -160,29 +144,6 @@
     {
       "if": {
         "properties": {
-          "readinessChecklist": {
-            "properties": {
-              "hasNoBlockingQuestions": {
-                "const": true
-              }
-            },
-            "required": [
-              "hasNoBlockingQuestions"
-            ]
-          }
-        },
-        "required": [
-          "readinessChecklist"
-        ]
-      },
-      "then": {
-        "properties": {
-          "blockingIssueCount": {
-            "const": 0
-          },
-          "blockingIssues": {
-            "maxItems": 0
-          },
           "followUpQuestions": {
             "contains": {
               "type": "object",
@@ -195,9 +156,35 @@
                 "kind"
               ]
             }
+          }
+        },
+        "required": [
+          "followUpQuestions"
+        ]
+      },
+      "then": {
+        "properties": {
+          "blockingIssues": {
+            "maxItems": 0
           },
-          "isImplementationReady": {
-            "const": true
+          "readinessChecklist": {
+            "properties": {
+              "hasScopeAndObjective": {
+                "const": true
+              },
+              "hasNonGoals": {
+                "const": true
+              },
+              "hasConstraintsAndAssumptions": {
+                "const": true
+              },
+              "hasInterfacesOrContracts": {
+                "const": true
+              },
+              "hasTestableAcceptanceCriteria": {
+                "const": true
+              }
+            }
           }
         }
       }

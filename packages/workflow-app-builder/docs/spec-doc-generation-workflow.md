@@ -181,6 +181,7 @@ Question queue construction:
 - If consistency checks report unresolved issues, generate one or more numbered questions mapped to those issues.
 - If no unresolved issues remain, generate a completion-confirmation numbered question that includes a done option.
 - Canonical completion option IDs are not required; done is interpreted from the selected option as authored for that specific question.
+- Each generated option should include concise pros/cons to help user decision-making (use option `description` with a clear `Pros:` / `Cons:` format).
 - Queue order must be stable across retries/recovery (deterministic ordering by generated `questionId`).
 - Clarification-generated follow-up questions must be inserted as the immediate next queue item (ahead of older unresolved items) to avoid context switching.
 
@@ -279,7 +280,6 @@ Minimum usage contract by FSM state:
   - `structuredOutput.specPath` is the markdown file path for the updated working draft.
 - `LogicalConsistencyCheckCreateFollowUpQuestions`
   - `outputSchema` must use `consistency-check-output.schema.json`.
-  - `structuredOutput.nextState` is the single source of truth for transition routing.
   - `structuredOutput.followUpQuestions` provides deterministic ordered numbered-options question queue payload.
   - each queue item must conform to `numbered-question-item.schema.json`.
 - `ClassifyCustomPrompt`
@@ -287,7 +287,7 @@ Minimum usage contract by FSM state:
   - `structuredOutput.intent` is the single source of truth for intent routing (`clarifying-question` vs `custom-answer`).
 - `ExpandQuestionWithClarification`
   - `outputSchema` must use `clarification-follow-up-output.schema.json`.
-  - `structuredOutput.followUpQuestion` must conform to `numbered-question-item.schema.json` and be inserted as immediate next queue item.
+  - `structuredOutput.followUpQuestion` must conform to server-owned base `docs/schemas/human-input/numbered-question-item.schema.json`; workflow logic assigns `kind: "issue-resolution"` and inserts as immediate next queue item.
 - `Done`
   - terminal payload must conform to `spec-doc-generation-output.schema.json`.
 
@@ -295,8 +295,8 @@ File output rule:
 - The generated spec artifact is a markdown file on disk (`*.md`).
 - Schemas must validate routing/metadata contracts and file references, not embed full spec body text.
 
-Transition mapping from structured consistency output:
-- if `nextState === "NumberedOptionsHumanRequest"`: transition to `NumberedOptionsHumanRequest`.
+Transition mapping from consistency-check output:
+- transition to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected state).
 
 Transition mapping from numbered-options response:
 - if custom prompt text is provided: transition to `ClassifyCustomPrompt` (evaluate this first for the current response).
@@ -312,10 +312,176 @@ Numbered-options prompt requirements:
 - Completion-confirmation prompts do not require canonical/standardized option IDs.
 - Numbered option IDs must be unique contiguous integers starting at `1` for each question.
 - Numbered-options prompts must allow optional custom prompt text in addition to numbered selections.
+- Each option should include decision support details by populating `description` with concise `Pros:` and `Cons:` bullets.
 
 Validation behavior:
 - If `structuredOutput` is not valid JSON, fail the run.
 - If JSON is valid but does not satisfy the required schema for the current state, fail the run with schema-validation error details.
+
+## 7.2 Hardcoded Copilot Prompt Templates (MVP)
+
+This workflow should use fixed prompt templates (versioned in code) for each state that delegates to `app-builder.copilot.prompt.v1`.
+
+Prompt-template rules:
+- Prompt bodies are hardcoded string literals; runtime provides only variable interpolation data.
+- Every template below must be paired with the state-specific `outputSchema` from section 7.1.
+- `app-builder.copilot.prompt.v1` is responsible for issuing the schema follow-up prompt when `outputSchema` is provided; templates below are task prompts, not schema-instruction prompts.
+- The workflow must branch only from schema-validated `structuredOutput`.
+- All IDs and list ordering must be deterministic for identical inputs.
+- Prompt text should describe model task intent only; transition/routing authority remains in workflow logic + schema validation.
+
+### 7.2.1 `IntegrateIntoSpec` prompt (`spec-doc.integrate.v1`)
+
+Usage:
+- state: `IntegrateIntoSpec`
+- output schema: `spec-integration-output.schema.json`
+
+Required runtime interpolation variables:
+- `{{request}}`
+- `{{source}}` (`workflow-input` or `numbered-options-feedback`)
+- `{{targetPath}}` (optional)
+- `{{constraintsJson}}` (JSON array)
+- `{{specPath}}` (optional existing draft path)
+- `{{answersJson}}` (JSON array of normalized answers; optional/empty on first pass)
+
+Prompt text:
+
+```text
+You are generating and maintaining an implementation-ready software specification markdown document.
+
+You must:
+1) Preserve prior accepted decisions unless explicitly overridden by newer answers.
+2) Integrate all provided constraints and normalized numbered-options answers.
+3) Keep the spec concrete and testable.
+4) Ensure sections exist for: objective/scope, non-goals, constraints/assumptions, interfaces/contracts, acceptance criteria.
+5) Write or update the markdown file in the workspace.
+
+Input context:
+- source: {{source}}
+- request: {{request}}
+- targetPath: {{targetPath}}
+- existingSpecPath: {{specPath}}
+- constraints: {{constraintsJson}}
+- answers: {{answersJson}}
+
+Spec quality requirements:
+- No unresolved contradictions in scope, constraints, or interface contracts.
+- Acceptance criteria must be testable and unambiguous.
+- Keep language implementation-ready and avoid vague statements.
+```
+
+### 7.2.2 `LogicalConsistencyCheckCreateFollowUpQuestions` prompt (`spec-doc.consistency-check.v1`)
+
+Usage:
+- state: `LogicalConsistencyCheckCreateFollowUpQuestions`
+- output schema: `consistency-check-output.schema.json`
+
+Required runtime interpolation variables:
+- `{{request}}`
+- `{{specPath}}`
+- `{{constraintsJson}}`
+- `{{loopCount}}`
+- `{{remainingQuestionIdsJson}}` (from latest integration metadata)
+
+Prompt text:
+
+```text
+You are validating a spec document for implementation readiness and generating deterministic numbered follow-up questions.
+
+Input context:
+- request: {{request}}
+- specPath: {{specPath}}
+- constraints: {{constraintsJson}}
+- currentLoopCount: {{loopCount}}
+- remainingQuestionIdsFromIntegration: {{remainingQuestionIdsJson}}
+
+Evaluation checklist (must map to readinessChecklist booleans):
+1) Scope/objective present.
+2) Non-goals present.
+3) Constraints/assumptions explicit.
+4) Interfaces/contracts defined where needed.
+5) Acceptance criteria testable.
+
+Question-generation rules:
+- Always return at least one followUpQuestion.
+- If blocking issues exist: generate issue-resolution questions for each blocking decision gap.
+- If no blocking issues remain: generate one completion-confirmation question containing an explicit "spec is done" option.
+- Each question must include:
+  - stable deterministic questionId,
+  - prompt,
+  - options with unique contiguous integer ids starting at 1,
+  - per-option `description` that includes concise `Pros:` and `Cons:`,
+  - allowsCustomPrompt=true,
+  - kind in {issue-resolution, completion-confirmation}.
+- Keep followUpQuestions ordering deterministic.
+
+```
+
+### 7.2.3 `ClassifyCustomPrompt` prompt (`spec-doc.classify-custom-prompt.v1`)
+
+Usage:
+- state: `ClassifyCustomPrompt`
+- output schema: `custom-prompt-classification-output.schema.json`
+
+Required runtime interpolation variables:
+- `{{questionId}}`
+- `{{questionPrompt}}`
+- `{{selectedOptionIdsJson}}`
+- `{{customText}}`
+
+Prompt text:
+
+```text
+Classify the user's custom text for a numbered-options response.
+
+Input context:
+- questionId: {{questionId}}
+- questionPrompt: {{questionPrompt}}
+- selectedOptionIds: {{selectedOptionIdsJson}}
+- customText: {{customText}}
+
+Classification policy:
+- intent = clarifying-question when the custom text is primarily asking for clarification, disambiguation, or additional information before deciding.
+- intent = custom-answer when the custom text primarily provides an answer, preference, constraint, or detail to be integrated.
+- Choose exactly one intent.
+
+```
+
+### 7.2.4 `ExpandQuestionWithClarification` prompt (`spec-doc.expand-clarification.v1`)
+
+Usage:
+- state: `ExpandQuestionWithClarification`
+- output schema: `clarification-follow-up-output.schema.json`
+
+Required runtime interpolation variables:
+- `{{sourceQuestionId}}`
+- `{{sourceQuestionPrompt}}`
+- `{{sourceOptionsJson}}`
+- `{{clarifyingQuestionText}}`
+- `{{nextQuestionOrdinal}}`
+
+Prompt text:
+
+```text
+Create one deterministic numbered follow-up question from the provided clarifying question.
+
+Input context:
+- sourceQuestionId: {{sourceQuestionId}}
+- sourceQuestionPrompt: {{sourceQuestionPrompt}}
+- sourceOptions: {{sourceOptionsJson}}
+- clarifyingQuestionText: {{clarifyingQuestionText}}
+- nextQuestionOrdinalHint: {{nextQuestionOrdinal}}
+
+Rules:
+- followUpQuestion.questionId must be new and deterministic.
+- followUpQuestion.options must use contiguous integer ids starting at 1.
+- followUpQuestion options should include `description` with concise `Pros:` and `Cons:` for each choice.
+- The question should resolve the clarification with minimal ambiguity and clear decision branches.
+
+```
+
+Implementation note:
+- Keep these templates in code as versioned constants and include the template ID (e.g., `spec-doc.integrate.v1`) in observability events for prompt traceability.
 
 ## 8) Human Feedback Collection Boundary (Decoupling Requirement)
 
@@ -357,8 +523,8 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - `Done` is reachable only from `NumberedOptionsHumanRequest`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions` transitions only to `NumberedOptionsHumanRequest`.
-- Consistency-check structured output `nextState` is limited to `NumberedOptionsHumanRequest`.
-- If `isImplementationReady === true`, consistency output must route to `NumberedOptionsHumanRequest` with no blocking issues.
+- `LogicalConsistencyCheckCreateFollowUpQuestions` always transitions to `NumberedOptionsHumanRequest` via fixed workflow logic.
+- If consistency output includes a `completion-confirmation` follow-up question, `blockingIssues` must be empty.
 - Completion confirmation is explicit user intent selected in `NumberedOptionsHumanRequest`.
 - Terminal completed output must satisfy:
   - `status === "completed"`
