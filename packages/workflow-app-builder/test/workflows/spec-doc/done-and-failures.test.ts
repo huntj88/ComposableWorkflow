@@ -406,7 +406,7 @@ describe('Done state handler – edge cases', () => {
     const logCalls = logSpy.mock.calls.map(
       (c: [{ level: string; message: string }]) => c[0].message,
     );
-    expect(logCalls).toContain('Workflow completed successfully');
+    expect(logCalls.some((m: string) => m.includes('[obs] Terminal completed:'))).toBe(true);
   });
 
   it('DONE_STATE constant is "Done"', () => {

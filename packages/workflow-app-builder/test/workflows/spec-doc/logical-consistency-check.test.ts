@@ -729,14 +729,14 @@ describe('Logging', () => {
 
     const completionLog = logSpy.mock.calls.find((call: unknown[]) => {
       const event = call[0] as { message?: string };
-      return event.message?.includes('LogicalConsistencyCheck pass');
+      return event.message?.includes('[obs] Consistency check pass');
     });
     expect(completionLog).toBeDefined();
     const payload = (completionLog![0] as { payload: Record<string, unknown> }).payload;
     expect(payload).toHaveProperty('blockingIssuesCount');
     expect(payload).toHaveProperty('followUpQuestionsCount');
-    expect(payload).toHaveProperty('queueSize');
-    expect(payload).toHaveProperty('readinessChecklist');
+    expect(payload).toHaveProperty('passNumber');
+    expect(payload).toHaveProperty('promptTemplateId');
   });
 });
 

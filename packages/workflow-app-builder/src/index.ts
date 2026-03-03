@@ -57,6 +57,30 @@ export {
   appendAnswer,
 } from './workflows/spec-doc/answers.js';
 
+// Observability helpers (TSD08)
+export {
+  OBS_TYPES,
+  type ObservabilityType,
+  type ObsPayloadBase,
+  type DelegationStartedPayload,
+  type IntegrationPassCompletedPayload,
+  type ConsistencyOutcomePayload,
+  type QuestionGeneratedPayload,
+  type ResponseReceivedPayload,
+  type ClassificationOutcomePayload,
+  type ClarificationGeneratedPayload,
+  type TerminalCompletedPayload,
+  type ObservabilityPayload,
+  emitDelegationStarted,
+  emitIntegrationPassCompleted,
+  emitConsistencyOutcome,
+  emitQuestionGenerated,
+  emitResponseReceived,
+  emitClassificationOutcome,
+  emitClarificationGenerated,
+  emitTerminalCompleted,
+} from './workflows/spec-doc/observability.js';
+
 // Terminal semantics and failure utilities (TSD07)
 export {
   type UnresolvedQuestionSummary,

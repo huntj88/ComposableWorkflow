@@ -23,6 +23,7 @@ import type {
   SpecDocGenerationOutput,
 } from '../contracts.js';
 import { buildDelegationRequest, delegateToCopilot } from '../copilot-delegation.js';
+import { emitDelegationStarted, emitConsistencyOutcome } from '../observability.js';
 import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { buildQuestionQueue } from '../queue.js';
 import { createSpecDocValidator } from '../schema-validation.js';
@@ -115,6 +116,13 @@ export async function handleLogicalConsistencyCheck(
     ctx.input.copilotPromptOptions,
   );
 
+  // SD-OBS-003: emit delegation traceability event
+  emitDelegationStarted(ctx, {
+    state: LOGICAL_CONSISTENCY_CHECK_STATE,
+    promptTemplateId: TEMPLATE_IDS.consistencyCheck,
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+  });
+
   // Delegate to copilot prompt child workflow
   let result;
   try {
@@ -173,16 +181,13 @@ export async function handleLogicalConsistencyCheck(
     },
   };
 
-  ctx.log({
-    level: 'info',
-    message: `LogicalConsistencyCheck pass ${updatedStateData.counters.consistencyCheckPasses} complete`,
-    payload: {
-      blockingIssuesCount: output.blockingIssues.length,
-      followUpQuestionsCount: output.followUpQuestions.length,
-      queueSize: queue.length,
-      readinessChecklist: output.readinessChecklist,
-      remainingQuestionIdsFromIntegration: remainingQuestionIds,
-    },
+  // SD-OBS-002: emit consistency check outcome event
+  emitConsistencyOutcome(ctx, {
+    state: LOGICAL_CONSISTENCY_CHECK_STATE,
+    blockingIssuesCount: output.blockingIssues.length,
+    followUpQuestionsCount: output.followUpQuestions.length,
+    passNumber: updatedStateData.counters.consistencyCheckPasses,
+    promptTemplateId: TEMPLATE_IDS.consistencyCheck,
   });
 
   // SD-CHECK-001: transition target is ALWAYS NumberedOptionsHumanRequest

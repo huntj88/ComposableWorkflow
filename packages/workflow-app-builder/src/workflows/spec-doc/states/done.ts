@@ -14,6 +14,7 @@
 import type { WorkflowContext } from '@composable-workflow/workflow-lib/contracts';
 
 import type { SpecDocGenerationInput, SpecDocGenerationOutput } from '../contracts.js';
+import { emitTerminalCompleted } from '../observability.js';
 import { type SpecDocStateData, createInitialStateData } from '../state-data.js';
 import { COMPLETION_CONFIRMATION_QUESTION_ID } from '../queue.js';
 import { createSpecDocValidator } from '../schema-validation.js';
@@ -165,15 +166,13 @@ export function handleDone(
   // ---------------------------------------------------------------------------
   // Emit terminal output
   // ---------------------------------------------------------------------------
-  ctx.log({
-    level: 'info',
-    message: 'Workflow completed successfully',
-    payload: {
-      specPath,
-      loopsUsed: stateData.counters.clarificationLoopsUsed,
-      integrationPasses,
-      consistencyCheckPasses,
-    },
+  // SD-OBS-001: emit terminal completed event
+  emitTerminalCompleted(ctx, {
+    state: DONE_STATE,
+    specPath,
+    loopsUsed: stateData.counters.clarificationLoopsUsed,
+    integrationPasses,
+    consistencyCheckPasses,
   });
 
   ctx.complete(output);

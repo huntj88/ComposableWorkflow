@@ -25,6 +25,7 @@ import type {
   SpecDocGenerationOutput,
 } from '../contracts.js';
 import { buildDelegationRequest, delegateToCopilot } from '../copilot-delegation.js';
+import { emitDelegationStarted, emitClarificationGenerated } from '../observability.js';
 import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { insertImmediateNext } from '../queue.js';
 import { createSpecDocValidator } from '../schema-validation.js';
@@ -141,6 +142,13 @@ export async function handleExpandQuestionWithClarification(
     ctx.input.copilotPromptOptions,
   );
 
+  // SD-OBS-003: emit delegation traceability event
+  emitDelegationStarted(ctx, {
+    state: EXPAND_QUESTION_WITH_CLARIFICATION_STATE,
+    promptTemplateId: TEMPLATE_IDS.expandClarification,
+    outputSchemaId: SCHEMA_IDS.clarificationFollowUpOutput,
+  });
+
   let result;
   try {
     result = await delegateToCopilot<ClarificationFollowUpOutput>(ctx, request);
@@ -234,15 +242,13 @@ export async function handleExpandQuestionWithClarification(
     pendingClarification: undefined,
   };
 
-  ctx.log({
-    level: 'info',
-    message: `Clarification follow-up "${followUp.questionId}" inserted at queue position ${insertIndex}`,
-    payload: {
-      sourceQuestionId,
-      followUpQuestionId: followUp.questionId,
-      insertIndex,
-      newQueueSize: updatedQueue.length,
-    },
+  // SD-OBS-002: emit clarification generated event
+  emitClarificationGenerated(ctx, {
+    state: EXPAND_QUESTION_WITH_CLARIFICATION_STATE,
+    sourceQuestionId,
+    followUpQuestionId: followUp.questionId,
+    insertIndex,
+    promptTemplateId: TEMPLATE_IDS.expandClarification,
   });
 
   // Transition to NumberedOptionsHumanRequest to ask the follow-up

@@ -21,6 +21,7 @@ import {
   validateCompletionConfirmationCardinality,
   validateSelectedOptionIds,
 } from '../answers.js';
+import { emitQuestionGenerated, emitResponseReceived } from '../observability.js';
 import { COMPLETION_CONFIRMATION_QUESTION_ID } from '../queue.js';
 import { type SpecDocStateData, createInitialStateData } from '../state-data.js';
 
@@ -121,15 +122,13 @@ export async function handleNumberedOptionsHumanRequest(
     requestedByState: NUMBERED_OPTIONS_HUMAN_REQUEST_STATE,
   };
 
-  ctx.log({
-    level: 'info',
-    message: `Requesting human feedback for question "${currentItem.questionId}" (${queueIndex + 1}/${queue.length})`,
-    payload: {
-      questionId: currentItem.questionId,
-      queueIndex,
-      queueSize: queue.length,
-      kind: currentItem.kind,
-    },
+  // SD-OBS-001: emit question generated event
+  emitQuestionGenerated(ctx, {
+    state: NUMBERED_OPTIONS_HUMAN_REQUEST_STATE,
+    questionId: currentItem.questionId,
+    kind: currentItem.kind,
+    queuePosition: queueIndex,
+    queueSize: queue.length,
   });
 
   let childOutput: HumanFeedbackChildOutput;
@@ -222,15 +221,12 @@ export async function handleNumberedOptionsHumanRequest(
     idx === queueIndex ? { ...item, answered: true } : item,
   );
 
-  ctx.log({
-    level: 'info',
-    message: `Recorded answer for question "${currentItem.questionId}"`,
-    payload: {
-      questionId: currentItem.questionId,
-      selectedOptionIds: selectedOptionIds!,
-      hasText: text !== undefined,
-      answeredAt,
-    },
+  // SD-OBS-001: emit response received event
+  emitResponseReceived(ctx, {
+    state: NUMBERED_OPTIONS_HUMAN_REQUEST_STATE,
+    questionId: currentItem.questionId,
+    selectedOptionIds: selectedOptionIds!,
+    hasCustomText: text !== undefined && text.trim().length > 0,
   });
 
   // ---------------------------------------------------------------------------

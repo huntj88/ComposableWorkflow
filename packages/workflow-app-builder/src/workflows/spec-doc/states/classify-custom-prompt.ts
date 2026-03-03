@@ -26,6 +26,7 @@ import type {
 } from '../contracts.js';
 import { appendAnswer, createNormalizedAnswer } from '../answers.js';
 import { buildDelegationRequest, delegateToCopilot } from '../copilot-delegation.js';
+import { emitDelegationStarted, emitClassificationOutcome } from '../observability.js';
 import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { createSpecDocValidator } from '../schema-validation.js';
 import { SCHEMA_IDS } from '../schemas.js';
@@ -106,6 +107,13 @@ export async function handleClassifyCustomPrompt(
     ctx.input.copilotPromptOptions,
   );
 
+  // SD-OBS-003: emit delegation traceability event
+  emitDelegationStarted(ctx, {
+    state: CLASSIFY_CUSTOM_PROMPT_STATE,
+    promptTemplateId: TEMPLATE_IDS.classifyCustomPrompt,
+    outputSchemaId: SCHEMA_IDS.customPromptClassificationOutput,
+  });
+
   let result;
   try {
     result = await delegateToCopilot<CustomPromptClassificationOutput>(ctx, request);
@@ -140,6 +148,16 @@ export async function handleClassifyCustomPrompt(
   const output = validation.value;
 
   // ---------------------------------------------------------------------------
+  // SD-OBS-002: emit classification outcome event
+  // ---------------------------------------------------------------------------
+  emitClassificationOutcome(ctx, {
+    state: CLASSIFY_CUSTOM_PROMPT_STATE,
+    questionId: sourceQuestion.questionId,
+    intent: output.intent,
+    promptTemplateId: TEMPLATE_IDS.classifyCustomPrompt,
+  });
+
+  // ---------------------------------------------------------------------------
   // SD-CUSTOM-002: Intent routing authority is ONLY `structuredOutput.intent`
   // ---------------------------------------------------------------------------
 
@@ -160,31 +178,12 @@ export async function handleClassifyCustomPrompt(
       normalizedAnswers: updatedAnswers,
     };
 
-    ctx.log({
-      level: 'info',
-      message: `Custom text classified as custom-answer for "${sourceQuestion.questionId}", buffering and resuming queue`,
-      payload: {
-        questionId: sourceQuestion.questionId,
-        intent: output.intent,
-      },
-    });
-
     ctx.transition('NumberedOptionsHumanRequest', updatedStateData);
     return;
   }
 
   if (output.intent === 'clarifying-question') {
     // SD-CUSTOM-004: route to ExpandQuestionWithClarification carrying clarifying text
-    ctx.log({
-      level: 'info',
-      message: `Custom text classified as clarifying-question for "${sourceQuestion.questionId}", routing to ExpandQuestionWithClarification`,
-      payload: {
-        questionId: sourceQuestion.questionId,
-        intent: output.intent,
-        clarifyingQuestionText: output.clarifyingQuestionText,
-      },
-    });
-
     // Pass clarifyingQuestionText through state data for the next handler.
     const updatedStateData: SpecDocStateData = {
       ...stateData,

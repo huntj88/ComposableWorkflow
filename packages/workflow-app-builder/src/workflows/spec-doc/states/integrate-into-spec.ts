@@ -21,6 +21,7 @@ import type {
   SpecIntegrationOutput,
 } from '../contracts.js';
 import { buildDelegationRequest, delegateToCopilot } from '../copilot-delegation.js';
+import { emitDelegationStarted, emitIntegrationPassCompleted } from '../observability.js';
 import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { createSpecDocValidator } from '../schema-validation.js';
 import { SCHEMA_IDS } from '../schemas.js';
@@ -77,6 +78,14 @@ export async function handleIntegrateIntoSpec(
     ctx.input.copilotPromptOptions,
   );
 
+  // SD-OBS-003: emit delegation traceability event
+  emitDelegationStarted(ctx, {
+    state: INTEGRATE_INTO_SPEC_STATE,
+    promptTemplateId: TEMPLATE_IDS.integrate,
+    outputSchemaId: SCHEMA_IDS.specIntegrationOutput,
+    inputSchemaId: SCHEMA_IDS.specIntegrationInput,
+  });
+
   // Delegate to copilot prompt child workflow
   let result;
   try {
@@ -123,16 +132,16 @@ export async function handleIntegrateIntoSpec(
     },
   };
 
-  ctx.log({
-    level: 'info',
-    message: `IntegrateIntoSpec pass ${updatedStateData.counters.integrationPasses} complete`,
-    payload: {
-      source,
-      specPath: output.specPath,
-      changeSummaryCount: output.changeSummary.length,
-      resolvedCount: output.resolvedQuestionIds.length,
-      remainingCount: output.remainingQuestionIds.length,
-    },
+  // SD-OBS-002: emit integration pass completed event
+  emitIntegrationPassCompleted(ctx, {
+    state: INTEGRATE_INTO_SPEC_STATE,
+    source,
+    specPath: output.specPath,
+    passNumber: updatedStateData.counters.integrationPasses,
+    changeSummaryCount: output.changeSummary.length,
+    resolvedCount: output.resolvedQuestionIds.length,
+    remainingCount: output.remainingQuestionIds.length,
+    promptTemplateId: TEMPLATE_IDS.integrate,
   });
 
   // Transition to next state with updated persisted data
