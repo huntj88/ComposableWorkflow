@@ -62,12 +62,11 @@ describe('e2e.blackbox.spec-doc.GS-SD-002', () => {
     const output = terminal.output as {
       status: string;
       specPath: string;
-      summary: { loopsUsed: number; unresolvedQuestions: number };
+      summary: { unresolvedQuestions: number };
       artifacts: { integrationPasses: number; consistencyCheckPasses: number };
     };
     expect(output.status).toBe('completed');
     expect(output.specPath).toMatch(/\.md$/);
-    expect(output.summary.loopsUsed).toBeGreaterThanOrEqual(1);
     expect(output.summary.unresolvedQuestions).toBe(0);
     expect(output.artifacts.integrationPasses).toBe(2);
     expect(output.artifacts.consistencyCheckPasses).toBe(2);

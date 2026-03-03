@@ -330,7 +330,6 @@ describe('spec-doc observability', () => {
       const payload = emitTerminalCompleted(ctx, {
         state: 'Done',
         specPath: 'specs/final.md',
-        loopsUsed: 2,
         integrationPasses: 3,
         consistencyCheckPasses: 3,
       });
@@ -341,7 +340,6 @@ describe('spec-doc observability', () => {
       };
       expect(call.payload.observabilityType).toBe(OBS_TYPES.terminalCompleted);
       expect(call.payload.specPath).toBe('specs/final.md');
-      expect(call.payload.loopsUsed).toBe(2);
       expect(call.payload.integrationPasses).toBe(3);
       expect(call.payload.consistencyCheckPasses).toBe(3);
       expect(payload.state).toBe('Done');
@@ -405,7 +403,6 @@ describe('spec-doc observability', () => {
       emitTerminalCompleted(ctx, {
         state: 'Done',
         specPath: 'specs/test.md',
-        loopsUsed: 1,
         integrationPasses: 1,
         consistencyCheckPasses: 1,
       });
@@ -585,7 +582,6 @@ describe('spec-doc observability', () => {
       emitTerminalCompleted(ctx, {
         state: 'S8',
         specPath: 'x.md',
-        loopsUsed: 0,
         integrationPasses: 1,
         consistencyCheckPasses: 1,
       });

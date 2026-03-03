@@ -44,7 +44,6 @@ export interface SpecDocGenerationInput {
   request: string;
   targetPath?: string;
   constraints?: string[];
-  maxClarificationLoops?: number; // default 5
   copilotPromptOptions?: {
     baseArgs?: string[];
     allowedDirs?: string[];
@@ -61,7 +60,6 @@ export interface SpecDocGenerationOutput {
   status: "completed";
   specPath: string;
   summary: {
-    loopsUsed: number;
     unresolvedQuestions: 0;
   };
   artifacts: {
@@ -215,10 +213,6 @@ Transition resolution after each response:
 - If unasked queue items remain and no custom prompt text is pending classification, transition to `NumberedOptionsHumanRequest` (self-loop).
 - If queue is exhausted and completion-confirmation indicates done with exactly one selected option, transition to `Done`.
 - Otherwise transition to `IntegrateIntoSpec` with accumulated normalized answers (including buffered custom-answer prompts) as integration input.
-
-Loop accounting:
-- Every `NumberedOptionsHumanRequest` self-loop increments clarification-loop usage.
-- Exceeding `maxClarificationLoops` fails the run per section 11.
 
 ## 6.5 IntegrateIntoSpec Input Contract (MVP)
 
@@ -533,7 +527,6 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 
 ## 11) Failure and Exit Conditions
 
-- If clarification loop exceeds `maxClarificationLoops`, fail with explicit unresolved-question summary.
 - If delegated Copilot prompt workflow fails, propagate failure with stage context.
 - If human feedback times out/cancels (per server policy), transition to failed/cancelled according to server lifecycle rules.
 

@@ -272,24 +272,11 @@ Each behavior should validate all relevant dimensions:
 **Then** `status === "completed"`
 **And** `specPath` ends with `.md`
 **And** `summary.unresolvedQuestions === 0`
-**And** `summary.loopsUsed` reflects actual clarification loop count
 **And** `artifacts.integrationPasses` and `artifacts.consistencyCheckPasses` are accurate
 
 ---
 
-## 8) Loop Accounting and Failure Behaviors
-
-## B-SD-LOOP-001: maxClarificationLoops is enforced
-**Given** `maxClarificationLoops` is set (default 5)
-**When** `NumberedOptionsHumanRequest` self-loop count exceeds the limit
-**Then** run transitions to terminal `failed`
-**And** failure payload includes explicit unresolved-question summary
-
-## B-SD-LOOP-002: Each self-loop increments clarification-loop usage
-**Given** `NumberedOptionsHumanRequest` processes a question
-**When** it self-loops to the next question
-**Then** loop counter increments by one
-**And** loop counter is observable in run state/events
+## 8) Failure Behaviors
 
 ## B-SD-FAIL-001: Copilot prompt failure propagates with stage context
 **Given** any delegated `app-builder.copilot.prompt.v1` call fails
@@ -365,7 +352,6 @@ Must assert:
 - Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → NumberedOptionsHumanRequest → Done`.
 - One feedback child run launched.
 - Terminal output satisfies contract.
-- `summary.loopsUsed === 0` (no clarification self-loops occurred; completion-confirmation does not count as a clarification loop).
 
 ## GS-SD-002: Multi-loop clarification to completion
 1. Start workflow.
@@ -378,7 +364,6 @@ Must assert:
 Must assert:
 - Multiple feedback child runs (one per question).
 - `IntegrateIntoSpec` called twice with different `source` values.
-- Loop counter reflects actual iterations.
 - All normalized answers present in second integration input.
 
 ## GS-SD-003: Custom prompt classification round trip
@@ -396,17 +381,6 @@ Must assert:
 - Custom-answer buffered and carried to `IntegrateIntoSpec`.
 - Clarification follow-up inserted ahead of remaining queue items.
 - New question has new `questionId` and conforms to schema.
-
-## GS-SD-004: maxClarificationLoops exceeded
-1. Start workflow with `maxClarificationLoops: 2`.
-2. Consistency check generates many questions.
-3. Self-loop count exceeds 2.
-4. Run fails with unresolved-question summary.
-
-Must assert:
-- `workflow.failed` event with loop-exceeded error context.
-- Unresolved questions listed in failure payload.
-- Run lifecycle terminates at `failed`.
 
 ## GS-SD-005: Copilot prompt workflow failure propagation
 1. Start workflow.

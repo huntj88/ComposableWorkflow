@@ -13,7 +13,6 @@ Implement terminal semantics (`Done` and `failed`) including completion confirma
 - [x] Enforce `Done` reachability only from `NumberedOptionsHumanRequest`.
 - [x] Validate completion-confirmation semantics (exactly one selected option).
 - [x] Emit terminal payload conforming to `spec-doc-generation-output.schema.json`.
-- [x] Enforce `maxClarificationLoops` and fail with unresolved-question summary when exceeded.
 - [x] Propagate delegated child workflow failures with explicit state context.
 
 ## Required Artifacts
@@ -54,8 +53,8 @@ Implement terminal semantics (`Done` and `failed`) including completion confirma
 ## Verification
 - Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- done-and-failures`
   - Expected: done invariants and loop/failure semantics are enforced.
-- Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- ITX-SD-004|ITX-SD-014`
-  - Expected: loop boundary and terminal invariants pass through integration paths.
+- Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- ITX-SD-014`
+  - Expected: terminal invariants pass through integration paths.
 
 ## One-to-One Requirement Mapping
 | Requirement ID | Implementation Artifact | Verification Assertion |
@@ -63,5 +62,4 @@ Implement terminal semantics (`Done` and `failed`) including completion confirma
 | SD-TERM-001-DoneOnlyFromHumanRequest | `src/workflows/spec-doc/workflow.ts` | no state other than `NumberedOptionsHumanRequest` can transition to `Done`. |
 | SD-TERM-002-CompletionCardinality | `src/workflows/spec-doc/states/done.ts` | completion confirmation requires exactly one selected option. |
 | SD-TERM-003-TerminalOutputContract | `src/workflows/spec-doc/states/done.ts` | completed payload satisfies output schema contract. |
-| SD-TERM-004-LoopLimitFailure | `src/workflows/spec-doc/failure.ts` | loop overrun fails with unresolved-question summary details. |
 | SD-TERM-005-ChildFailureContext | `src/workflows/spec-doc/failure.ts` | copilot child failures propagate with originating FSM state context. |

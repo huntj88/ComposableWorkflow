@@ -26,8 +26,6 @@ export interface SpecDocGenerationInput {
   request: string;
   targetPath?: string;
   constraints?: string[];
-  /** Default: 5 */
-  maxClarificationLoops?: number;
   copilotPromptOptions?: CopilotPromptOptions;
 }
 
@@ -42,7 +40,6 @@ export interface SpecDocGenerationOutput {
   status: 'completed';
   specPath: string;
   summary: {
-    loopsUsed: number;
     unresolvedQuestions: 0;
   };
   artifacts: {

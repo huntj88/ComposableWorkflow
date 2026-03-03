@@ -31,8 +31,6 @@ export type SpecDocState = (typeof SPEC_DOC_STATES)[number];
 
 /** Persisted counters across transitions (task doc interface contract). */
 export interface SpecDocCounters {
-  /** Number of clarification self-loops consumed. */
-  clarificationLoopsUsed: number;
   /** Number of IntegrateIntoSpec passes completed. */
   integrationPasses: number;
   /** Number of LogicalConsistencyCheckCreateFollowUpQuestions passes completed. */
@@ -94,7 +92,6 @@ export function createInitialStateData(): SpecDocStateData {
     queueIndex: 0,
     normalizedAnswers: [],
     counters: {
-      clarificationLoopsUsed: 0,
       integrationPasses: 0,
       consistencyCheckPasses: 0,
     },

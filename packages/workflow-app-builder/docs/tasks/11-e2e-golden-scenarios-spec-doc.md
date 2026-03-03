@@ -17,7 +17,6 @@ Deliver black-box E2E coverage for all documented spec-doc golden scenarios (`GS
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-001-happy-path.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-002-multi-loop.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-003-custom-roundtrip.spec.ts`
-- `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-004-loop-exceeded.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-005-copilot-failure-propagation.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/spec-doc-feedback-cancellation.spec.ts`
 - `docs/testing/coverage-matrix.md`
@@ -48,7 +47,6 @@ Deliver black-box E2E coverage for all documented spec-doc golden scenarios (`GS
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-001-happy-path.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-002-multi-loop.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-003-custom-roundtrip.spec.ts`
-- `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-004-loop-exceeded.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-005-copilot-failure-propagation.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/spec-doc-feedback-cancellation.spec.ts`
 
@@ -59,8 +57,8 @@ Deliver black-box E2E coverage for all documented spec-doc golden scenarios (`GS
 ## Verification
 - Command: `pnpm --filter @composable-workflow/workflow-server test:e2e:blackbox -- spec-doc`
   - Expected: all `GS-SD-001..005` black-box scenarios pass.
-- Command: `pnpm --filter @composable-workflow/workflow-server test:e2e:blackbox -- GS-SD-004|GS-SD-005`
-  - Expected: loop-failure and child-failure propagation scenarios pass with required diagnostics.
+- Command: `pnpm --filter @composable-workflow/workflow-server test:e2e:blackbox -- GS-SD-005`
+  - Expected: child-failure propagation scenarios pass with required diagnostics.
 
 ## One-to-One Requirement Mapping
 | Requirement ID | Implementation Artifact | Verification Assertion |
@@ -68,7 +66,6 @@ Deliver black-box E2E coverage for all documented spec-doc golden scenarios (`GS
 | SD-E2E-001-HappyPathCompletion | `test/e2e/blackbox/spec-doc/gs-sd-001-happy-path.spec.ts` | single-loop path reaches done with correct terminal output and loops count. |
 | SD-E2E-002-MultiLoopCompletion | `test/e2e/blackbox/spec-doc/gs-sd-002-multi-loop.spec.ts` | multi-loop path performs second integration pass with accumulated answers. |
 | SD-E2E-003-CustomPromptRoundTrip | `test/e2e/blackbox/spec-doc/gs-sd-003-custom-roundtrip.spec.ts` | both custom intents execute with immediate clarification insertion behavior. |
-| SD-E2E-004-LoopExceededFailure | `test/e2e/blackbox/spec-doc/gs-sd-004-loop-exceeded.spec.ts` | max-loop exceedance fails with unresolved-question summary payload. |
 | SD-E2E-005-CopilotFailurePropagation | `test/e2e/blackbox/spec-doc/gs-sd-005-copilot-failure-propagation.spec.ts` | child failure event links and stage-context error propagation are observable. |
 | SD-E2E-006-FeedbackCancellationLifecycle | `test/e2e/blackbox/spec-doc/spec-doc-feedback-cancellation.spec.ts` | cancellation while awaiting response emits linked cancellation behavior and terminal lifecycle outcome. |
 

@@ -44,7 +44,6 @@ export function makeDefaultInput(
     request: 'Create a test specification document for the widget subsystem',
     targetPath: 'docs/widget-spec.md',
     constraints: ['Must be testable', 'No external dependencies'],
-    maxClarificationLoops: 5,
     ...overrides,
   };
 }
@@ -187,7 +186,6 @@ export function makeStateDataAfterIntegration(
   return {
     ...createInitialStateData(),
     counters: {
-      clarificationLoopsUsed: 0,
       integrationPasses: 1,
       consistencyCheckPasses: 0,
     },
@@ -217,7 +215,6 @@ export function makeStateDataForClassification(
       },
     ],
     counters: {
-      clarificationLoopsUsed: 1,
       integrationPasses: 1,
       consistencyCheckPasses: 1,
     },

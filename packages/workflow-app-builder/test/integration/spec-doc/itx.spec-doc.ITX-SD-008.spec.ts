@@ -44,7 +44,6 @@ describe('ITX-SD-008: Recovery of interrupted question queue processing', () => 
       queue: [makeQueueItem('q-alpha'), makeQueueItem('q-bravo'), makeQueueItem('q-charlie')],
       queueIndex: 0,
       counters: {
-        clarificationLoopsUsed: 0,
         integrationPasses: 1,
         consistencyCheckPasses: 1,
       },
@@ -160,9 +159,8 @@ describe('ITX-SD-008: Recovery of interrupted question queue processing', () => 
 
     await handleNumberedOptionsHumanRequest(ctx1, stateData);
     const afterFirst = r1.transitions[0].data as SpecDocStateData;
-    expect(afterFirst.counters.clarificationLoopsUsed).toBe(1);
 
-    // Recover and answer second question → counter goes from 1 to 2
+    // Recover and answer second question
     const recovered: SpecDocStateData = JSON.parse(JSON.stringify(afterFirst));
     feedbackController.reset({ 'q-bravo': [{ selectedOptionIds: [1] }] });
     obsSink.reset();
@@ -176,9 +174,6 @@ describe('ITX-SD-008: Recovery of interrupted question queue processing', () => 
 
     await handleNumberedOptionsHumanRequest(ctx2, recovered);
     expect(r2.failedError).toBeUndefined();
-
-    const afterSecond = r2.transitions[0].data as SpecDocStateData;
-    expect(afterSecond.counters.clarificationLoopsUsed).toBe(2);
   });
 
   it('workflow can complete correctly after recovery from mid-queue (B-SD-HFB-001)', async () => {

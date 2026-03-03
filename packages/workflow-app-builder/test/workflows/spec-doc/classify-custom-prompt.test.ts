@@ -97,7 +97,6 @@ function stateDataForClassification(
     normalizedAnswers: answers,
     counters: {
       ...createInitialStateData().counters,
-      clarificationLoopsUsed: 1,
     },
   };
 }

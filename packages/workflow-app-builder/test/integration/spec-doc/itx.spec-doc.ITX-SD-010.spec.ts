@@ -55,7 +55,7 @@ describe('ITX-SD-010: Question immutability enforcement', () => {
           answeredAt: '2026-01-15T10:00:00.000Z',
         },
       ],
-      counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: sourceQuestion.questionId,

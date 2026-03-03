@@ -135,7 +135,6 @@ export function handleDone(
     status: 'completed',
     specPath,
     summary: {
-      loopsUsed: stateData.counters.clarificationLoopsUsed,
       unresolvedQuestions: 0,
     },
     artifacts: {
@@ -170,7 +169,6 @@ export function handleDone(
   emitTerminalCompleted(ctx, {
     state: DONE_STATE,
     specPath,
-    loopsUsed: stateData.counters.clarificationLoopsUsed,
     integrationPasses,
     consistencyCheckPasses,
   });

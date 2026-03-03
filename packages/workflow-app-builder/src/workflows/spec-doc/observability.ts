@@ -129,7 +129,6 @@ export interface ClarificationGeneratedPayload extends ObsPayloadBase {
 export interface TerminalCompletedPayload extends ObsPayloadBase {
   observabilityType: typeof OBS_TYPES.terminalCompleted;
   specPath: string;
-  loopsUsed: number;
   integrationPasses: number;
   consistencyCheckPasses: number;
 }
@@ -361,7 +360,6 @@ export function emitTerminalCompleted(
   params: {
     state: string;
     specPath: string;
-    loopsUsed: number;
     integrationPasses: number;
     consistencyCheckPasses: number;
   },
@@ -370,7 +368,6 @@ export function emitTerminalCompleted(
     observabilityType: OBS_TYPES.terminalCompleted,
     state: params.state,
     specPath: params.specPath,
-    loopsUsed: params.loopsUsed,
     integrationPasses: params.integrationPasses,
     consistencyCheckPasses: params.consistencyCheckPasses,
   };

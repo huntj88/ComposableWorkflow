@@ -450,7 +450,6 @@ describe('spec-doc observability – template traceability in event pipeline', (
           observabilityType: SPEC_DOC_OBS_TYPES.terminalCompleted,
           state: 'Done',
           specPath: 'specs/todo.md',
-          loopsUsed: 1,
           integrationPasses: 2,
           consistencyCheckPasses: 2,
         },

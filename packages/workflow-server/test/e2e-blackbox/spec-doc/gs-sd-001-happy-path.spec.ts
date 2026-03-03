@@ -11,8 +11,7 @@
  * #### Assertions
  * - Event stream shows expected state path.
  * - One feedback child run launched (completion-confirmation).
- * - Terminal output satisfies contract (`status: 'completed'`, `specPath`,
- *   `summary.loopsUsed === 0`).
+ * - Terminal output satisfies contract (`status: 'completed'`, `specPath`).
  */
 
 import { randomUUID } from 'node:crypto';
@@ -54,12 +53,11 @@ describe('e2e.blackbox.spec-doc.GS-SD-001', () => {
     const output = terminal.output as {
       status: string;
       specPath: string;
-      summary: { loopsUsed: number; unresolvedQuestions: number };
+      summary: { unresolvedQuestions: number };
       artifacts: { integrationPasses: number; consistencyCheckPasses: number };
     };
     expect(output.status).toBe('completed');
     expect(output.specPath).toMatch(/\.md$/);
-    expect(output.summary.loopsUsed).toBe(0);
     expect(output.summary.unresolvedQuestions).toBe(0);
     expect(output.artifacts.integrationPasses).toBeGreaterThanOrEqual(1);
     expect(output.artifacts.consistencyCheckPasses).toBeGreaterThanOrEqual(1);

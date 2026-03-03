@@ -61,7 +61,7 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
           answeredAt: '2026-01-15T10:00:00.000Z',
         },
       ],
-      counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-001',
@@ -113,7 +113,7 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
           answeredAt: '2026-01-15T10:00:00.000Z',
         },
       ],
-      counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-source',
@@ -151,7 +151,7 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
           answeredAt: '2026-01-15T10:00:00.000Z',
         },
       ],
-      counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-kind-test',
@@ -190,7 +190,7 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
           answeredAt: '2026-01-15T10:00:00.000Z',
         },
       ],
-      counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-immut',
@@ -231,7 +231,7 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
           answeredAt: '2026-01-15T10:00:00.000Z',
         },
       ],
-      counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-unanswered',
@@ -269,7 +269,7 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
           answeredAt: '2026-01-15T10:00:00.000Z',
         },
       ],
-      counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-clear',

@@ -85,8 +85,6 @@ export {
 export {
   type UnresolvedQuestionSummary,
   type SpecDocFailurePayload,
-  buildLoopLimitFailurePayload,
-  createLoopLimitError,
   buildChildFailurePayload,
   createChildFailureError,
 } from './workflows/spec-doc/failure.js';

@@ -50,7 +50,6 @@ export interface SpecDocInput {
   request: string;
   targetPath?: string;
   constraints?: string[];
-  maxClarificationLoops?: number;
   copilotPromptOptions?: {
     baseArgs?: string[];
     allowedDirs?: string[];

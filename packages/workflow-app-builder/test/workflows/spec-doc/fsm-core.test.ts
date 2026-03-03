@@ -198,7 +198,6 @@ describe('SD-FSM-004 – State Data Backbone', () => {
     expect(data.queueIndex).toBe(0);
     expect(data.normalizedAnswers).toEqual([]);
     expect(data.counters).toEqual({
-      clarificationLoopsUsed: 0,
       integrationPasses: 0,
       consistencyCheckPasses: 0,
     });
@@ -230,10 +229,8 @@ describe('SD-FSM-004 – State Data Backbone', () => {
 
   it('counters are independently mutable', () => {
     const data = createInitialStateData();
-    data.counters.clarificationLoopsUsed = 3;
     data.counters.integrationPasses = 2;
     data.counters.consistencyCheckPasses = 1;
-    expect(data.counters.clarificationLoopsUsed).toBe(3);
     expect(data.counters.integrationPasses).toBe(2);
     expect(data.counters.consistencyCheckPasses).toBe(1);
   });

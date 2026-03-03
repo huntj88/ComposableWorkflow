@@ -113,7 +113,6 @@ function createMockContext(opts: MockCtxOptions = {}) {
     request: 'Build a TODO app',
     targetPath: 'specs/todo.md',
     constraints: ['Must use React'],
-    maxClarificationLoops: 5,
     ...opts.input,
   };
 
@@ -585,51 +584,6 @@ describe('B-SD-TRANS-004-SelfLoop', () => {
 
     const updatedStateData = transitionSpy.mock.calls[0][1] as SpecDocStateData;
     expect(updatedStateData.queueIndex).toBe(1);
-  });
-
-  it('increments clarificationLoopsUsed on self-loop', async () => {
-    const stateData = stateDataWithQueue([
-      makeQueueItem('q-1'),
-      makeQueueItem('q-2'),
-      makeQueueItem('q-3'),
-    ]);
-
-    const { ctx, transitionSpy } = createMockContext({
-      childOutput: {
-        status: 'responded',
-        response: { questionId: 'q-1', selectedOptionIds: [1] },
-      },
-    });
-
-    await handleNumberedOptionsHumanRequest(ctx, stateData);
-
-    const updatedStateData = transitionSpy.mock.calls[0][1] as SpecDocStateData;
-    expect(updatedStateData.counters.clarificationLoopsUsed).toBe(1);
-  });
-
-  it('fails when maxClarificationLoops is exceeded', async () => {
-    const stateData = stateDataWithQueue([makeQueueItem('q-1'), makeQueueItem('q-2')], {
-      counters: {
-        clarificationLoopsUsed: 5,
-        integrationPasses: 1,
-        consistencyCheckPasses: 1,
-      },
-    });
-
-    const { ctx, failSpy, transitionSpy } = createMockContext({
-      input: { maxClarificationLoops: 5 },
-      childOutput: {
-        status: 'responded',
-        response: { questionId: 'q-1', selectedOptionIds: [1] },
-      },
-    });
-
-    await handleNumberedOptionsHumanRequest(ctx, stateData);
-
-    expect(failSpy).toHaveBeenCalledTimes(1);
-    expect(transitionSpy).not.toHaveBeenCalled();
-    const error = failSpy.mock.calls[0][0] as Error;
-    expect(error.message).toContain('maxClarificationLoops');
   });
 });
 

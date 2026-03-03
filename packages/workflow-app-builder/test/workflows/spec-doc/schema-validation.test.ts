@@ -142,7 +142,7 @@ describe('schema validation failures', () => {
     const raw = JSON.stringify({
       status: 'failed',
       specPath: 'test.md',
-      summary: { loopsUsed: 1, unresolvedQuestions: 0 },
+      summary: { unresolvedQuestions: 0 },
       artifacts: { integrationPasses: 1, consistencyCheckPasses: 1 },
     });
     const result = validator.validate(raw, SCHEMA_IDS.specDocGenerationOutput);
@@ -156,7 +156,7 @@ describe('schema validation failures', () => {
     const raw = JSON.stringify({
       status: 'completed',
       specPath: 'test.md',
-      summary: { loopsUsed: 1, unresolvedQuestions: 2 },
+      summary: { unresolvedQuestions: 2 },
       artifacts: { integrationPasses: 1, consistencyCheckPasses: 1 },
     });
     const result = validator.validate(raw, SCHEMA_IDS.specDocGenerationOutput);
@@ -291,7 +291,7 @@ describe('successful schema validation', () => {
     const raw = JSON.stringify({
       status: 'completed',
       specPath: 'specs/todo.md',
-      summary: { loopsUsed: 2, unresolvedQuestions: 0 },
+      summary: { unresolvedQuestions: 0 },
       artifacts: { integrationPasses: 3, consistencyCheckPasses: 2 },
     });
     const result = validator.validate(raw, SCHEMA_IDS.specDocGenerationOutput);

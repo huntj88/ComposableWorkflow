@@ -151,7 +151,6 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | ITX-SD-001 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-001.spec.ts | TSD10 | implemented | required |
 | ITX-SD-002 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-002.spec.ts | TSD10 | implemented | required |
 | ITX-SD-003 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-003.spec.ts | TSD10 | implemented | required |
-| ITX-SD-004 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-004.spec.ts | TSD10 | implemented | required |
 | ITX-SD-005 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-005.spec.ts | TSD10 | implemented | required |
 | ITX-SD-006 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-006.spec.ts | TSD10 | implemented | required |
 | ITX-SD-007 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-007.spec.ts | TSD10 | implemented | required |
@@ -170,7 +169,6 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | SD-E2E-001-HappyPathCompletion | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-001-happy-path.spec.ts | TSD11 | implemented | required |
 | SD-E2E-002-MultiLoopCompletion | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-002-multi-loop.spec.ts | TSD11 | implemented | required |
 | SD-E2E-003-CustomPromptRoundTrip | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-003-custom-roundtrip.spec.ts | TSD11 | implemented | required |
-| SD-E2E-004-LoopExceededFailure | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-004-loop-exceeded.spec.ts | TSD11 | implemented | required |
 | SD-E2E-005-CopilotFailurePropagation | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-005-copilot-failure-propagation.spec.ts | TSD11 | implemented | required |
 | SD-E2E-006-FeedbackCancellationLifecycle | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/spec-doc-feedback-cancellation.spec.ts | TSD11 | implemented | required |
 

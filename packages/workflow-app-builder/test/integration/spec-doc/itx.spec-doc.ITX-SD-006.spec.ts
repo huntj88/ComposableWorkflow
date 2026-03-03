@@ -47,7 +47,6 @@ function makeCompletionStateData(): SpecDocStateData {
     queue: [{ ...confirmation, answered: false }],
     queueIndex: 0,
     counters: {
-      clarificationLoopsUsed: 0,
       integrationPasses: 1,
       consistencyCheckPasses: 1,
     },

@@ -42,7 +42,7 @@ Create `app-builder.spec-doc.v1` as a declarative FSM workflow with canonical st
   - `ClassifyCustomPrompt`
   - `ExpandQuestionWithClarification`
   - `Done`.
-- Persisted counters include `clarificationLoopsUsed`, `integrationPasses`, `consistencyCheckPasses`.
+- Persisted counters include `integrationPasses`, `consistencyCheckPasses`.
 
 ## File Plan (Exact)
 ### Create

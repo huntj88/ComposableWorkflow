@@ -71,7 +71,6 @@ function makeDoneStateData(overrides?: Partial<SpecDocStateData>): SpecDocStateD
       },
     ],
     counters: {
-      clarificationLoopsUsed: 0,
       integrationPasses: 1,
       consistencyCheckPasses: 1,
     },
@@ -120,7 +119,6 @@ describe('ITX-SD-014: Done state terminal output invariants', () => {
       const input = makeDefaultInput();
       const stateData = makeDoneStateData({
         counters: {
-          clarificationLoopsUsed: 0,
           integrationPasses: 1,
           consistencyCheckPasses: 1,
         },
@@ -139,7 +137,6 @@ describe('ITX-SD-014: Done state terminal output invariants', () => {
       const input = makeDefaultInput();
       const stateData = makeDoneStateData({
         counters: {
-          clarificationLoopsUsed: 3,
           integrationPasses: 4,
           consistencyCheckPasses: 4,
         },
@@ -151,7 +148,6 @@ describe('ITX-SD-014: Done state terminal output invariants', () => {
       expect(result.failedError).toBeUndefined();
       expect(result.completedOutput).toBeDefined();
       expect(result.completedOutput!.status).toBe('completed');
-      expect(result.completedOutput!.summary.loopsUsed).toBe(3);
       expect(result.completedOutput!.artifacts.integrationPasses).toBe(4);
       expect(result.completedOutput!.artifacts.consistencyCheckPasses).toBe(4);
     });
@@ -223,7 +219,6 @@ describe('ITX-SD-014: Done state terminal output invariants', () => {
       const input = makeDefaultInput();
       const stateData = makeDoneStateData({
         counters: {
-          clarificationLoopsUsed: 0,
           integrationPasses: 0,
           consistencyCheckPasses: 1,
         },
@@ -241,7 +236,6 @@ describe('ITX-SD-014: Done state terminal output invariants', () => {
       const input = makeDefaultInput();
       const stateData = makeDoneStateData({
         counters: {
-          clarificationLoopsUsed: 0,
           integrationPasses: 1,
           consistencyCheckPasses: 0,
         },

@@ -171,7 +171,6 @@ describe('ITX-SD-013: Consistency check always routes to NumberedOptionsHumanReq
     const input = makeDefaultInput();
     const stateData = makeStateDataAfterIntegration({
       counters: {
-        clarificationLoopsUsed: 0,
         integrationPasses: 2,
         consistencyCheckPasses: 1,
       },

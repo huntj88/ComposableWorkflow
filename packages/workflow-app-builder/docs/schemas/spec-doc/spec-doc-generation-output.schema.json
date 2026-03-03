@@ -24,14 +24,9 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "loopsUsed",
         "unresolvedQuestions"
       ],
       "properties": {
-        "loopsUsed": {
-          "type": "integer",
-          "minimum": 0
-        },
         "unresolvedQuestions": {
           "type": "integer",
           "const": 0

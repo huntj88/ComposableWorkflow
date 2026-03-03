@@ -126,22 +126,6 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-SD-TRANS-005`, `B-SD-TRANS-008`, `B-SD-TRANS-009`, `B-SD-QUEUE-005`.
 
-## ITX-SD-004: Loop counter enforcement at boundary
-**Why not E2E-only:** requires precise control of loop count and boundary conditions.
-
-**Setup**
-- Set `maxClarificationLoops` to a small value (e.g., 2).
-- Configure consistency check to generate enough questions to exceed the limit.
-- Test at exact boundary: loops = max (should succeed) and loops = max + 1 (should fail).
-
-**Assertions**
-- At `maxClarificationLoops`, the self-loop succeeds.
-- At `maxClarificationLoops + 1`, the run fails with explicit unresolved-question summary.
-- Loop counter accurately reflects `NumberedOptionsHumanRequest` self-loop count.
-- Failure payload includes unresolved question details.
-
-**Related behaviors:** `B-SD-LOOP-001`, `B-SD-LOOP-002`.
-
 ## ITX-SD-005: Clarification insertion ordering correctness
 **Why not E2E-only:** requires direct queue position inspection after insertion.
 

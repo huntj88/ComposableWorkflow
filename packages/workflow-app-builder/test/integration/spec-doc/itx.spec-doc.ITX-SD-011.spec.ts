@@ -199,7 +199,7 @@ describe('ITX-SD-011: Numbered question item schema compliance', () => {
             answeredAt: '2026-01-15T10:00:00.000Z',
           },
         ],
-        counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+        counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
         artifacts: { specPath: 'docs/generated-spec.md' },
         pendingClarification: {
           sourceQuestionId: 'q-clar-schema',

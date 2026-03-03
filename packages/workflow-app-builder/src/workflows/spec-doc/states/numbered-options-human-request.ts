@@ -243,10 +243,6 @@ export async function handleNumberedOptionsHumanRequest(
       queue: updatedQueue,
       queueIndex: nextIndex,
       normalizedAnswers: updatedAnswers,
-      counters: {
-        ...stateData.counters,
-        clarificationLoopsUsed: stateData.counters.clarificationLoopsUsed + 1,
-      },
     };
 
     ctx.log({
@@ -300,29 +296,11 @@ export async function handleNumberedOptionsHumanRequest(
 
   // Self-loop: more queue items remain
   if (hasMoreItems) {
-    // Check loop limit
-    const maxLoops = ctx.input.maxClarificationLoops ?? 5;
-    const newLoopsUsed = stateData.counters.clarificationLoopsUsed + 1;
-
-    if (newLoopsUsed > maxLoops) {
-      ctx.fail(
-        new Error(
-          `[${NUMBERED_OPTIONS_HUMAN_REQUEST_STATE}] Exceeded maxClarificationLoops (${maxLoops}). ` +
-            `Loops used: ${newLoopsUsed}`,
-        ),
-      );
-      return;
-    }
-
     const updatedStateData: SpecDocStateData = {
       ...stateData,
       queue: updatedQueue,
       queueIndex: nextIndex,
       normalizedAnswers: updatedAnswers,
-      counters: {
-        ...stateData.counters,
-        clarificationLoopsUsed: newLoopsUsed,
-      },
     };
 
     ctx.log({

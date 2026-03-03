@@ -85,7 +85,6 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
         },
       ],
       counters: {
-        clarificationLoopsUsed: 1,
         integrationPasses: 1,
         consistencyCheckPasses: 1,
       },
@@ -137,7 +136,7 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
     const stateData: SpecDocStateData = {
       ...createInitialStateData(),
       normalizedAnswers: answers,
-      counters: { clarificationLoopsUsed: 1, integrationPasses: 1, consistencyCheckPasses: 1 },
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
     };
 
@@ -168,7 +167,7 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
 
     const stateData: SpecDocStateData = {
       ...createInitialStateData(),
-      counters: { clarificationLoopsUsed: 0, integrationPasses: 2, consistencyCheckPasses: 2 },
+      counters: { integrationPasses: 2, consistencyCheckPasses: 2 },
       normalizedAnswers: [
         { questionId: 'q-1', selectedOptionIds: [1], answeredAt: '2026-01-15T10:00:00.000Z' },
       ],

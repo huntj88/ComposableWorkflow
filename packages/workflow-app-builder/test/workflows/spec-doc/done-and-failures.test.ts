@@ -1,16 +1,15 @@
 /**
- * Tests for Done terminal state, loop-limit failure, and child failure
+ * Tests for Done terminal state and child failure
  * propagation in `app-builder.spec-doc.v1`.
  *
  * Covers:
  * - SD-TERM-001: Done reachable only from NumberedOptionsHumanRequest
  * - SD-TERM-002: Completion-confirmation cardinality (exactly one selected option)
  * - SD-TERM-003: Terminal output conforms to spec-doc-generation-output.schema.json
- * - SD-TERM-004: Loop-limit failure with unresolved-question summary
  * - SD-TERM-005: Copilot child failure with originating FSM state context
  *
  * Behaviors: B-SD-TRANS-007, B-SD-DONE-001, B-SD-DONE-002, B-SD-DONE-003,
- *   B-SD-LOOP-001, B-SD-LOOP-002, B-SD-FAIL-001, B-SD-COPILOT-002.
+ *   B-SD-FAIL-001, B-SD-COPILOT-002.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -26,8 +25,6 @@ import type {
 } from '../../../src/workflows/spec-doc/contracts.js';
 import { handleDone, DONE_STATE } from '../../../src/workflows/spec-doc/states/done.js';
 import {
-  buildLoopLimitFailurePayload,
-  createLoopLimitError,
   buildChildFailurePayload,
   createChildFailureError,
   type SpecDocFailurePayload,
@@ -56,20 +53,6 @@ function makeOption(id: number, label: string): NumberedQuestionOption {
   };
 }
 
-function makeQueueItem(
-  questionId: string,
-  overrides?: Partial<QuestionQueueItem>,
-): QuestionQueueItem {
-  return {
-    questionId,
-    kind: 'issue-resolution',
-    prompt: `Resolve issue for ${questionId}`,
-    options: [makeOption(1, 'Option A'), makeOption(2, 'Option B'), makeOption(3, 'Option C')],
-    answered: false,
-    ...overrides,
-  };
-}
-
 function makeCompletionItem(answered = true): QuestionQueueItem {
   return {
     questionId: COMPLETION_CONFIRMATION_QUESTION_ID,
@@ -95,7 +78,6 @@ function makeValidDoneStateData(overrides?: Partial<SpecDocStateData>): SpecDocS
     queueIndex: 1,
     normalizedAnswers: [makeCompletionAnswer()],
     counters: {
-      clarificationLoopsUsed: 1,
       integrationPasses: 1,
       consistencyCheckPasses: 1,
     },
@@ -120,7 +102,6 @@ function createMockContext(inputOverrides?: Partial<SpecDocGenerationInput>) {
     request: 'Build a TODO app',
     targetPath: 'specs/todo.md',
     constraints: ['Must use React'],
-    maxClarificationLoops: 5,
     ...inputOverrides,
   };
 
@@ -254,27 +235,10 @@ describe('SD-TERM-003 – Terminal output contract', () => {
     expect(output.summary.unresolvedQuestions).toBe(0);
   });
 
-  it('emits output with accurate loopsUsed from counters', () => {
-    const { ctx, completeSpy } = createMockContext();
-    const stateData = makeValidDoneStateData({
-      counters: {
-        clarificationLoopsUsed: 3,
-        integrationPasses: 2,
-        consistencyCheckPasses: 2,
-      },
-    });
-
-    handleDone(ctx, stateData);
-
-    const output: SpecDocGenerationOutput = completeSpy.mock.calls[0][0];
-    expect(output.summary.loopsUsed).toBe(3);
-  });
-
   it('emits output with accurate integrationPasses and consistencyCheckPasses', () => {
     const { ctx, completeSpy } = createMockContext();
     const stateData = makeValidDoneStateData({
       counters: {
-        clarificationLoopsUsed: 2,
         integrationPasses: 3,
         consistencyCheckPasses: 2,
       },
@@ -329,7 +293,6 @@ describe('SD-TERM-003 – Terminal output contract', () => {
     const { ctx, failSpy, completeSpy } = createMockContext();
     const stateData = makeValidDoneStateData({
       counters: {
-        clarificationLoopsUsed: 1,
         integrationPasses: 0,
         consistencyCheckPasses: 1,
       },
@@ -346,7 +309,6 @@ describe('SD-TERM-003 – Terminal output contract', () => {
     const { ctx, failSpy, completeSpy } = createMockContext();
     const stateData = makeValidDoneStateData({
       counters: {
-        clarificationLoopsUsed: 1,
         integrationPasses: 1,
         consistencyCheckPasses: 0,
       },
@@ -411,90 +373,6 @@ describe('Done state handler – edge cases', () => {
 
   it('DONE_STATE constant is "Done"', () => {
     expect(DONE_STATE).toBe('Done');
-  });
-});
-
-// ===========================================================================
-// SD-TERM-004 – Loop-limit failure (failure.ts)
-// ===========================================================================
-
-describe('SD-TERM-004 – Loop-limit failure', () => {
-  describe('buildLoopLimitFailurePayload', () => {
-    it('includes state and reason', () => {
-      const queue = [makeQueueItem('q-1'), makeQueueItem('q-2')];
-      const payload = buildLoopLimitFailurePayload('NumberedOptionsHumanRequest', 5, 6, queue);
-
-      expect(payload.state).toBe('NumberedOptionsHumanRequest');
-      expect(payload.reason).toContain('Exceeded maxClarificationLoops (5)');
-      expect(payload.reason).toContain('Loops used: 6');
-    });
-
-    it('lists unresolved (unanswered) questions', () => {
-      const queue = [
-        makeQueueItem('q-1', { answered: true }),
-        makeQueueItem('q-2', { answered: false }),
-        makeQueueItem('q-3', { answered: false }),
-      ];
-
-      const payload = buildLoopLimitFailurePayload('NumberedOptionsHumanRequest', 2, 3, queue);
-
-      expect(payload.unresolvedQuestions).toHaveLength(2);
-      expect(payload.unresolvedQuestions[0].questionId).toBe('q-2');
-      expect(payload.unresolvedQuestions[1].questionId).toBe('q-3');
-      expect(payload.unresolvedQuestions[0].prompt).toContain('q-2');
-    });
-
-    it('returns empty unresolvedQuestions when all are answered', () => {
-      const queue = [
-        makeQueueItem('q-1', { answered: true }),
-        makeQueueItem('q-2', { answered: true }),
-      ];
-
-      const payload = buildLoopLimitFailurePayload('NumberedOptionsHumanRequest', 2, 3, queue);
-
-      expect(payload.unresolvedQuestions).toHaveLength(0);
-    });
-
-    it('reason includes unresolved question count', () => {
-      const queue = [makeQueueItem('q-1'), makeQueueItem('q-2'), makeQueueItem('q-3')];
-      const payload = buildLoopLimitFailurePayload('NumberedOptionsHumanRequest', 3, 4, queue);
-
-      expect(payload.reason).toContain('Unresolved questions: 3');
-    });
-  });
-
-  describe('createLoopLimitError', () => {
-    it('returns an Error instance', () => {
-      const err = createLoopLimitError('NumberedOptionsHumanRequest', 5, 6, [makeQueueItem('q-1')]);
-
-      expect(err).toBeInstanceOf(Error);
-    });
-
-    it('includes state name in error message', () => {
-      const err = createLoopLimitError('NumberedOptionsHumanRequest', 5, 6, [makeQueueItem('q-1')]);
-
-      expect(err.message).toContain('[NumberedOptionsHumanRequest]');
-    });
-
-    it('includes maxClarificationLoops in error message', () => {
-      const err = createLoopLimitError('NumberedOptionsHumanRequest', 3, 4, []);
-
-      expect(err.message).toContain('maxClarificationLoops (3)');
-    });
-
-    it('embeds structured payload as JSON in error message', () => {
-      const queue = [makeQueueItem('q-1')];
-      const err = createLoopLimitError('NumberedOptionsHumanRequest', 5, 6, queue);
-
-      // Parse embedded JSON from the Details section
-      const detailsMatch = err.message.match(/Details: (.+)$/);
-      expect(detailsMatch).not.toBeNull();
-
-      const payload: SpecDocFailurePayload = JSON.parse(detailsMatch![1]);
-      expect(payload.state).toBe('NumberedOptionsHumanRequest');
-      expect(payload.unresolvedQuestions).toHaveLength(1);
-      expect(payload.unresolvedQuestions[0].questionId).toBe('q-1');
-    });
   });
 });
 
@@ -587,17 +465,6 @@ describe('SD-TERM-005 – Copilot child failure with stage context', () => {
 // ===========================================================================
 
 describe('Failure payload shape contract', () => {
-  it('loop-limit payload includes { state, reason, unresolvedQuestions[] }', () => {
-    const payload = buildLoopLimitFailurePayload('NumberedOptionsHumanRequest', 5, 6, [
-      makeQueueItem('q-1'),
-    ]);
-
-    expect(payload).toHaveProperty('state');
-    expect(payload).toHaveProperty('reason');
-    expect(payload).toHaveProperty('unresolvedQuestions');
-    expect(Array.isArray(payload.unresolvedQuestions)).toBe(true);
-  });
-
   it('child-failure payload includes { state, reason, unresolvedQuestions[] }', () => {
     const payload = buildChildFailurePayload('IntegrateIntoSpec', new Error('fail'));
 
@@ -605,16 +472,6 @@ describe('Failure payload shape contract', () => {
     expect(payload).toHaveProperty('reason');
     expect(payload).toHaveProperty('unresolvedQuestions');
     expect(Array.isArray(payload.unresolvedQuestions)).toBe(true);
-  });
-
-  it('unresolved question summary includes questionId and prompt', () => {
-    const queue = [makeQueueItem('q-test')];
-    const payload = buildLoopLimitFailurePayload('NumberedOptionsHumanRequest', 1, 2, queue);
-
-    const unresolved = payload.unresolvedQuestions[0];
-    expect(unresolved).toHaveProperty('questionId', 'q-test');
-    expect(unresolved).toHaveProperty('prompt');
-    expect(typeof unresolved.prompt).toBe('string');
   });
 });
 
@@ -628,7 +485,6 @@ describe('B-SD-DONE-003 – output schema validation', () => {
       status: 'completed',
       specPath: '/workspace/specs/todo.md',
       summary: {
-        loopsUsed: 2,
         unresolvedQuestions: 0,
       },
       artifacts: {
@@ -647,7 +503,6 @@ describe('B-SD-DONE-003 – output schema validation', () => {
       status: 'completed',
       specPath: '/workspace/specs/todo.md',
       summary: {
-        loopsUsed: 2,
         unresolvedQuestions: 1, // invalid: must be 0
       },
       artifacts: {
@@ -666,7 +521,6 @@ describe('B-SD-DONE-003 – output schema validation', () => {
       status: 'completed',
       specPath: '/workspace/specs/todo.txt',
       summary: {
-        loopsUsed: 2,
         unresolvedQuestions: 0,
       },
       artifacts: {
@@ -685,7 +539,6 @@ describe('B-SD-DONE-003 – output schema validation', () => {
       status: 'completed',
       specPath: '/workspace/specs/todo.md',
       summary: {
-        loopsUsed: 2,
         unresolvedQuestions: 0,
       },
       artifacts: {
@@ -703,7 +556,6 @@ describe('B-SD-DONE-003 – output schema validation', () => {
     const output = {
       specPath: '/workspace/specs/todo.md',
       summary: {
-        loopsUsed: 2,
         unresolvedQuestions: 0,
       },
       artifacts: {

@@ -38,7 +38,6 @@ describe('SpecDocGenerationInput', () => {
   it('satisfies minimal shape', () => {
     const input: SpecDocGenerationInput = { request: 'Build a TODO app' };
     expect(input.request).toBe('Build a TODO app');
-    expect(input.maxClarificationLoops).toBeUndefined();
   });
 
   it('carries all optional fields', () => {
@@ -46,7 +45,6 @@ describe('SpecDocGenerationInput', () => {
       request: 'Build a TODO app',
       targetPath: 'specs/todo.md',
       constraints: ['must use React'],
-      maxClarificationLoops: 3,
       copilotPromptOptions: {
         baseArgs: ['--model', 'gpt-5.3'],
         allowedDirs: ['/workspace'],
@@ -64,7 +62,7 @@ describe('SpecDocGenerationOutput', () => {
     const output: SpecDocGenerationOutput = {
       status: 'completed',
       specPath: 'specs/todo.md',
-      summary: { loopsUsed: 2, unresolvedQuestions: 0 },
+      summary: { unresolvedQuestions: 0 },
       artifacts: { integrationPasses: 3, consistencyCheckPasses: 2 },
     };
     expect(output.status).toBe('completed');
@@ -75,7 +73,7 @@ describe('SpecDocGenerationOutput', () => {
     const output: SpecDocGenerationOutput = {
       status: 'completed',
       specPath: 'specs/todo.md',
-      summary: { loopsUsed: 2, unresolvedQuestions: 0 },
+      summary: { unresolvedQuestions: 0 },
       artifacts: { integrationPasses: 1, consistencyCheckPasses: 1 },
     };
     const validator = createSpecDocValidator();

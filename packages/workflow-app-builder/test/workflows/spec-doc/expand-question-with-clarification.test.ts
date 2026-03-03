@@ -97,7 +97,6 @@ function stateDataForExpansion(
     normalizedAnswers: answers,
     counters: {
       ...createInitialStateData().counters,
-      clarificationLoopsUsed: 1,
     },
     pendingClarification: {
       sourceQuestionId,

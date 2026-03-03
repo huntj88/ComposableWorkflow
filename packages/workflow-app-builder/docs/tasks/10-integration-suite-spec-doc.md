@@ -23,7 +23,6 @@ Implement deterministic integration coverage for all integration-primary and sha
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-001.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-002.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-003.spec.ts`
-- `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-004.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-005.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-006.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-007.spec.ts`
@@ -58,7 +57,6 @@ Implement deterministic integration coverage for all integration-primary and sha
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-001.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-002.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-003.spec.ts`
-- `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-004.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-005.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-006.spec.ts`
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-007.spec.ts`
@@ -77,8 +75,8 @@ Implement deterministic integration coverage for all integration-primary and sha
 ## Verification
 - Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- test/integration/spec-doc`
   - Expected: all `ITX-SD-001..014` scenarios pass deterministically.
-- Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- ITX-SD-001|ITX-SD-004|ITX-SD-008|ITX-SD-012|ITX-SD-014`
-  - Expected: targeted schema/loop/recovery/traceability/invariant cases pass.
+- Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- ITX-SD-001|ITX-SD-008|ITX-SD-012|ITX-SD-014`
+  - Expected: targeted schema/recovery/traceability/invariant cases pass.
 
 ## One-to-One Requirement Mapping
 | Requirement ID | Implementation Artifact | Verification Assertion |
@@ -86,7 +84,6 @@ Implement deterministic integration coverage for all integration-primary and sha
 | SD-ITX-001-SchemaFailureModes | `test/integration/spec-doc/itx.spec-doc.ITX-SD-001.spec.ts` | per-state non-JSON and schema mismatch failures are terminal with diagnostics. |
 | SD-ITX-002-QueueOrderingStability | `test/integration/spec-doc/itx.spec-doc.ITX-SD-002.spec.ts` | queue order remains deterministic through retry/recovery. |
 | SD-ITX-003-CustomRoutingMatrix | `test/integration/spec-doc/itx.spec-doc.ITX-SD-003.spec.ts` | both intents route correctly with precedence over direct self-loop. |
-| SD-ITX-004-LoopBoundary | `test/integration/spec-doc/itx.spec-doc.ITX-SD-004.spec.ts` | max and max+1 loop boundaries enforce pass/fail semantics correctly. |
 | SD-ITX-005-ImmediateClarificationInsert | `test/integration/spec-doc/itx.spec-doc.ITX-SD-005.spec.ts` | clarification follow-up becomes immediate next question and original remains immutable. |
 | SD-ITX-006-CompletionValidationPermutations | `test/integration/spec-doc/itx.spec-doc.ITX-SD-006.spec.ts` | exactly-one completion selection required; invalid variants remain pending. |
 | SD-ITX-007-IntegrateInputNormalization | `test/integration/spec-doc/itx.spec-doc.ITX-SD-007.spec.ts` | first/second integration inputs satisfy source/answers/specPath contract. |

@@ -78,7 +78,7 @@ describe('e2e.blackbox.spec-doc.GS-SD-003', () => {
     const output = terminal.output as {
       status: string;
       specPath: string;
-      summary: { loopsUsed: number; unresolvedQuestions: number };
+      summary: { unresolvedQuestions: number };
       artifacts: { integrationPasses: number; consistencyCheckPasses: number };
     };
     expect(output.status).toBe('completed');
