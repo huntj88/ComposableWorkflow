@@ -13,6 +13,25 @@ export {
   type SpecDocValidator,
 } from './workflows/spec-doc/schema-validation.js';
 
+// FSM runtime skeleton and state data model (TSD02)
+export {
+  SPEC_DOC_STATES,
+  type SpecDocState,
+  type SpecDocCounters,
+  type SpecDocArtifacts,
+  type SpecDocStateData,
+  createInitialStateData,
+} from './workflows/spec-doc/state-data.js';
+export {
+  SPEC_DOC_WORKFLOW_TYPE,
+  SPEC_DOC_WORKFLOW_VERSION,
+  specDocTransitions,
+  ALLOWED_EDGES,
+  isAllowedTransition,
+  createSpecDocWorkflowDefinition,
+  specDocWorkflowRegistration,
+} from './workflows/spec-doc/workflow.js';
+
 // Prompt template catalog and copilot delegation (TSD01)
 export {
   TEMPLATE_IDS,
