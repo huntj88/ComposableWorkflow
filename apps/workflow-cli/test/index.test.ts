@@ -96,6 +96,15 @@ const createMockDeps = (): {
         childLaunchAnnotations: [],
         metadata: {},
       })),
+      listFeedbackRequests: vi.fn(async () => []),
+      getFeedbackRequestStatus: vi.fn(async () => {
+        throw new Error('not used');
+      }),
+      respondFeedbackRequest: vi.fn(async () => ({
+        feedbackRunId: 'hf_1',
+        status: 'accepted' as const,
+        acceptedAt: '2026-01-01T00:00:00.000Z',
+      })),
     },
     io: {
       writeStdout: (line) => {

@@ -15,6 +15,7 @@ import type { WorkflowRegistry } from '../registry/workflow-registry.js';
 import { errorEnvelopeSchema, type ErrorEnvelope } from './schemas.js';
 import { registerDefinitionRoutes } from './routes/definitions.js';
 import { registerEventRoutes } from './routes/events.js';
+import { registerHumanFeedbackRoutes } from './routes/human-feedback.js';
 import { registerRunRoutes } from './routes/runs.js';
 import { registerWorkflowRoutes } from './routes/workflows.js';
 
@@ -133,6 +134,7 @@ export const createApiServer = async (deps: ApiServerDependencies): Promise<Fast
   await registerRunRoutes(server, deps);
   await registerEventRoutes(server, deps);
   await registerDefinitionRoutes(server, deps);
+  await registerHumanFeedbackRoutes(server, deps);
 
   return server;
 };

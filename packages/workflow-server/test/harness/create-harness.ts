@@ -77,6 +77,12 @@ const wrapEventRepositoryWithFaults = (
     await fault.checkpoint('persistence.after.appendEvent');
     return result;
   },
+  getLatestTransitionData: base.getLatestTransitionData
+    ? async (client, runId, toState) => base.getLatestTransitionData!(client, runId, toState)
+    : undefined,
+  getStartedInput: base.getStartedInput
+    ? async (client, runId) => base.getStartedInput!(client, runId)
+    : undefined,
 });
 
 const wrapLockProviderWithFaults = (base: LockProvider, fault: FaultInjector): LockProvider => ({

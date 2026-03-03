@@ -3,6 +3,8 @@
 import { Command, CommanderError } from 'commander';
 
 import { registerInspectGraphCommand } from './commands/inspect-graph.js';
+import { registerFeedbackListCommand } from './commands/feedback-list.js';
+import { registerFeedbackRespondCommand } from './commands/feedback-respond.js';
 import { registerRunCommand } from './commands/run.js';
 import { registerRunsEventsCommand } from './commands/runs-events.js';
 import { registerRunsListCommand } from './commands/runs-list.js';
@@ -60,6 +62,8 @@ export const createProgram = (deps: CliDependencies): Command => {
   registerRunsEventsCommand(program, deps);
   registerRunsTreeCommand(program, deps);
   registerInspectGraphCommand(program, deps);
+  registerFeedbackListCommand(program, deps);
+  registerFeedbackRespondCommand(program, deps);
 
   return program;
 };

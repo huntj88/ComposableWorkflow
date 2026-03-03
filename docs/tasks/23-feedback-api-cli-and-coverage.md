@@ -12,19 +12,19 @@
 Implement strict feedback response/status API semantics and minimal operator CLI support (`feedback list`, `feedback respond`) with complete integration/E2E coverage for validation, idempotency, and wait/resume behavior, including canonical `human-feedback.received -> responded` terminalization.
 
 ## Implementation Tasks
-- [ ] Implement `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond` with strict validation:
+- [x] Implement `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond` with strict validation:
   - missing `questionId` returns `400`,
   - invalid `selectedOptionIds` returns `400` and does not terminalize,
   - completion-confirmation requests require exactly one selected option (including workflow-synthesized completion questions when upstream follow-up queue is empty),
   - first accepted response wins; all subsequent responses return `409` with terminal timestamp metadata.
-- [ ] On first accepted response, append `human-feedback.received` (payload envelope only), transition projection `awaiting_response -> responded`, and complete feedback run output.
-- [ ] Implement `GET /api/v1/human-feedback/requests/{feedbackRunId}` status endpoint returning prompt/options metadata, linkage fields, and response payload.
-- [ ] Ensure unresolved feedback has no timeout semantics in MVP and remains `awaiting_response` until response/cancellation.
-- [ ] Implement CLI commands:
+- [x] On first accepted response, append `human-feedback.received` (payload envelope only), transition projection `awaiting_response -> responded`, and complete feedback run output.
+- [x] Implement `GET /api/v1/human-feedback/requests/{feedbackRunId}` status endpoint returning prompt/options metadata, linkage fields, and response payload.
+- [x] Ensure unresolved feedback has no timeout semantics in MVP and remains `awaiting_response` until response/cancellation.
+- [x] Implement CLI commands:
   - `workflow feedback list --status awaiting_response`
   - `workflow feedback respond --feedback-run-id <id> --response '<json>' --responded-by <id>`.
-- [ ] Expand integration and black-box tests for concurrent response races, invalid options, pause/cancel while waiting, and recovery of interrupted feedback waits.
-- [ ] Ensure completion-confirmation cardinality tests include workflow-logic synthesized completion prompts (not only model-authored prompts).
+- [x] Expand integration and black-box tests for concurrent response races, invalid options, pause/cancel while waiting, and recovery of interrupted feedback waits.
+- [x] Ensure completion-confirmation cardinality tests include workflow-logic synthesized completion prompts (not only model-authored prompts).
 
 ## Required Artifacts
 - `packages/workflow-server/src/api/routes/human-feedback.ts`

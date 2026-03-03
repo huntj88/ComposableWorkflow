@@ -12,6 +12,7 @@ export const FAILURE_WORKFLOW_TYPE = 'reference.failure.v1';
 export const PARENT_CHILD_WORKFLOW_TYPE = 'reference.parent-child.v1';
 export const COMMAND_WORKFLOW_TYPE = 'reference.command.v1';
 export const LONG_RUNNING_WORKFLOW_TYPE = 'reference.long-running.v1';
+export const HUMAN_FEEDBACK_ROUNDTRIP_WORKFLOW_TYPE = 'reference.human-feedback-roundtrip.v1';
 
 export const createReferencePackageSource = (): WorkflowPackageSource => ({
   source: 'path',

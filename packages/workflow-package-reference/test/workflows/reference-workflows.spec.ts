@@ -21,6 +21,12 @@ import {
   type ReferenceFailureInput,
 } from '../../src/workflows/failure.js';
 import {
+  humanFeedbackRoundtripTransitions,
+  toFeedbackRequest,
+  type ReferenceHumanFeedbackRoundtripInput,
+  type ReferenceHumanFeedbackRoundtripOutput,
+} from '../../src/workflows/human-feedback-roundtrip.js';
+import {
   buildCheckpointTokens,
   longRunningTransitions,
   type ReferenceLongRunningInput,
@@ -117,8 +123,9 @@ const runWorkflowToSettlement = async <I, O>(params: {
       break;
     }
 
-    currentState = transitionIntent.to;
-    data = transitionIntent.data;
+    const nextTransition = transitionIntent as { to: string; data?: unknown };
+    currentState = nextTransition.to;
+    data = nextTransition.data;
     visitedStates.push(currentState);
   }
 
@@ -160,6 +167,9 @@ describe('reference workflows transition maps', () => {
     expect(transitionsByType.get('reference.parent-child.v1')).toEqual(parentChildTransitions);
     expect(transitionsByType.get('reference.command.v1')).toEqual(commandTransitions);
     expect(transitionsByType.get('reference.long-running.v1')).toEqual(longRunningTransitions);
+    expect(transitionsByType.get('reference.human-feedback-roundtrip.v1')).toEqual(
+      humanFeedbackRoundtripTransitions,
+    );
   });
 });
 
@@ -318,5 +328,42 @@ describe('reference workflows deterministic progression', () => {
       'checkpoint',
       'complete',
     ]);
+  });
+
+  it('launches server human feedback child and completes from child output deterministically', async () => {
+    const input: ReferenceHumanFeedbackRoundtripInput = {
+      requestId: 'ref-feedback-001',
+    };
+
+    const workflow = manifest.workflows.find(
+      (item) => item.workflowType === 'reference.human-feedback-roundtrip.v1',
+    );
+    expect(workflow).toBeDefined();
+
+    const result = await runWorkflowToSettlement({
+      factory: workflow!.factory as WorkflowFactory<
+        ReferenceHumanFeedbackRoundtripInput,
+        ReferenceHumanFeedbackRoundtripOutput
+      >,
+      workflowType: workflow!.workflowType,
+      input,
+      childResult: {
+        status: 'responded',
+        response: {
+          questionId: `q_feedback_${input.requestId}`,
+          selectedOptionIds: [1],
+        },
+      },
+    });
+
+    expect(result.failureError).toBeUndefined();
+    expect(result.childRequests).toEqual([toFeedbackRequest(input)]);
+    expect(result.visitedStates).toEqual(['await-feedback', 'complete']);
+    expect(result.completedOutput).toEqual({
+      status: 'completed',
+      feedbackStatus: 'responded',
+      feedbackQuestionId: `q_feedback_${input.requestId}`,
+      selectedOptionIds: [1],
+    });
   });
 });

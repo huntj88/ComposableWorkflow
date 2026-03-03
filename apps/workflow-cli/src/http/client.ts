@@ -93,6 +93,44 @@ export interface WorkflowDefinition {
   metadata: Record<string, unknown>;
 }
 
+export interface HumanFeedbackResponsePayload {
+  questionId: string;
+  selectedOptionIds?: number[];
+  text?: string;
+}
+
+export interface HumanFeedbackRequestStatus {
+  feedbackRunId: string;
+  parentRunId: string;
+  parentWorkflowType: string;
+  parentState: string;
+  questionId: string;
+  requestEventId: string;
+  prompt: string;
+  options: Array<{ id: number; label: string; description?: string }> | null;
+  constraints: string[] | null;
+  correlationId: string | null;
+  status: 'awaiting_response' | 'responded' | 'cancelled';
+  requestedAt: string;
+  respondedAt: string | null;
+  cancelledAt: string | null;
+  response: HumanFeedbackResponsePayload | null;
+  respondedBy: string | null;
+}
+
+export interface HumanFeedbackRespondAccepted {
+  feedbackRunId: string;
+  status: 'accepted';
+  acceptedAt: string;
+}
+
+export interface HumanFeedbackRespondConflict {
+  feedbackRunId: string;
+  status: 'awaiting_response' | 'responded' | 'cancelled';
+  respondedAt?: string | null;
+  cancelledAt?: string | null;
+}
+
 export interface RetryOptions {
   maxAttempts: number;
   initialDelayMs: number;
@@ -164,6 +202,15 @@ export interface WorkflowApiClient {
     includeCompletedChildren?: boolean;
   }) => Promise<RunTreeResponse>;
   inspectDefinition: (workflowType: string) => Promise<WorkflowDefinition>;
+  listFeedbackRequests: (request?: {
+    status?: 'awaiting_response' | 'responded' | 'cancelled';
+  }) => Promise<HumanFeedbackRequestStatus[]>;
+  getFeedbackRequestStatus: (feedbackRunId: string) => Promise<HumanFeedbackRequestStatus>;
+  respondFeedbackRequest: (request: {
+    feedbackRunId: string;
+    response: HumanFeedbackResponsePayload;
+    respondedBy: string;
+  }) => Promise<HumanFeedbackRespondAccepted | HumanFeedbackRespondConflict>;
 }
 
 interface CreateWorkflowApiClientOptions {
@@ -521,6 +568,68 @@ export const createWorkflowApiClient = (
     );
   };
 
+  const listFeedbackRequests = async (request?: {
+    status?: 'awaiting_response' | 'responded' | 'cancelled';
+  }): Promise<HumanFeedbackRequestStatus[]> => {
+    const query = new URLSearchParams();
+
+    if (request?.status) {
+      query.set('status', request.status);
+    }
+
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    const response = await requestJson<{ items: HumanFeedbackRequestStatus[] }>(
+      `/api/v1/human-feedback/requests${suffix}`,
+    );
+    return response.items;
+  };
+
+  const getFeedbackRequestStatus = async (
+    feedbackRunId: string,
+  ): Promise<HumanFeedbackRequestStatus> =>
+    requestJson<HumanFeedbackRequestStatus>(
+      `/api/v1/human-feedback/requests/${encodeURIComponent(feedbackRunId)}`,
+    );
+
+  const respondFeedbackRequest = async (request: {
+    feedbackRunId: string;
+    response: HumanFeedbackResponsePayload;
+    respondedBy: string;
+  }): Promise<HumanFeedbackRespondAccepted | HumanFeedbackRespondConflict> => {
+    const response = await fetchFn(
+      `${baseUrl}/api/v1/human-feedback/requests/${encodeURIComponent(request.feedbackRunId)}/respond`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          response: request.response,
+          respondedBy: request.respondedBy,
+        }),
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+        },
+        dispatcher: options.dispatcher,
+      },
+    );
+
+    const payload = await parseJsonBody(response);
+    if (response.status === 409) {
+      return payload as HumanFeedbackRespondConflict;
+    }
+
+    if (!response.ok) {
+      const envelope = asErrorEnvelope(payload);
+      throw new WorkflowApiError({
+        statusCode: response.status,
+        code: envelope?.code,
+        message: envelope?.message ?? `Request failed with status ${response.status}`,
+        details: envelope?.details,
+      });
+    }
+
+    return payload as HumanFeedbackRespondAccepted;
+  };
+
   return {
     startWorkflow,
     listRuns,
@@ -528,5 +637,8 @@ export const createWorkflowApiClient = (
     streamRunEvents,
     inspectRunTree,
     inspectDefinition,
+    listFeedbackRequests,
+    getFeedbackRequestStatus,
+    respondFeedbackRequest,
   };
 };

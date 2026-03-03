@@ -6,6 +6,10 @@ import type {
 import { commandWorkflowRegistration, COMMAND_WORKFLOW_TYPE } from './workflows/command.js';
 import { failureWorkflowRegistration, FAILURE_WORKFLOW_TYPE } from './workflows/failure.js';
 import {
+  HUMAN_FEEDBACK_ROUNDTRIP_WORKFLOW_TYPE,
+  humanFeedbackRoundtripWorkflowRegistration,
+} from './workflows/human-feedback-roundtrip.js';
+import {
   longRunningWorkflowRegistration,
   LONG_RUNNING_WORKFLOW_TYPE,
 } from './workflows/long-running.js';
@@ -21,6 +25,7 @@ export const REFERENCE_WORKFLOW_TYPES = [
   PARENT_CHILD_WORKFLOW_TYPE,
   COMMAND_WORKFLOW_TYPE,
   LONG_RUNNING_WORKFLOW_TYPE,
+  HUMAN_FEEDBACK_ROUNDTRIP_WORKFLOW_TYPE,
 ] as const;
 
 export const workflowPackageManifest: WorkflowPackageManifest = {
@@ -32,6 +37,7 @@ export const workflowPackageManifest: WorkflowPackageManifest = {
     parentChildWorkflowRegistration as WorkflowRegistration,
     commandWorkflowRegistration as WorkflowRegistration,
     longRunningWorkflowRegistration as WorkflowRegistration,
+    humanFeedbackRoundtripWorkflowRegistration as WorkflowRegistration,
   ],
 };
 
