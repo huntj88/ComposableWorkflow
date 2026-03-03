@@ -7,7 +7,7 @@
 - `T07`
 
 ## Objective
-Implement the locked MVP server-owned human-feedback workflow contract (`server.human-feedback.v1`), canonical event lifecycle, and transactional projection materialization in `human_feedback_requests`.
+Implement the locked MVP server-owned human-feedback workflow contract (`server.human-feedback.v1`), request/cancel lifecycle runtime semantics, and transactional projection materialization in `human_feedback_requests`.
 
 ## Implementation Tasks
 - [x] Implement and auto-register internal package workflow `server.human-feedback.v1` at server bootstrap as required startup behavior.
@@ -15,10 +15,13 @@ Implement the locked MVP server-owned human-feedback workflow contract (`server.
   - `options` required,
   - option `id` values are unique contiguous integers starting at `1`,
   - `questionId` required and stable for run lifecycle.
-- [ ] Emit feedback lifecycle events using generic `payload` envelope only (`human-feedback.requested|received|cancelled`), with no typed `humanFeedback` field additions.
-- [ ] Materialize `human_feedback_requests` projection with required columns/indexes/constraints and same-transaction writes with feedback event appends (Postgres MVP requirement).
+- [x] Emit feedback runtime lifecycle events using generic `payload` envelope only (`human-feedback.requested|cancelled`) for runtime-owned flows, with no typed `humanFeedback` field additions.
+- [x] Materialize `human_feedback_requests` projection with required columns/indexes/constraints and same-transaction writes with feedback event appends for runtime-owned transitions (Postgres MVP requirement).
 - [x] Enforce first terminal outcome wins (`responded` or `cancelled`) with no-op behavior for competing terminalization attempts.
-- [ ] Keep canonical source-of-truth in `workflow_events`; ensure projection derivation matches event progression.
+- [x] Keep canonical source-of-truth in `workflow_events`; ensure projection derivation matches runtime-owned event progression.
+
+Ownership note:
+- `human-feedback.received -> responded` is API response handling and is owned by `T23` to avoid circular dependency between runtime contract setup and response endpoint implementation.
 
 ## Required Artifacts
 - `packages/workflow-server/src/internal-workflows/human-feedback/*`
@@ -32,10 +35,11 @@ Implement the locked MVP server-owned human-feedback workflow contract (`server.
 - `server.human-feedback.v1` is server-owned, auto-registered, and non-overrideable in MVP startup flow.
 - Feedback request issuance rejects invalid numbering before run/event/projection creation.
 - `human_feedback_requests` rows include required schema and indexes, with idempotent write behavior across retries/recovery.
-- Canonical event progression and projection status remain consistent:
+- Runtime-owned canonical event progression and projection status remain consistent:
   - `requested -> awaiting_response`
-  - `received -> responded`
   - `cancelled -> cancelled`.
+ - Response-owned progression is completed in `T23`:
+  - `received -> responded`.
 
 ## Spec/Behavior Links
 - Spec: sections 6.4, 6.8, 7.3, 8.11, 11.3, 12.
@@ -84,6 +88,7 @@ Implement the locked MVP server-owned human-feedback workflow contract (`server.
 |---|---|---|
 | HFB-Core-001-ServerOwnedRegistration | `src/bootstrap/register-internal-workflows.ts` | internal default feedback workflow auto-registers and is required at startup. |
 | HFB-Core-002-NumberedRequestContract | `src/internal-workflows/human-feedback/contracts.ts` | options are required and numbering is contiguous from `1`. |
-| HFB-Core-003-PayloadEnvelopeStability | `src/internal-workflows/human-feedback/workflow.ts` | feedback lifecycle metadata is emitted through `payload` envelope only. |
+| HFB-Core-003-PayloadEnvelopeStability | `src/internal-workflows/human-feedback/workflow.ts` | runtime-owned feedback lifecycle metadata is emitted through `payload` envelope only. |
 | HFB-Core-004-ProjectionTransactionalWrite | `src/persistence/human-feedback-projection-repository.ts` | projection writes occur with corresponding feedback event append transaction boundary. |
 | HFB-Core-005-FirstTerminalOutcomeWins | `src/persistence/human-feedback-projection-repository.ts` | competing terminal writes are no-ops after first terminalization. |
+| HFB-Core-006-ReceivedResponseOwnershipBoundary | `docs/tasks/23-feedback-api-cli-and-coverage.md` | `human-feedback.received -> responded` ownership is explicitly assigned to T23. |

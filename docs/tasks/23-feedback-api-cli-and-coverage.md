@@ -6,10 +6,10 @@
 - `T22`
 
 ## Sequencing Gate
-- Begin implementation only after `T22` is complete and merged, because API/CLI behavior depends on the server-owned feedback runtime contract and projection persistence introduced in `T22`.
+- Begin implementation only after `T22` foundational runtime/projection schema is merged, because API/CLI behavior depends on the server-owned feedback runtime contract and projection persistence introduced in `T22`.
 
 ## Objective
-Implement strict feedback response/status API semantics and minimal operator CLI support (`feedback list`, `feedback respond`) with complete integration/E2E coverage for validation, idempotency, and wait/resume behavior.
+Implement strict feedback response/status API semantics and minimal operator CLI support (`feedback list`, `feedback respond`) with complete integration/E2E coverage for validation, idempotency, and wait/resume behavior, including canonical `human-feedback.received -> responded` terminalization.
 
 ## Implementation Tasks
 - [ ] Implement `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond` with strict validation:
@@ -17,6 +17,7 @@ Implement strict feedback response/status API semantics and minimal operator CLI
   - invalid `selectedOptionIds` returns `400` and does not terminalize,
   - completion-confirmation requests require exactly one selected option (including workflow-synthesized completion questions when upstream follow-up queue is empty),
   - first accepted response wins; all subsequent responses return `409` with terminal timestamp metadata.
+- [ ] On first accepted response, append `human-feedback.received` (payload envelope only), transition projection `awaiting_response -> responded`, and complete feedback run output.
 - [ ] Implement `GET /api/v1/human-feedback/requests/{feedbackRunId}` status endpoint returning prompt/options metadata, linkage fields, and response payload.
 - [ ] Ensure unresolved feedback has no timeout semantics in MVP and remains `awaiting_response` until response/cancellation.
 - [ ] Implement CLI commands:
@@ -37,7 +38,7 @@ Implement strict feedback response/status API semantics and minimal operator CLI
 
 ## Acceptance Criteria
 - Response endpoint enforces strict `400/409` semantics and preserves first-response-wins guarantees.
-- Status endpoint payload aligns with projection and canonical event lifecycle.
+- Status endpoint payload aligns with projection and canonical event lifecycle, including `received -> responded`.
 - Pending feedback requests remain open indefinitely in MVP without timeout terminalization.
 - CLI feedback commands operate via server APIs and surface acceptance/rejection details.
 - Integration/E2E coverage includes required feedback-specific behaviors and race/fault cases.
@@ -101,5 +102,6 @@ Implement strict feedback response/status API semantics and minimal operator CLI
 | HFB-API-004-CompletionConfirmationCardinality | `src/api/routes/human-feedback.ts` | completion-confirmation responses require exactly one selected option. |
 | HFB-API-004a-WorkflowSynthesizedCompletion | `src/api/routes/human-feedback.ts` | exactly-one selection rule applies equally to workflow-synthesized completion questions. |
 | HFB-API-005-NoTimeoutPendingWait | `src/orchestrator/transition-runner.ts` | unresolved feedback remains pending until explicit response/cancellation. |
+| HFB-API-006-ReceivedRespondedLifecycle | `src/api/routes/human-feedback.ts` | accepted response appends `human-feedback.received` and projection status becomes `responded`. |
 | HFB-CLI-001-ListPendingRequests | `apps/workflow-cli/src/commands/feedback-list.ts` | CLI lists pending feedback with status/linkage metadata. |
 | HFB-CLI-002-SubmitResponse | `apps/workflow-cli/src/commands/feedback-respond.ts` | CLI submits response and surfaces accepted/400/409 outcomes. |
