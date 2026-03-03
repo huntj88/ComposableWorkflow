@@ -56,3 +56,13 @@ export {
   createNormalizedAnswer,
   appendAnswer,
 } from './workflows/spec-doc/answers.js';
+
+// Terminal semantics and failure utilities (TSD07)
+export {
+  type UnresolvedQuestionSummary,
+  type SpecDocFailurePayload,
+  buildLoopLimitFailurePayload,
+  createLoopLimitError,
+  buildChildFailurePayload,
+  createChildFailureError,
+} from './workflows/spec-doc/failure.js';

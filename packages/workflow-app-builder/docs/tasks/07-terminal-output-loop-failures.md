@@ -10,11 +10,11 @@
 Implement terminal semantics (`Done` and `failed`) including completion confirmation cardinality, output contract emission, loop-limit failure, and child failure propagation with stage context.
 
 ## Implementation Tasks
-- [ ] Enforce `Done` reachability only from `NumberedOptionsHumanRequest`.
-- [ ] Validate completion-confirmation semantics (exactly one selected option).
-- [ ] Emit terminal payload conforming to `spec-doc-generation-output.schema.json`.
-- [ ] Enforce `maxClarificationLoops` and fail with unresolved-question summary when exceeded.
-- [ ] Propagate delegated child workflow failures with explicit state context.
+- [x] Enforce `Done` reachability only from `NumberedOptionsHumanRequest`.
+- [x] Validate completion-confirmation semantics (exactly one selected option).
+- [x] Emit terminal payload conforming to `spec-doc-generation-output.schema.json`.
+- [x] Enforce `maxClarificationLoops` and fail with unresolved-question summary when exceeded.
+- [x] Propagate delegated child workflow failures with explicit state context.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/states/done.ts`
