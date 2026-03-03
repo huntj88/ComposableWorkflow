@@ -48,6 +48,17 @@ export interface SpecDocArtifacts {
 }
 
 /**
+ * Transient classification result carried from `ClassifyCustomPrompt` to
+ * `ExpandQuestionWithClarification`. Cleared after consumption.
+ */
+export interface PendingClarification {
+  /** The questionId of the source question that triggered classification. */
+  sourceQuestionId: string;
+  /** The clarifying question text extracted by classification. */
+  clarifyingQuestionText: string;
+}
+
+/**
  * Root state data model persisted across FSM transitions.
  *
  * Stores the deterministic question queue, normalized answer history,
@@ -65,6 +76,11 @@ export interface SpecDocStateData {
   counters: SpecDocCounters;
   /** Working artifacts (spec draft path, integration metadata). */
   artifacts: SpecDocArtifacts;
+  /**
+   * Transient: carries classification result from `ClassifyCustomPrompt` to
+   * `ExpandQuestionWithClarification`. Cleared after consumption.
+   */
+  pendingClarification?: PendingClarification;
 }
 
 // ---------------------------------------------------------------------------

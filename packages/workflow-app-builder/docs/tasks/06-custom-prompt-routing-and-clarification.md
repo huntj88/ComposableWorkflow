@@ -8,11 +8,11 @@
 Implement `ClassifyCustomPrompt` and `ExpandQuestionWithClarification` routing, including intent-priority handling and immediate-next queue insertion.
 
 ## Implementation Tasks
-- [ ] Route any response with custom text to `ClassifyCustomPrompt` before queue continuation.
-- [ ] Delegate classification via `spec-doc.classify-custom-prompt.v1` and validate intent schema.
-- [ ] For `custom-answer`, buffer custom text with current question answer and resume queue.
-- [ ] For `clarifying-question`, delegate follow-up generation via `spec-doc.expand-clarification.v1`.
-- [ ] Insert follow-up as immediate next queue item with new deterministic `questionId` and `kind: issue-resolution`.
+- [x] Route any response with custom text to `ClassifyCustomPrompt` before queue continuation.
+- [x] Delegate classification via `spec-doc.classify-custom-prompt.v1` and validate intent schema.
+- [x] For `custom-answer`, buffer custom text with current question answer and resume queue.
+- [x] For `clarifying-question`, delegate follow-up generation via `spec-doc.expand-clarification.v1`.
+- [x] Insert follow-up as immediate next queue item with new deterministic `questionId` and `kind: issue-resolution`.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/states/classify-custom-prompt.ts`

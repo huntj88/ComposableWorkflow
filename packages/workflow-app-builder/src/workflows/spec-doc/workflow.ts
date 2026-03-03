@@ -16,6 +16,8 @@ import type {
 import type { SpecDocGenerationInput, SpecDocGenerationOutput } from './contracts.js';
 import type { SpecDocState } from './state-data.js';
 import { createInitialStateData } from './state-data.js';
+import { handleClassifyCustomPrompt } from './states/classify-custom-prompt.js';
+import { handleExpandQuestionWithClarification } from './states/expand-question-with-clarification.js';
 import { handleIntegrateIntoSpec } from './states/integrate-into-spec.js';
 import { handleLogicalConsistencyCheck } from './states/logical-consistency-check.js';
 import { handleNumberedOptionsHumanRequest } from './states/numbered-options-human-request.js';
@@ -147,13 +149,9 @@ export function createSpecDocWorkflowDefinition(): WorkflowDefinition<
 
       NumberedOptionsHumanRequest: handleNumberedOptionsHumanRequest,
 
-      ClassifyCustomPrompt: (_ctx) => {
-        // Stub – implemented in later TSD
-      },
+      ClassifyCustomPrompt: handleClassifyCustomPrompt,
 
-      ExpandQuestionWithClarification: (_ctx) => {
-        // Stub – implemented in later TSD
-      },
+      ExpandQuestionWithClarification: handleExpandQuestionWithClarification,
 
       Done: (_ctx) => {
         // Stub – implemented in later TSD

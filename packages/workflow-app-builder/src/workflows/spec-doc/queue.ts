@@ -110,3 +110,31 @@ export function buildQuestionQueue(followUpQuestions: NumberedQuestionItem[]): Q
     answered: false,
   }));
 }
+
+// ---------------------------------------------------------------------------
+// SD-CUSTOM-004 – Immediate-Next Queue Insertion
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert a new question item at the specified index, returning a new queue
+ * array. The original queue is never mutated (SD-CUSTOM-005).
+ *
+ * Typically called with `insertIndex = currentIndex + 1` to place a
+ * clarification follow-up immediately after the current question, ahead of
+ * any older unresolved items (B-SD-QUEUE-002, B-SD-QUEUE-003).
+ *
+ * @param queue - The existing question queue (not mutated).
+ * @param insertIndex - The 0-based position at which to insert the new item.
+ * @param item - The new question item to insert.
+ * @returns A new queue array with the item inserted at the specified position.
+ */
+export function insertImmediateNext(
+  queue: readonly QuestionQueueItem[],
+  insertIndex: number,
+  item: QuestionQueueItem,
+): QuestionQueueItem[] {
+  const clampedIndex = Math.max(0, Math.min(insertIndex, queue.length));
+  const result = [...queue];
+  result.splice(clampedIndex, 0, item);
+  return result;
+}
