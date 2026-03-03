@@ -3,9 +3,12 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 
 import type { LockProvider } from '../locking/lock-provider.js';
+import { appendWorkflowLifecycleEvent } from '../lifecycle/lifecycle-events.js';
 import type { Orchestrator } from '../orchestrator/orchestrator.js';
+import { createEventRepository } from '../persistence/event-repository.js';
 import { withTransaction } from '../persistence/db.js';
 import type { WorkflowLifecycle } from '../lifecycle/lifecycle-machine.js';
+import { hasProgressSinceLatestRecoveryBoundary } from './recovery-state.js';
 
 interface RunLifecycleRow {
   run_id: string;
@@ -48,6 +51,7 @@ const RECOVERABLE_LIFECYCLES: WorkflowLifecycle[] = [
 export const createReconcileService = (deps: ReconcileServiceDependencies): ReconcileService => {
   const now = deps.now ?? (() => new Date());
   const lockTtlMs = deps.lockTtlMs ?? 30_000;
+  const eventRepository = createEventRepository();
 
   return {
     reconcile: async (request = {}) => {
@@ -101,35 +105,13 @@ LIMIT $2
             }
 
             if (run.lifecycle === 'running') {
-              const latestRecovered = await client.query<{ sequence: number }>(
-                `
-SELECT sequence
-FROM workflow_events
-WHERE run_id = $1
-  AND event_type = 'workflow.recovered'
-ORDER BY sequence DESC
-LIMIT 1
-`,
-                [run.run_id],
+              const progressedSinceRecovery = await hasProgressSinceLatestRecoveryBoundary(
+                client,
+                run.run_id,
               );
 
-              const lastRecoveredSequence = latestRecovered.rows[0]?.sequence;
-              if (typeof lastRecoveredSequence === 'number') {
-                const progressedSinceRecovery = await client.query<{ event_id: string }>(
-                  `
-SELECT event_id
-FROM workflow_events
-WHERE run_id = $1
-  AND sequence > $2
-  AND event_type = 'transition.completed'
-LIMIT 1
-`,
-                  [run.run_id, lastRecoveredSequence],
-                );
-
-                if ((progressedSinceRecovery.rowCount ?? 0) === 0) {
-                  return false;
-                }
+              if (!progressedSinceRecovery) {
+                return false;
               }
             }
 
@@ -138,30 +120,14 @@ LIMIT 1
                 run.run_id,
                 'recovering',
               ]);
-              await client.query(
-                `
-INSERT INTO workflow_events (
-  event_id,
-  run_id,
-  sequence,
-  event_type,
-  timestamp,
-  payload_jsonb,
-  error_jsonb
-)
-SELECT
-  $1,
-  $2,
-  COALESCE(MAX(sequence), 0) + 1,
-  'workflow.recovering',
-  $3,
-  NULL,
-  NULL
-FROM workflow_events
-WHERE run_id = $2
-`,
-                [`evt_${randomUUID()}`, run.run_id, now().toISOString()],
-              );
+              await appendWorkflowLifecycleEvent({
+                client,
+                eventRepository,
+                eventId: `evt_${randomUUID()}`,
+                runId: run.run_id,
+                eventType: 'workflow.recovering',
+                timestamp: now().toISOString(),
+              });
             }
 
             return true;

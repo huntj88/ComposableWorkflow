@@ -92,7 +92,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | ITX-004 | integration | packages/workflow-server/test/integration/itx.start.ITX-004.spec.ts | T14 | implemented | required |
 | ITX-005 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-005.spec.ts | T15 | implemented | required |
 | ITX-006 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-006.spec.ts | T15 | implemented | required |
-| ITX-007 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-007.spec.ts | T15 | implemented | required |
+| ITX-007 | integration | packages/workflow-server/test/integration/lifecycle/recovery-progress-gating.spec.ts | T21 | implemented | required |
 | ITX-008 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-008.spec.ts | T15 | implemented | required |
 | ITX-009 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-009.spec.ts | T15 | implemented | required |
 | ITX-010 | integration | packages/workflow-server/test/integration/itx.command.ITX-010.spec.ts | T15 | implemented | required |

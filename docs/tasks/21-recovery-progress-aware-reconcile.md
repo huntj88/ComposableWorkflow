@@ -8,11 +8,11 @@
 Align reconciliation behavior to allow repeat recovery only when new workflow progression occurred after the latest recovery boundary, while preserving idempotence and duplicate-side-effect prevention.
 
 ## Implementation Tasks
-- [ ] Persist and evaluate per-run recovery boundary metadata keyed to the latest emitted `workflow.recovered` checkpoint.
-- [ ] Gate repeat reconciliation for `running` runs using progression evidence (at least one `transition.completed` after latest recovery boundary).
-- [ ] Skip reconciliation side effects when no progression occurred since latest recovery boundary.
-- [ ] Preserve lock-protected single-runner semantics and deterministic reconcile counters (`scanned|recovered|skipped|failed`).
-- [ ] Add integration coverage for repeated reconcile passes with and without post-recovery progression.
+- [x] Persist and evaluate per-run recovery boundary metadata keyed to the latest emitted `workflow.recovered` checkpoint.
+- [x] Gate repeat reconciliation for `running` runs using progression evidence (at least one `transition.completed` after latest recovery boundary).
+- [x] Skip reconciliation side effects when no progression occurred since latest recovery boundary.
+- [x] Preserve lock-protected single-runner semantics and deterministic reconcile counters (`scanned|recovered|skipped|failed`).
+- [x] Add integration coverage for repeated reconcile passes with and without post-recovery progression.
 
 ## Required Artifacts
 - `packages/workflow-server/src/recovery/reconcile-service.ts`

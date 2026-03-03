@@ -1,6 +1,7 @@
 import type { DbClient } from '../persistence/db.js';
 import type { EventRepository } from '../persistence/event-repository.js';
 import type { WorkflowLifecycle } from '../lifecycle/lifecycle-machine.js';
+import { appendWorkflowLifecycleEvent } from '../lifecycle/lifecycle-events.js';
 import type { IdempotencyRepository } from '../persistence/idempotency-repository.js';
 import type { RunRepository, RunSummary } from '../persistence/run-repository.js';
 import type { WorkflowRegistration, WorkflowRegistry } from '../registry/workflow-registry.js';
@@ -163,7 +164,9 @@ const applyLifecycleSafePoint = async (params: {
   eventIdFactory: () => string;
 }): Promise<TransitionStepResult | null> => {
   if (params.run.lifecycle === 'pausing') {
-    await params.eventRepository.appendEvent(params.client, {
+    await appendWorkflowLifecycleEvent({
+      client: params.client,
+      eventRepository: params.eventRepository,
       eventId: params.eventIdFactory(),
       runId: params.run.runId,
       eventType: 'workflow.paused',
@@ -183,7 +186,9 @@ const applyLifecycleSafePoint = async (params: {
   }
 
   if (params.run.lifecycle === 'resuming') {
-    await params.eventRepository.appendEvent(params.client, {
+    await appendWorkflowLifecycleEvent({
+      client: params.client,
+      eventRepository: params.eventRepository,
       eventId: params.eventIdFactory(),
       runId: params.run.runId,
       eventType: 'workflow.resumed',
@@ -203,7 +208,9 @@ const applyLifecycleSafePoint = async (params: {
   }
 
   if (params.run.lifecycle === 'recovering') {
-    await params.eventRepository.appendEvent(params.client, {
+    await appendWorkflowLifecycleEvent({
+      client: params.client,
+      eventRepository: params.eventRepository,
       eventId: params.eventIdFactory(),
       runId: params.run.runId,
       eventType: 'workflow.recovered',
