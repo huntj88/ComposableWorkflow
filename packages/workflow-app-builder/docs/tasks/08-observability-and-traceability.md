@@ -12,11 +12,11 @@
 Emit required run/state/question/prompt observability events with stable ordering and prompt-template traceability metadata.
 
 ## Implementation Tasks
-- [ ] Emit `state.entered` for every state entry with run/workflow/state/sequence fields.
-- [ ] Emit events for question generation, response receipt, integration pass completion, consistency outcomes, classification outcomes, clarification generation, terminal state.
-- [ ] Include prompt template IDs for each copilot delegation event.
-- [ ] Preserve shared runtime event naming/shape for common events (`workflow.started`, `state.entered`, `transition.completed`, `child.failed`, cancellation linkage events), and add spec-doc-specific payload fields through event payload extension only.
-- [ ] Add event-ordering assertions and template traceability tests.
+- [x] Emit `state.entered` for every state entry with run/workflow/state/sequence fields.
+- [x] Emit events for question generation, response receipt, integration pass completion, consistency outcomes, classification outcomes, clarification generation, terminal state.
+- [x] Include prompt template IDs for each copilot delegation event.
+- [x] Preserve shared runtime event naming/shape for common events (`workflow.started`, `state.entered`, `transition.completed`, `child.failed`, cancellation linkage events), and add spec-doc-specific payload fields through event payload extension only.
+- [x] Add event-ordering assertions and template traceability tests.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/observability.ts`
