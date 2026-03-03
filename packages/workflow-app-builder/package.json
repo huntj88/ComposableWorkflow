@@ -20,7 +20,9 @@
   ],
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.14.1",
-    "@composable-workflow/workflow-lib": "workspace:*"
+    "@composable-workflow/workflow-lib": "workspace:*",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

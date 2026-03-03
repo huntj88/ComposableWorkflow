@@ -53,6 +53,12 @@ importers:
       '@composable-workflow/workflow-lib':
         specifier: workspace:*
         version: link:../workflow-lib
+      ajv:
+        specifier: ^8.18.0
+        version: 8.18.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.18.0)
 
   packages/workflow-lib: {}
 

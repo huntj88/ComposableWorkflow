@@ -1,0 +1,310 @@
+import { describe, expect, it } from 'vitest';
+
+import type {
+  SpecDocGenerationInput,
+  SpecDocGenerationOutput,
+  IntegrateIntoSpecInput,
+  NormalizedAnswer,
+  SpecIntegrationOutput,
+  ConsistencyCheckOutput,
+  CustomPromptClassificationOutput,
+  ClarificationFollowUpOutput,
+  NumberedQuestionItem,
+  QuestionQueueItem,
+} from '../../../src/workflows/spec-doc/contracts.js';
+
+import { createSpecDocValidator } from '../../../src/workflows/spec-doc/schema-validation.js';
+
+import { SCHEMA_IDS } from '../../../src/workflows/spec-doc/schemas.js';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function validNormalizedAnswer(overrides?: Partial<NormalizedAnswer>): NormalizedAnswer {
+  return {
+    questionId: 'q-1',
+    selectedOptionIds: [1],
+    answeredAt: '2026-03-02T12:00:00Z',
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('SpecDocGenerationInput', () => {
+  it('satisfies minimal shape', () => {
+    const input: SpecDocGenerationInput = { request: 'Build a TODO app' };
+    expect(input.request).toBe('Build a TODO app');
+    expect(input.maxClarificationLoops).toBeUndefined();
+  });
+
+  it('carries all optional fields', () => {
+    const input: SpecDocGenerationInput = {
+      request: 'Build a TODO app',
+      targetPath: 'specs/todo.md',
+      constraints: ['must use React'],
+      maxClarificationLoops: 3,
+      copilotPromptOptions: {
+        baseArgs: ['--model', 'gpt-5.3'],
+        allowedDirs: ['/workspace'],
+        timeoutMs: 30000,
+        cwd: '/workspace',
+      },
+    };
+    expect(input.constraints).toHaveLength(1);
+    expect(input.copilotPromptOptions?.timeoutMs).toBe(30000);
+  });
+});
+
+describe('SpecDocGenerationOutput', () => {
+  it('satisfies terminal output shape', () => {
+    const output: SpecDocGenerationOutput = {
+      status: 'completed',
+      specPath: 'specs/todo.md',
+      summary: { loopsUsed: 2, unresolvedQuestions: 0 },
+      artifacts: { integrationPasses: 3, consistencyCheckPasses: 2 },
+    };
+    expect(output.status).toBe('completed');
+    expect(output.summary.unresolvedQuestions).toBe(0);
+  });
+
+  it('validates against spec-doc-generation-output schema', () => {
+    const output: SpecDocGenerationOutput = {
+      status: 'completed',
+      specPath: 'specs/todo.md',
+      summary: { loopsUsed: 2, unresolvedQuestions: 0 },
+      artifacts: { integrationPasses: 1, consistencyCheckPasses: 1 },
+    };
+    const validator = createSpecDocValidator();
+    const result = validator.validateParsed(output, SCHEMA_IDS.specDocGenerationOutput);
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('IntegrateIntoSpecInput', () => {
+  it('supports workflow-input source (initial pass)', () => {
+    const input: IntegrateIntoSpecInput = {
+      source: 'workflow-input',
+      request: 'Build a TODO app',
+      targetPath: 'specs/todo.md',
+      constraints: ['React', 'TypeScript'],
+    };
+    expect(input.source).toBe('workflow-input');
+    expect(input.answers).toBeUndefined();
+  });
+
+  it('supports numbered-options-feedback source with answers', () => {
+    const input: IntegrateIntoSpecInput = {
+      source: 'numbered-options-feedback',
+      request: 'Build a TODO app',
+      specPath: 'specs/todo.md',
+      answers: [
+        validNormalizedAnswer(),
+        validNormalizedAnswer({ questionId: 'q-2', selectedOptionIds: [2] }),
+      ],
+    };
+    expect(input.source).toBe('numbered-options-feedback');
+    expect(input.answers).toHaveLength(2);
+  });
+
+  it('validates workflow-input against spec-integration-input schema', () => {
+    const input: IntegrateIntoSpecInput = {
+      source: 'workflow-input',
+      request: 'Build a TODO app',
+    };
+    const validator = createSpecDocValidator();
+    const result = validator.validateParsed(input, SCHEMA_IDS.specIntegrationInput);
+    expect(result.ok).toBe(true);
+  });
+
+  it('validates numbered-options-feedback against spec-integration-input schema', () => {
+    const input: IntegrateIntoSpecInput = {
+      source: 'numbered-options-feedback',
+      request: 'Build a TODO app',
+      specPath: 'specs/todo.md',
+      answers: [validNormalizedAnswer()],
+    };
+    const validator = createSpecDocValidator();
+    const result = validator.validateParsed(input, SCHEMA_IDS.specIntegrationInput);
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects numbered-options-feedback without answers', () => {
+    const input = {
+      source: 'numbered-options-feedback',
+      request: 'Build a TODO app',
+    };
+    const validator = createSpecDocValidator();
+    const result = validator.validateParsed(input, SCHEMA_IDS.specIntegrationInput);
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe('NormalizedAnswer', () => {
+  it('has required fields', () => {
+    const answer = validNormalizedAnswer();
+    expect(answer.questionId).toBe('q-1');
+    expect(answer.selectedOptionIds).toEqual([1]);
+    expect(answer.answeredAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('allows empty selectedOptionIds with text-only', () => {
+    const answer = validNormalizedAnswer({
+      selectedOptionIds: [],
+      text: 'Custom answer',
+    });
+    expect(answer.selectedOptionIds).toEqual([]);
+    expect(answer.text).toBe('Custom answer');
+  });
+});
+
+describe('SpecIntegrationOutput', () => {
+  it('satisfies shape', () => {
+    const output: SpecIntegrationOutput = {
+      specPath: 'specs/todo.md',
+      changeSummary: ['Added scope section'],
+      resolvedQuestionIds: ['q-1'],
+      remainingQuestionIds: ['q-2'],
+    };
+    expect(output.specPath).toMatch(/\.md$/);
+  });
+
+  it('validates against spec-integration-output schema', () => {
+    const output: SpecIntegrationOutput = {
+      specPath: 'specs/todo.md',
+      changeSummary: ['Added scope section'],
+      resolvedQuestionIds: [],
+      remainingQuestionIds: [],
+    };
+    const validator = createSpecDocValidator();
+    const result = validator.validateParsed(output, SCHEMA_IDS.specIntegrationOutput);
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('ConsistencyCheckOutput', () => {
+  it('satisfies shape with follow-up questions', () => {
+    const output: ConsistencyCheckOutput = {
+      blockingIssues: [
+        { id: 'issue-1', description: 'Missing scope', severity: 'high', section: 'scope' },
+      ],
+      followUpQuestions: [
+        {
+          questionId: 'q-1',
+          kind: 'issue-resolution',
+          prompt: 'What is the project scope?',
+          options: [
+            { id: 1, label: 'Web app', description: 'Pros: broad reach. Cons: browser limits.' },
+            { id: 2, label: 'CLI tool', description: 'Pros: scriptable. Cons: no GUI.' },
+          ],
+        },
+      ],
+      readinessChecklist: {
+        hasScopeAndObjective: false,
+        hasNonGoals: true,
+        hasConstraintsAndAssumptions: true,
+        hasInterfacesOrContracts: false,
+        hasTestableAcceptanceCriteria: false,
+      },
+    };
+    expect(output.blockingIssues).toHaveLength(1);
+    expect(output.followUpQuestions[0]!.kind).toBe('issue-resolution');
+  });
+
+  it('allows empty follow-up questions (completion path)', () => {
+    const output: ConsistencyCheckOutput = {
+      blockingIssues: [],
+      followUpQuestions: [],
+      readinessChecklist: {
+        hasScopeAndObjective: true,
+        hasNonGoals: true,
+        hasConstraintsAndAssumptions: true,
+        hasInterfacesOrContracts: true,
+        hasTestableAcceptanceCriteria: true,
+      },
+    };
+    expect(output.followUpQuestions).toHaveLength(0);
+  });
+});
+
+describe('CustomPromptClassificationOutput', () => {
+  it('represents clarifying-question intent', () => {
+    const output: CustomPromptClassificationOutput = {
+      intent: 'clarifying-question',
+      clarifyingQuestionText: 'What database should we use?',
+    };
+    expect(output.intent).toBe('clarifying-question');
+  });
+
+  it('represents custom-answer intent', () => {
+    const output: CustomPromptClassificationOutput = {
+      intent: 'custom-answer',
+      customAnswerText: 'Use PostgreSQL for the database.',
+    };
+    expect(output.intent).toBe('custom-answer');
+  });
+});
+
+describe('ClarificationFollowUpOutput', () => {
+  it('wraps a base numbered question item', () => {
+    const output: ClarificationFollowUpOutput = {
+      followUpQuestion: {
+        questionId: 'q-2',
+        prompt: 'Which database engine?',
+        options: [
+          { id: 1, label: 'PostgreSQL' },
+          { id: 2, label: 'SQLite' },
+        ],
+      },
+    };
+    expect(output.followUpQuestion.questionId).toBe('q-2');
+  });
+});
+
+describe('NumberedQuestionItem', () => {
+  it('conforms to app-builder extended question shape', () => {
+    const item: NumberedQuestionItem = {
+      questionId: 'q-1',
+      kind: 'issue-resolution',
+      prompt: 'Clarify scope',
+      options: [
+        { id: 1, label: 'Option A', description: 'Pros: X. Cons: Y.' },
+        { id: 2, label: 'Option B', description: 'Pros: A. Cons: B.' },
+      ],
+    };
+    expect(item.kind).toBe('issue-resolution');
+    expect(item.options).toHaveLength(2);
+  });
+
+  it('supports completion-confirmation kind', () => {
+    const item: NumberedQuestionItem = {
+      questionId: 'q-done',
+      kind: 'completion-confirmation',
+      prompt: 'Is the spec ready?',
+      options: [
+        { id: 1, label: 'Yes, spec is done' },
+        { id: 2, label: 'No, need more work' },
+      ],
+    };
+    expect(item.kind).toBe('completion-confirmation');
+  });
+});
+
+describe('QuestionQueueItem', () => {
+  it('extends NumberedQuestionItem with answered flag', () => {
+    const item: QuestionQueueItem = {
+      questionId: 'q-1',
+      kind: 'issue-resolution',
+      prompt: 'Clarify scope',
+      options: [
+        { id: 1, label: 'Option A' },
+        { id: 2, label: 'Option B' },
+      ],
+      answered: false,
+    };
+    expect(item.answered).toBe(false);
+  });
+});

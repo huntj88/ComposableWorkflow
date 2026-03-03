@@ -7,10 +7,10 @@
 Establish all shared contracts and schema-validation guardrails required by `app-builder.spec-doc.v1` before FSM behavior implementation begins.
 
 ## Implementation Tasks
-- [ ] Define shared TypeScript contracts for workflow input/output, normalized answers, queue items, and integration input.
-- [ ] Wire canonical schema loading/lookup for all required spec-doc schemas.
-- [ ] Implement reusable JSON parse + schema validation utilities with deterministic error payloads.
-- [ ] Add schema/contract unit tests for valid and invalid fixtures.
+- [x] Define shared TypeScript contracts for workflow input/output, normalized answers, queue items, and integration input.
+- [x] Wire canonical schema loading/lookup for all required spec-doc schemas.
+- [x] Implement reusable JSON parse + schema validation utilities with deterministic error payloads.
+- [x] Add schema/contract unit tests for valid and invalid fixtures.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/contracts.ts`
