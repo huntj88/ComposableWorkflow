@@ -8,10 +8,10 @@
 Create `app-builder.spec-doc.v1` as a declarative FSM workflow with canonical states, transition guards, and persistent state data structures.
 
 ## Implementation Tasks
-- [ ] Register workflow identity/version in package manifest and exports.
-- [ ] Implement FSM state enum and transition map for canonical flow.
-- [ ] Define state data model for queue, normalized answers, counters, and artifacts.
-- [ ] Add transition tests for core state reachability and invariant edges.
+- [x] Register workflow identity/version in package manifest and exports.
+- [x] Implement FSM state enum and transition map for canonical flow.
+- [x] Define state data model for queue, normalized answers, counters, and artifacts.
+- [x] Add transition tests for core state reachability and invariant edges.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/workflow.ts`
