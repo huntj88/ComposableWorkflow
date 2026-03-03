@@ -10,10 +10,10 @@
 Build deterministic harness components required by the integration plan: copilot double, feedback controller, queue inspector, and observability capture sink.
 
 ## Implementation Tasks
-- [ ] Implement deterministic `app-builder.copilot.prompt.v1` test double with per-state response/failure injection.
-- [ ] Implement feedback response controller for valid/invalid/concurrent submission permutations.
-- [ ] Implement queue state inspector with ordering/insertion/immutability introspection.
-- [ ] Implement observability capture sink with event/template/schema outcome assertions.
+- [x] Implement deterministic `app-builder.copilot.prompt.v1` test double with per-state response/failure injection.
+- [x] Implement feedback response controller for valid/invalid/concurrent submission permutations.
+- [x] Implement queue state inspector with ordering/insertion/immutability introspection.
+- [x] Implement observability capture sink with event/template/schema outcome assertions.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/test/integration/harness/spec-doc/copilot-double.ts`
