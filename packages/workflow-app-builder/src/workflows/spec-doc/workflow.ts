@@ -17,6 +17,7 @@ import type { SpecDocGenerationInput, SpecDocGenerationOutput } from './contract
 import type { SpecDocState } from './state-data.js';
 import { createInitialStateData } from './state-data.js';
 import { handleIntegrateIntoSpec } from './states/integrate-into-spec.js';
+import { handleLogicalConsistencyCheck } from './states/logical-consistency-check.js';
 
 // ---------------------------------------------------------------------------
 // 4) Workflow Identity
@@ -141,9 +142,7 @@ export function createSpecDocWorkflowDefinition(): WorkflowDefinition<
 
       IntegrateIntoSpec: handleIntegrateIntoSpec,
 
-      LogicalConsistencyCheckCreateFollowUpQuestions: (_ctx) => {
-        // Stub – implemented in later TSD
-      },
+      LogicalConsistencyCheckCreateFollowUpQuestions: handleLogicalConsistencyCheck,
 
       NumberedOptionsHumanRequest: (_ctx) => {
         // Stub – implemented in later TSD

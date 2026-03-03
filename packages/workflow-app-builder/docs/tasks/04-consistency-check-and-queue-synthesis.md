@@ -8,14 +8,14 @@
 Implement `LogicalConsistencyCheckCreateFollowUpQuestions` with deterministic output validation, queue ordering, and completion-confirmation synthesis.
 
 ## Implementation Tasks
-- [ ] Delegate consistency check via `spec-doc.consistency-check.v1` with required schema.
-- [ ] Supply `{{remainingQuestionIdsJson}}` template variable from persisted integration output `remainingQuestionIds`.
-- [ ] Validate `followUpQuestions` against schema and numbered item rules.
-- [ ] Validate that generated option `description` fields include concise `Pros:` and `Cons:` content per spec section 6.4.
-- [ ] Deterministically sort queue by `questionId`.
-- [ ] Synthesize exactly one completion-confirmation question when follow-up list is empty, with an explicit "spec is done" option.
-- [ ] Force transition target to `NumberedOptionsHumanRequest` regardless of model output content.
-- [ ] Increment `consistencyCheckPasses` counter on successful schema-valid delegation.
+- [x] Delegate consistency check via `spec-doc.consistency-check.v1` with required schema.
+- [x] Supply `{{remainingQuestionIdsJson}}` template variable from persisted integration output `remainingQuestionIds`.
+- [x] Validate `followUpQuestions` against schema and numbered item rules.
+- [x] Validate that generated option `description` fields include concise `Pros:` and `Cons:` content per spec section 6.4.
+- [x] Deterministically sort queue by `questionId`.
+- [x] Synthesize exactly one completion-confirmation question when follow-up list is empty, with an explicit "spec is done" option.
+- [x] Force transition target to `NumberedOptionsHumanRequest` regardless of model output content.
+- [x] Increment `consistencyCheckPasses` counter on successful schema-valid delegation.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/states/logical-consistency-check.ts`
