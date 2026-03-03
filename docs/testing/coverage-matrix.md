@@ -144,6 +144,25 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | Spec-9.2-RequiredMetricsSet | integration | packages/workflow-server/test/integration/observability/required-metrics.spec.ts | T18 | implemented | required |
 | Spec-6.7-CLIInspectionScope | integration | apps/workflow-cli/test/contract/runs-tree.spec.ts | T18 | implemented | required |
 
+### Spec-doc workflow integration (`ITX-SD-*`)
+
+| RequirementID | Suite | PlannedTestFile | OwnerTask | Status | FeatureGate |
+|---|---|---|---|---|---|
+| ITX-SD-001 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-001.spec.ts | TSD10 | implemented | required |
+| ITX-SD-002 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-002.spec.ts | TSD10 | implemented | required |
+| ITX-SD-003 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-003.spec.ts | TSD10 | implemented | required |
+| ITX-SD-004 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-004.spec.ts | TSD10 | implemented | required |
+| ITX-SD-005 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-005.spec.ts | TSD10 | implemented | required |
+| ITX-SD-006 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-006.spec.ts | TSD10 | implemented | required |
+| ITX-SD-007 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-007.spec.ts | TSD10 | implemented | required |
+| ITX-SD-008 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-008.spec.ts | TSD10 | implemented | required |
+| ITX-SD-009 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-009.spec.ts | TSD10 | implemented | required |
+| ITX-SD-010 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-010.spec.ts | TSD10 | implemented | required |
+| ITX-SD-011 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-011.spec.ts | TSD10 | implemented | required |
+| ITX-SD-012 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-012.spec.ts | TSD10 | implemented | required |
+| ITX-SD-013 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-013.spec.ts | TSD10 | implemented | required |
+| ITX-SD-014 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-014.spec.ts | TSD10 | implemented | required |
+
 ## Update Rules
 - Update `Status` to `implemented` when file exists with active test cases.
 - Update `Status` to `passing` only after CI passes on the owning suite.

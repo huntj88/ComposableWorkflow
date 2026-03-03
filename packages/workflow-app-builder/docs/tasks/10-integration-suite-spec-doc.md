@@ -13,11 +13,11 @@
 Implement deterministic integration coverage for all integration-primary and shared items in `spec-doc-integration-tests.md`, including recovery/ordering/failure matrices.
 
 ## Implementation Tasks
-- [ ] Implement `ITX-SD-001..014` test files with behavior-ID tagging.
-- [ ] Cover all schema failure injections across delegated states.
-- [ ] Cover queue ordering, insertion, immutability, and recovery behavior.
-- [ ] Cover loop boundary, completion cardinality permutations, custom routing matrix, and copilot failure propagation.
-- [ ] Cover prompt template ID traceability and fixed consistency-check routing.
+- [x] Implement `ITX-SD-001..014` test files with behavior-ID tagging.
+- [x] Cover all schema failure injections across delegated states.
+- [x] Cover queue ordering, insertion, immutability, and recovery behavior.
+- [x] Cover loop boundary, completion cardinality permutations, custom routing matrix, and copilot failure propagation.
+- [x] Cover prompt template ID traceability and fixed consistency-check routing.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-001.spec.ts`
