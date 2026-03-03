@@ -10,14 +10,14 @@
 Implement the locked MVP server-owned human-feedback workflow contract (`server.human-feedback.v1`), canonical event lifecycle, and transactional projection materialization in `human_feedback_requests`.
 
 ## Implementation Tasks
-- [ ] Implement and auto-register internal package workflow `server.human-feedback.v1` at server bootstrap as required startup behavior.
-- [ ] Enforce request contract for numbered options:
+- [x] Implement and auto-register internal package workflow `server.human-feedback.v1` at server bootstrap as required startup behavior.
+- [x] Enforce request contract for numbered options:
   - `options` required,
   - option `id` values are unique contiguous integers starting at `1`,
   - `questionId` required and stable for run lifecycle.
 - [ ] Emit feedback lifecycle events using generic `payload` envelope only (`human-feedback.requested|received|cancelled`), with no typed `humanFeedback` field additions.
 - [ ] Materialize `human_feedback_requests` projection with required columns/indexes/constraints and same-transaction writes with feedback event appends (Postgres MVP requirement).
-- [ ] Enforce first terminal outcome wins (`responded` or `cancelled`) with no-op behavior for competing terminalization attempts.
+- [x] Enforce first terminal outcome wins (`responded` or `cancelled`) with no-op behavior for competing terminalization attempts.
 - [ ] Keep canonical source-of-truth in `workflow_events`; ensure projection derivation matches event progression.
 
 ## Required Artifacts

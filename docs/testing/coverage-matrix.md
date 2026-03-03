@@ -105,6 +105,16 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | ITX-017 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-017.spec.ts | T14 | implemented | required |
 | ITX-018 | integration | packages/workflow-server/test/integration/itx.persistence.ITX-018.spec.ts | T14 | implemented | required |
 | ITX-019 | integration | packages/workflow-server/test/integration/itx.lifecycle.ITX-019.spec.ts | T15 | implemented | required |
+| ITX-021 | integration | packages/workflow-server/test/integration/human-feedback/projection-transactionality.spec.ts | T22 | implemented | required |
+| ITX-025 | integration | packages/workflow-server/test/integration/human-feedback/numbering-contract.spec.ts | T22 | implemented | required |
+| ITX-027 | integration | packages/workflow-server/test/integration/human-feedback/numbering-contract.spec.ts | T22 | implemented | required |
+| ITX-028 | integration | packages/workflow-server/test/integration/human-feedback/projection-transactionality.spec.ts | T22 | implemented | required |
+| B-HFB-001 | integration | packages/workflow-server/test/integration/human-feedback/numbering-contract.spec.ts | T22 | implemented | required |
+| B-HFB-005 | integration | packages/workflow-server/test/integration/human-feedback/projection-transactionality.spec.ts | T22 | implemented | required |
+| B-HFB-008 | integration | packages/workflow-server/test/integration/human-feedback/numbering-contract.spec.ts | T22 | implemented | required |
+| B-HFB-009 | integration | packages/workflow-server/test/integration/human-feedback/projection-transactionality.spec.ts | T22 | implemented | required |
+| B-HFB-010 | integration | packages/workflow-server/test/integration/human-feedback/projection-transactionality.spec.ts | T22 | implemented | required |
+| B-DATA-004 | integration | packages/workflow-server/test/integration/human-feedback/projection-transactionality.spec.ts | T22 | implemented | required |
 | LifecycleStart-001-NoPendingQueue | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
 | LifecycleStart-002-ImmediateStepHandoff | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
 | LifecycleStart-004-ExecutionStartCheckpoint | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |

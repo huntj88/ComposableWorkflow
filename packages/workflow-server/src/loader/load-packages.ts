@@ -47,6 +47,7 @@ export interface LoadWorkflowPackagesResult {
 export interface LoadWorkflowPackagesOptions {
   sources: WorkflowPackageSource[];
   collisionPolicy?: WorkflowTypeCollisionPolicy;
+  registry?: WorkflowRegistry;
   pool?: Pool;
   definitionRepository?: DefinitionRepository;
   logger?: LoaderLogger;
@@ -129,7 +130,7 @@ export const loadWorkflowPackages = async (
   options: LoadWorkflowPackagesOptions,
 ): Promise<LoadWorkflowPackagesResult> => {
   const collisionPolicy = options.collisionPolicy ?? 'reject';
-  const registry = createWorkflowRegistry(collisionPolicy);
+  const registry = options.registry ?? createWorkflowRegistry(collisionPolicy);
   const definitionRepository = options.definitionRepository ?? createDefinitionRepository();
   const logger = options.logger ?? defaultLogger;
   const loaded: LoadedPackageDiagnostic[] = [];

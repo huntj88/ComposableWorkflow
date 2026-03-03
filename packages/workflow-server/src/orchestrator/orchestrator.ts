@@ -8,6 +8,10 @@ import type { CommandRunnerAdapter } from '../command/command-runner.js';
 import { withTransaction, type DbClient } from '../persistence/db.js';
 import { createEventRepository, type EventRepository } from '../persistence/event-repository.js';
 import {
+  createHumanFeedbackProjectionRepository,
+  type HumanFeedbackProjectionRepository,
+} from '../persistence/human-feedback-projection-repository.js';
+import {
   createIdempotencyRepository,
   type IdempotencyRepository,
 } from '../persistence/idempotency-repository.js';
@@ -35,6 +39,7 @@ export interface OrchestratorDependencies {
   lockProvider: LockProvider;
   runRepository?: RunRepository;
   eventRepository?: EventRepository;
+  humanFeedbackProjectionRepository?: HumanFeedbackProjectionRepository;
   idempotencyRepository?: IdempotencyRepository;
   now?: () => Date;
   runIdFactory?: () => string;
@@ -49,6 +54,8 @@ export interface OrchestratorDependencies {
 export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator => {
   const runRepository = deps.runRepository ?? createRunRepository();
   const eventRepository = deps.eventRepository ?? createEventRepository();
+  const humanFeedbackProjectionRepository =
+    deps.humanFeedbackProjectionRepository ?? createHumanFeedbackProjectionRepository();
   const idempotencyRepository = deps.idempotencyRepository ?? createIdempotencyRepository();
   const ownerIdFactory = deps.ownerIdFactory ?? defaultOwnerIdFactory;
   const lockTtlMs = deps.lockTtlMs ?? 30_000;
@@ -135,6 +142,7 @@ export const createOrchestrator = (deps: OrchestratorDependencies): Orchestrator
                 registry: deps.registry,
                 runRepository,
                 eventRepository,
+                humanFeedbackProjectionRepository,
                 idempotencyRepository,
                 commandPolicy: deps.commandPolicy,
                 commandRunner: deps.commandRunner,

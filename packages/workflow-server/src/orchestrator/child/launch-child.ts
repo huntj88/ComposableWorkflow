@@ -1,10 +1,15 @@
 import type { DbClient } from '../../persistence/db.js';
 import type { EventRepository, PersistedEvent } from '../../persistence/event-repository.js';
+import type { HumanFeedbackProjectionRepository } from '../../persistence/human-feedback-projection-repository.js';
 import type { IdempotencyRepository } from '../../persistence/idempotency-repository.js';
 import type { RunRepository, RunSummary } from '../../persistence/run-repository.js';
 import type { WorkflowRegistry } from '../../registry/workflow-registry.js';
 import type { WorkflowLifecycle } from '../../lifecycle/lifecycle-machine.js';
 import { defaultRunIdFactory } from '../start-run.js';
+import {
+  parseHumanFeedbackRequestInput,
+  SERVER_HUMAN_FEEDBACK_WORKFLOW_TYPE,
+} from '../../internal-workflows/human-feedback/contracts.js';
 import {
   toChildLifecyclePayload,
   type ChildLaunchRequest,
@@ -130,6 +135,7 @@ export interface LaunchChildDependencies {
   registry: WorkflowRegistry;
   runRepository: RunRepository;
   eventRepository: EventRepository;
+  humanFeedbackProjectionRepository?: HumanFeedbackProjectionRepository;
   idempotencyRepository: IdempotencyRepository;
   now: () => Date;
   eventIdFactory: () => string;
@@ -221,6 +227,45 @@ export const launchChild = async (params: {
         ...(params.request.input !== undefined ? { input: params.request.input } : {}),
       },
     });
+
+    if (params.request.workflowType === SERVER_HUMAN_FEEDBACK_WORKFLOW_TYPE) {
+      const requestInput = parseHumanFeedbackRequestInput(params.request.input);
+      const requestedAt = params.deps.now().toISOString();
+      const requestedEvent = await params.deps.eventRepository.appendEvent(params.client, {
+        eventId: params.deps.eventIdFactory(),
+        runId: childRun.runId,
+        eventType: 'human-feedback.requested',
+        timestamp: requestedAt,
+        payload: {
+          feedbackRunId: childRun.runId,
+          parentRunId: params.parentRun.runId,
+          parentWorkflowType: params.parentRun.workflowType,
+          parentState: params.parentRun.currentState,
+          questionId: requestInput.questionId,
+          prompt: requestInput.prompt,
+          options: requestInput.options,
+          constraints: requestInput.constraints ?? null,
+          correlationId: requestInput.correlationId ?? params.request.correlationId ?? null,
+          requestedByRunId: requestInput.requestedByRunId,
+          requestedByWorkflowType: requestInput.requestedByWorkflowType,
+          requestedByState: requestInput.requestedByState ?? null,
+        },
+      });
+
+      await params.deps.humanFeedbackProjectionRepository?.recordRequested(params.client, {
+        feedbackRunId: childRun.runId,
+        parentRunId: params.parentRun.runId,
+        parentWorkflowType: params.parentRun.workflowType,
+        parentState: params.parentRun.currentState,
+        questionId: requestInput.questionId,
+        requestEventId: requestedEvent.eventId,
+        prompt: requestInput.prompt,
+        options: requestInput.options,
+        constraints: requestInput.constraints,
+        correlationId: requestInput.correlationId ?? params.request.correlationId,
+        requestedAt,
+      });
+    }
   }
 
   const parentStartedEvent = await params.deps.eventRepository.appendEvent(params.client, {

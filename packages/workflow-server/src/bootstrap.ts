@@ -29,6 +29,7 @@ import {
   createInstrumentedEventRepository,
   createWorkflowInstrumentationAdapter,
 } from './observability/instrumentation-adapter.js';
+import { registerInternalWorkflows } from './bootstrap/register-internal-workflows.js';
 
 export interface BootstrapResult {
   server: Awaited<ReturnType<typeof createApiServer>>;
@@ -83,19 +84,24 @@ export const bootstrapWorkflowServer = async (
     : createDbConnection(options.poolConfig ?? {});
 
   let registry = options.registry;
+  const collisionPolicy = options.collisionPolicy ?? config.collisionPolicy;
+
   if (!registry) {
     const packageSources = options.packageSources ?? config.workflowPackages;
 
-    if (packageSources.length === 0) {
-      registry = createWorkflowRegistry(options.collisionPolicy ?? config.collisionPolicy);
-    } else {
-      const packageResult = await loadWorkflowPackages({
+    registry = createWorkflowRegistry(collisionPolicy);
+    registerInternalWorkflows(registry);
+
+    if (packageSources.length > 0) {
+      await loadWorkflowPackages({
         sources: packageSources,
-        collisionPolicy: options.collisionPolicy ?? config.collisionPolicy,
+        collisionPolicy,
+        registry,
         pool: db.pool,
       });
-      registry = packageResult.registry;
     }
+  } else {
+    registerInternalWorkflows(registry);
   }
 
   const runRepository = options.adapters?.runRepository ?? createRunRepository();

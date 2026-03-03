@@ -1,5 +1,6 @@
 import type { DbClient } from '../persistence/db.js';
 import type { EventRepository } from '../persistence/event-repository.js';
+import type { HumanFeedbackProjectionRepository } from '../persistence/human-feedback-projection-repository.js';
 import type { WorkflowLifecycle } from '../lifecycle/lifecycle-machine.js';
 import { appendWorkflowLifecycleEvent } from '../lifecycle/lifecycle-events.js';
 import type { IdempotencyRepository } from '../persistence/idempotency-repository.js';
@@ -21,6 +22,10 @@ import {
 import { redactPayloadFields } from '../command/redaction.js';
 import { truncateCommandPayload } from '../command/truncation.js';
 import { awaitChild } from './child/await-child.js';
+import {
+  parseHumanFeedbackRequestInput,
+  SERVER_HUMAN_FEEDBACK_WORKFLOW_TYPE,
+} from '../internal-workflows/human-feedback/contracts.js';
 import {
   assertChildLaunchAllowed,
   toChildLaunchRequest,
@@ -122,6 +127,7 @@ export interface TransitionRunnerDependencies {
   registry: WorkflowRegistry;
   runRepository: RunRepository;
   eventRepository: EventRepository;
+  humanFeedbackProjectionRepository?: HumanFeedbackProjectionRepository;
   idempotencyRepository: IdempotencyRepository;
   commandPolicy?: CommandPolicy;
   commandRunner?: CommandRunnerAdapter;
@@ -154,6 +160,43 @@ const toFailure = (error: unknown): WorkflowFailure => {
 
 const isTerminalLifecycle = (lifecycle: string): boolean =>
   lifecycle === 'completed' || lifecycle === 'failed' || lifecycle === 'cancelled';
+
+const appendHumanFeedbackCancelled = async (params: {
+  client: DbClient;
+  run: RunSummary;
+  eventRepository: EventRepository;
+  humanFeedbackProjectionRepository?: HumanFeedbackProjectionRepository;
+  now: () => Date;
+  eventIdFactory: () => string;
+  input: unknown;
+}): Promise<void> => {
+  if (params.run.workflowType !== SERVER_HUMAN_FEEDBACK_WORKFLOW_TYPE) {
+    return;
+  }
+
+  const requestInput = parseHumanFeedbackRequestInput(params.input);
+  const cancelledAt = params.now().toISOString();
+
+  await params.eventRepository.appendEvent(params.client, {
+    eventId: params.eventIdFactory(),
+    runId: params.run.runId,
+    eventType: 'human-feedback.cancelled',
+    timestamp: cancelledAt,
+    payload: {
+      feedbackRunId: params.run.runId,
+      parentRunId: params.run.parentRunId,
+      questionId: requestInput.questionId,
+      requestedByRunId: requestInput.requestedByRunId,
+      requestedByWorkflowType: requestInput.requestedByWorkflowType,
+      requestedByState: requestInput.requestedByState ?? null,
+    },
+  });
+
+  await params.humanFeedbackProjectionRepository?.recordCancelled(params.client, {
+    feedbackRunId: params.run.runId,
+    cancelledAt,
+  });
+};
 
 const applyLifecycleSafePoint = async (params: {
   client: DbClient;
@@ -361,6 +404,16 @@ const createExecutionContext = (
     }
 
     if (latestRun.lifecycle === 'cancelling') {
+      await appendHumanFeedbackCancelled({
+        client,
+        run: latestRun,
+        eventRepository: deps.eventRepository,
+        humanFeedbackProjectionRepository: deps.humanFeedbackProjectionRepository,
+        now,
+        eventIdFactory: deps.eventIdFactory,
+        input,
+      });
+
       await deps.eventRepository.appendEvent(client, {
         eventId: deps.eventIdFactory(),
         runId: latestRun.runId,
@@ -527,6 +580,7 @@ const createExecutionContext = (
           registry: deps.registry,
           runRepository: deps.runRepository,
           eventRepository: deps.eventRepository,
+          humanFeedbackProjectionRepository: deps.humanFeedbackProjectionRepository,
           idempotencyRepository: deps.idempotencyRepository,
           now,
           eventIdFactory: deps.eventIdFactory,
@@ -818,6 +872,16 @@ export const runTransitionStep = async (params: {
   }
 
   if (params.run.lifecycle === 'cancelling') {
+    await appendHumanFeedbackCancelled({
+      client: params.client,
+      run: params.run,
+      eventRepository: params.deps.eventRepository,
+      humanFeedbackProjectionRepository: params.deps.humanFeedbackProjectionRepository,
+      now,
+      eventIdFactory: params.deps.eventIdFactory,
+      input: resolvedInput,
+    });
+
     await params.deps.eventRepository.appendEvent(params.client, {
       eventId: params.deps.eventIdFactory(),
       runId: params.run.runId,
