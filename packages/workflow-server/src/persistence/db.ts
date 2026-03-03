@@ -8,15 +8,23 @@ export interface DbConnection {
 }
 
 export const createPool = (config: PoolConfig = {}): Pool => {
-  if (config.connectionString) {
-    return new Pool(config);
-  }
+  const pool = config.connectionString
+    ? new Pool(config)
+    : new Pool({
+        connectionString:
+          process.env.DATABASE_URL ?? 'postgresql://workflow:workflow@localhost:5432/workflow',
+        ...config,
+      });
 
-  return new Pool({
-    connectionString:
-      process.env.DATABASE_URL ?? 'postgresql://workflow:workflow@localhost:5432/workflow',
-    ...config,
+  // Prevent unhandled 'error' events from becoming uncaught exceptions.
+  // Idle clients that receive backend errors (e.g. 57P01 admin shutdown)
+  // emit on the pool; without a listener Node escalates to process crash.
+  pool.on('error', () => {
+    // Intentionally swallowed – the pool will remove the dead client
+    // automatically and provision a new one on the next checkout.
   });
+
+  return pool;
 };
 
 export const createDbConnection = (config: PoolConfig = {}): DbConnection => {
