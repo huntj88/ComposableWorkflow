@@ -7,13 +7,13 @@
 Implement `IntegrateIntoSpec` state execution including initial-pass and feedback-pass normalization, schema-validated output handling, and spec path carry-forward.
 
 ## Implementation Tasks
-- [ ] Build `IntegrateIntoSpecInput` from workflow input on first pass and normalized answers on later passes.
-- [ ] Delegate prompt execution using template `spec-doc.integrate.v1` and required output schema.
-- [ ] Validate output against `spec-integration-output.schema.json`.
-- [ ] Persist all required output fields from `spec-integration-output.schema.json`: `specPath`, `changeSummary`, `resolvedQuestionIds`, and `remainingQuestionIds`.
-- [ ] Increment integration pass artifact counters.
-- [ ] Pass `inputSchema = spec-integration-input.schema.json` to copilot delegation alongside `outputSchema`.
-- [ ] Forward `copilotPromptOptions` from workflow input to the copilot delegation call.
+- [x] Build `IntegrateIntoSpecInput` from workflow input on first pass and normalized answers on later passes.
+- [x] Delegate prompt execution using template `spec-doc.integrate.v1` and required output schema.
+- [x] Validate output against `spec-integration-output.schema.json`.
+- [x] Persist all required output fields from `spec-integration-output.schema.json`: `specPath`, `changeSummary`, `resolvedQuestionIds`, and `remainingQuestionIds`.
+- [x] Increment integration pass artifact counters.
+- [x] Pass `inputSchema = spec-integration-input.schema.json` to copilot delegation alongside `outputSchema`.
+- [x] Forward `copilotPromptOptions` from workflow input to the copilot delegation call.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/states/integrate-into-spec.ts`

@@ -15,6 +15,8 @@ import type {
 
 import type { SpecDocGenerationInput, SpecDocGenerationOutput } from './contracts.js';
 import type { SpecDocState } from './state-data.js';
+import { createInitialStateData } from './state-data.js';
+import { handleIntegrateIntoSpec } from './states/integrate-into-spec.js';
 
 // ---------------------------------------------------------------------------
 // 4) Workflow Identity
@@ -134,12 +136,10 @@ export function createSpecDocWorkflowDefinition(): WorkflowDefinition<
     transitions: specDocTransitions,
     states: {
       start: (ctx) => {
-        ctx.transition('IntegrateIntoSpec');
+        ctx.transition('IntegrateIntoSpec', createInitialStateData());
       },
 
-      IntegrateIntoSpec: (_ctx) => {
-        // Stub – implemented in later TSD
-      },
+      IntegrateIntoSpec: handleIntegrateIntoSpec,
 
       LogicalConsistencyCheckCreateFollowUpQuestions: (_ctx) => {
         // Stub – implemented in later TSD
