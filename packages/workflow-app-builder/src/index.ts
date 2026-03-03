@@ -12,3 +12,20 @@ export {
   type ValidationError,
   type SpecDocValidator,
 } from './workflows/spec-doc/schema-validation.js';
+
+// Prompt template catalog and copilot delegation (TSD01)
+export {
+  TEMPLATE_IDS,
+  PROMPT_TEMPLATES,
+  type PromptTemplateId,
+  type PromptTemplate,
+  getPromptTemplate,
+  getAllTemplateIds,
+  interpolate,
+} from './workflows/spec-doc/prompt-templates.js';
+export {
+  delegateToCopilot,
+  buildDelegationRequest,
+  type CopilotDelegationRequest,
+  type CopilotDelegationResult,
+} from './workflows/spec-doc/copilot-delegation.js';

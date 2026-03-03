@@ -7,11 +7,11 @@
 Implement the fixed, versioned prompt-template catalog and one delegation path to `app-builder.copilot.prompt.v1` that always supplies state-specific `outputSchema`.
 
 ## Implementation Tasks
-- [ ] Add hardcoded prompt template constants for the four delegated states.
-- [ ] Implement a single delegation helper that injects template ID, interpolation vars, output schema, and optional input schema.
-- [ ] Enforce schema-required delegation calls (no call without `outputSchema`).
-- [ ] Forward `copilotPromptOptions` from `SpecDocGenerationInput` (baseArgs, allowedDirs, timeoutMs, cwd) to all copilot delegation calls.
-- [ ] Add tests verifying template IDs, interpolation, schema argument propagation, and `copilotPromptOptions` pass-through.
+- [x] Add hardcoded prompt template constants for the four delegated states.
+- [x] Implement a single delegation helper that injects template ID, interpolation vars, output schema, and optional input schema.
+- [x] Enforce schema-required delegation calls (no call without `outputSchema`).
+- [x] Forward `copilotPromptOptions` from `SpecDocGenerationInput` (baseArgs, allowedDirs, timeoutMs, cwd) to all copilot delegation calls.
+- [x] Add tests verifying template IDs, interpolation, schema argument propagation, and `copilotPromptOptions` pass-through.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/prompt-templates.ts`
