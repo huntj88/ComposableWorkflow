@@ -7,11 +7,11 @@
 Deliver black-box E2E coverage for all documented spec-doc golden scenarios (`GS-SD-001..005`) using the production server process and HTTP-only assertions.
 
 ## Implementation Tasks
-- [ ] Implement one E2E spec per golden scenario with deterministic fixtures.
-- [ ] Validate event-stream state path assertions per scenario.
-- [ ] Validate child linkage, terminal outputs, and failure payloads at API boundaries.
-- [ ] Add spec-doc waiting-for-feedback cancellation scenario to validate server lifecycle propagation semantics.
-- [ ] Ensure production parity by running suites against separately launched server.
+- [x] Implement one E2E spec per golden scenario with deterministic fixtures.
+- [x] Validate event-stream state path assertions per scenario.
+- [x] Validate child linkage, terminal outputs, and failure payloads at API boundaries.
+- [x] Add spec-doc waiting-for-feedback cancellation scenario to validate server lifecycle propagation semantics.
+- [x] Ensure production parity by running suites against separately launched server.
 
 ## Required Artifacts
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-001-happy-path.spec.ts`

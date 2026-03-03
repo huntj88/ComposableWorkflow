@@ -12,7 +12,7 @@
  * - Event stream shows expected state path.
  * - One feedback child run launched (completion-confirmation).
  * - Terminal output satisfies contract (`status: 'completed'`, `specPath`,
- *   `summary.loopsUsed === 1`).
+ *   `summary.loopsUsed === 0`).
  */
 
 import { randomUUID } from 'node:crypto';

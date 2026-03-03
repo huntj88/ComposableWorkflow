@@ -365,7 +365,7 @@ Must assert:
 - Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → NumberedOptionsHumanRequest → Done`.
 - One feedback child run launched.
 - Terminal output satisfies contract.
-- `summary.loopsUsed === 1`.
+- `summary.loopsUsed === 0` (no clarification self-loops occurred; completion-confirmation does not count as a clarification loop).
 
 ## GS-SD-002: Multi-loop clarification to completion
 1. Start workflow.

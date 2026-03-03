@@ -67,6 +67,7 @@ describe('e2e.blackbox.spec-doc.GS-SD-002', () => {
     };
     expect(output.status).toBe('completed');
     expect(output.specPath).toMatch(/\.md$/);
+    expect(output.summary.loopsUsed).toBeGreaterThanOrEqual(1);
     expect(output.summary.unresolvedQuestions).toBe(0);
     expect(output.artifacts.integrationPasses).toBe(2);
     expect(output.artifacts.consistencyCheckPasses).toBe(2);
