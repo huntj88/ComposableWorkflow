@@ -162,10 +162,11 @@ export async function handleLogicalConsistencyCheck(
   // SD-CHECK-002 / SD-CHECK-003: build deterministic queue (sorts + synthesizes completion)
   const queue = buildQuestionQueue(output.followUpQuestions);
 
-  // SD-CHECK-005: increment consistencyCheckPasses
+  // SD-CHECK-005: increment consistencyCheckPasses, reset queueIndex for new queue
   const updatedStateData: SpecDocStateData = {
     ...stateData,
     queue,
+    queueIndex: 0,
     counters: {
       ...stateData.counters,
       consistencyCheckPasses: stateData.counters.consistencyCheckPasses + 1,

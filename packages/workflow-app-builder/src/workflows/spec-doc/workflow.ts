@@ -18,6 +18,7 @@ import type { SpecDocState } from './state-data.js';
 import { createInitialStateData } from './state-data.js';
 import { handleIntegrateIntoSpec } from './states/integrate-into-spec.js';
 import { handleLogicalConsistencyCheck } from './states/logical-consistency-check.js';
+import { handleNumberedOptionsHumanRequest } from './states/numbered-options-human-request.js';
 
 // ---------------------------------------------------------------------------
 // 4) Workflow Identity
@@ -144,9 +145,7 @@ export function createSpecDocWorkflowDefinition(): WorkflowDefinition<
 
       LogicalConsistencyCheckCreateFollowUpQuestions: handleLogicalConsistencyCheck,
 
-      NumberedOptionsHumanRequest: (_ctx) => {
-        // Stub – implemented in later TSD
-      },
+      NumberedOptionsHumanRequest: handleNumberedOptionsHumanRequest,
 
       ClassifyCustomPrompt: (_ctx) => {
         // Stub – implemented in later TSD

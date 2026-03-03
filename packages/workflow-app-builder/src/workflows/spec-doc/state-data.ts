@@ -57,6 +57,8 @@ export interface SpecDocArtifacts {
 export interface SpecDocStateData {
   /** Deterministic question queue for NumberedOptionsHumanRequest. */
   queue: QuestionQueueItem[];
+  /** Deterministic index pointer into the question queue. */
+  queueIndex: number;
   /** Accumulated normalized answers indexed by questionId appearance order. */
   normalizedAnswers: NormalizedAnswer[];
   /** Persisted loop / pass counters. */
@@ -73,6 +75,7 @@ export interface SpecDocStateData {
 export function createInitialStateData(): SpecDocStateData {
   return {
     queue: [],
+    queueIndex: 0,
     normalizedAnswers: [],
     counters: {
       clarificationLoopsUsed: 0,

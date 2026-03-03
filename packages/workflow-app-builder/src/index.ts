@@ -48,3 +48,11 @@ export {
   type CopilotDelegationRequest,
   type CopilotDelegationResult,
 } from './workflows/spec-doc/copilot-delegation.js';
+
+// Answer accumulation utilities (TSD05)
+export {
+  validateSelectedOptionIds,
+  validateCompletionConfirmationCardinality,
+  createNormalizedAnswer,
+  appendAnswer,
+} from './workflows/spec-doc/answers.js';

@@ -195,6 +195,7 @@ describe('SD-FSM-004 – State Data Backbone', () => {
     const data = createInitialStateData();
 
     expect(data.queue).toEqual([]);
+    expect(data.queueIndex).toBe(0);
     expect(data.normalizedAnswers).toEqual([]);
     expect(data.counters).toEqual({
       clarificationLoopsUsed: 0,

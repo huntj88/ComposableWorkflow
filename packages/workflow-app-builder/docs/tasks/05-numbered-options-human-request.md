@@ -8,12 +8,12 @@
 Implement deterministic per-question queue execution in `NumberedOptionsHumanRequest` with one feedback child run per item and normalized answer accumulation.
 
 ## Implementation Tasks
-- [ ] Launch exactly one `server.human-feedback.v1` child run per queue item (no batching).
-- [ ] Pass stable `questionId` through child input and maintain linkage for diagnostics.
-- [ ] Validate/record accepted responses as normalized answers with timestamps.
-- [ ] Honor feedback API validation boundaries: invalid `selectedOptionIds` and invalid completion-confirmation cardinality do not record answers and keep the question pending.
-- [ ] Enforce self-loop semantics while queued items remain and no custom text classification is pending.
-- [ ] Route to `IntegrateIntoSpec` on queue exhaustion when completion was not confirmed.
+- [x] Launch exactly one `server.human-feedback.v1` child run per queue item (no batching).
+- [x] Pass stable `questionId` through child input and maintain linkage for diagnostics.
+- [x] Validate/record accepted responses as normalized answers with timestamps.
+- [x] Honor feedback API validation boundaries: invalid `selectedOptionIds` and invalid completion-confirmation cardinality do not record answers and keep the question pending.
+- [x] Enforce self-loop semantics while queued items remain and no custom text classification is pending.
+- [x] Route to `IntegrateIntoSpec` on queue exhaustion when completion was not confirmed.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/states/numbered-options-human-request.ts`
