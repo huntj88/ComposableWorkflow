@@ -1,0 +1,6 @@
+{
+  "specPath": "docs/generated-spec.md",
+  "changeSummary": ["Refined spec with accumulated answers from first clarification loop."],
+  "resolvedQuestionIds": ["q-sd-002-a", "q-sd-002-b"],
+  "remainingQuestionIds": []
+}

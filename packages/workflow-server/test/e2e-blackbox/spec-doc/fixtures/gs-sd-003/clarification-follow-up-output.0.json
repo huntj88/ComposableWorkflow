@@ -1,0 +1,18 @@
+{
+  "followUpQuestion": {
+    "questionId": "q-sd-003-b-clarify-1",
+    "prompt": "What are the expected query patterns for this API?",
+    "options": [
+      {
+        "id": 1,
+        "label": "Heavy read, light write",
+        "description": "Pros: Caching-friendly, simpler indexing strategy. Cons: Write bottlenecks under load."
+      },
+      {
+        "id": 2,
+        "label": "Balanced read/write",
+        "description": "Pros: General-purpose optimization. Cons: No single optimization wins."
+      }
+    ]
+  }
+}

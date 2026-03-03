@@ -136,6 +136,7 @@ export async function handleNumberedOptionsHumanRequest(
     childOutput = await ctx.launchChild<HumanFeedbackChildInput, HumanFeedbackChildOutput>({
       workflowType: SERVER_HUMAN_FEEDBACK_WORKFLOW_TYPE,
       input: childInput,
+      idempotencyKey: `spec-doc:feedback:${ctx.runId}:${currentItem.questionId}`,
     });
   } catch (err) {
     ctx.fail(

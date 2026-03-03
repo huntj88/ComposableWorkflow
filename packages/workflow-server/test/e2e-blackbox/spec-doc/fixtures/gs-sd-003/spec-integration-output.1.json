@@ -1,0 +1,6 @@
+{
+  "specPath": "docs/generated-spec.md",
+  "changeSummary": ["Refined spec with custom answers and clarification responses."],
+  "resolvedQuestionIds": ["q-sd-003-a", "q-sd-003-b", "q-sd-003-b-clarify-1", "q-sd-003-c"],
+  "remainingQuestionIds": []
+}

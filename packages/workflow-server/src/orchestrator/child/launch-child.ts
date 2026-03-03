@@ -145,7 +145,7 @@ export interface LaunchChildDependencies {
 export interface LaunchChildResult {
   childRun: RunSummary;
   childLifecyclePayload: ChildLifecyclePayload;
-  startedParentEvent: PersistedEvent;
+  startedParentEvent: PersistedEvent | null;
 }
 
 export const launchChild = async (params: {
@@ -268,22 +268,27 @@ export const launchChild = async (params: {
     }
   }
 
-  const parentStartedEvent = await params.deps.eventRepository.appendEvent(params.client, {
-    eventId: params.deps.eventIdFactory(),
-    runId: params.parentRun.runId,
-    eventType: 'child.started',
-    timestamp: params.deps.now().toISOString(),
-    payload: {
-      ...toChildLifecyclePayload(
-        childRun.runId,
-        childRun.workflowType,
-        childRun.lifecycle as WorkflowLifecycle,
-      ),
-    },
-  });
+  // Only emit child.started event and lineage entry for newly created children.
+  // For idempotent re-entry (decision === 'existing') these already exist.
+  let startedParentEvent: PersistedEvent | undefined;
 
-  await params.client.query(
-    `
+  if (decision.decision === 'create') {
+    startedParentEvent = await params.deps.eventRepository.appendEvent(params.client, {
+      eventId: params.deps.eventIdFactory(),
+      runId: params.parentRun.runId,
+      eventType: 'child.started',
+      timestamp: params.deps.now().toISOString(),
+      payload: {
+        ...toChildLifecyclePayload(
+          childRun.runId,
+          childRun.workflowType,
+          childRun.lifecycle as WorkflowLifecycle,
+        ),
+      },
+    });
+
+    await params.client.query(
+      `
 INSERT INTO workflow_run_children (
   parent_run_id,
   child_run_id,
@@ -297,16 +302,17 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (parent_run_id, child_run_id)
 DO NOTHING
 `,
-    [
-      params.parentRun.runId,
-      childRun.runId,
-      params.parentRun.workflowType,
-      childRun.workflowType,
-      params.parentRun.currentState,
-      params.deps.now().toISOString(),
-      parentStartedEvent.eventId,
-    ],
-  );
+      [
+        params.parentRun.runId,
+        childRun.runId,
+        params.parentRun.workflowType,
+        childRun.workflowType,
+        params.parentRun.currentState,
+        params.deps.now().toISOString(),
+        startedParentEvent.eventId,
+      ],
+    );
+  }
 
   return {
     childRun,
@@ -315,6 +321,6 @@ DO NOTHING
       childRun.workflowType,
       childRun.lifecycle as WorkflowLifecycle,
     ),
-    startedParentEvent: parentStartedEvent,
+    startedParentEvent: startedParentEvent ?? null,
   };
 };

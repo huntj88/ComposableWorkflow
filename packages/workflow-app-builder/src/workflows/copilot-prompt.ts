@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { Readable, Writable } from 'node:stream';
 
@@ -254,6 +256,97 @@ export const toSchemaFollowUpPrompt = (schema: string): string =>
 
 export const parseStructuredOutput = (raw: string): unknown => JSON.parse(raw.trim());
 
+// ---------------------------------------------------------------------------
+// Fixture mode for deterministic E2E testing
+// ---------------------------------------------------------------------------
+
+const COPILOT_FIXTURE_DIR = process.env.COPILOT_FIXTURE_DIR;
+
+/** Per-(fixtureDir, schemaKey) FIFO counter for sequenced fixture responses. */
+const fixtureCounters = new Map<string, number>();
+
+/**
+ * Extract a fixture key from the outputSchema JSON string by parsing the `$id`
+ * field. Falls back to `'default'` if no `$id` is found.
+ *
+ * Example `$id`:
+ *   `https://composable-workflow.local/schemas/app-builder/spec-doc/spec-integration-output.schema.json`
+ * Extracted key: `spec-integration-output`
+ */
+export function extractFixtureKey(outputSchema: string | undefined): string {
+  if (!outputSchema) return 'default';
+  try {
+    const schema = JSON.parse(outputSchema) as { $id?: string };
+    if (schema.$id) {
+      const basename = schema.$id.split('/').pop() ?? '';
+      return basename.replace(/\.schema\.json$/, '') || 'default';
+    }
+  } catch {
+    /* ignore parse errors */
+  }
+  return 'default';
+}
+
+interface FixtureEntry {
+  __fixture_fail?: boolean;
+  message?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Load the next fixture response for the given schema key from `fixtureDir`.
+ * Supports two file layouts:
+ *   1. Sequenced: `<key>.0.json`, `<key>.1.json`, … — one response per file.
+ *   2. Array: `<key>.json` containing a JSON array of responses.
+ *
+ * When the counter exceeds available sequenced files the counter automatically
+ * wraps back to 0 so that subsequent workflow runs against the same fixture
+ * directory reuse the fixtures without requiring an explicit reset.
+ *
+ * Returns the parsed fixture object (used as `structuredOutput`).
+ * Throws if no fixture file is found at all for the given key.
+ */
+export function loadNextFixture(fixtureDir: string, schemaKey: string): FixtureEntry {
+  const counterKey = `${fixtureDir}::${schemaKey}`;
+  const counter = fixtureCounters.get(counterKey) ?? 0;
+  fixtureCounters.set(counterKey, counter + 1);
+
+  // Try sequenced file first: <key>.<counter>.json
+  const seqPath = path.join(fixtureDir, `${schemaKey}.${counter}.json`);
+  if (existsSync(seqPath)) {
+    return JSON.parse(readFileSync(seqPath, 'utf-8')) as FixtureEntry;
+  }
+
+  // Counter exceeded available sequenced files — wrap back to 0 and retry.
+  if (counter > 0) {
+    const zeroPath = path.join(fixtureDir, `${schemaKey}.0.json`);
+    if (existsSync(zeroPath)) {
+      fixtureCounters.set(counterKey, 0);
+      return loadNextFixture(fixtureDir, schemaKey);
+    }
+  }
+
+  // Fall back to array file: <key>.json
+  const arrayPath = path.join(fixtureDir, `${schemaKey}.json`);
+  if (existsSync(arrayPath)) {
+    const content = JSON.parse(readFileSync(arrayPath, 'utf-8')) as FixtureEntry | FixtureEntry[];
+    if (Array.isArray(content)) {
+      if (counter < content.length) return content[counter];
+      return content[content.length - 1]; // clamp to last entry
+    }
+    return content; // single object, always returned
+  }
+
+  throw new Error(
+    `[copilot-fixture] No fixture found for key "${schemaKey}" at index ${counter} in ${fixtureDir}`,
+  );
+}
+
+/** Reset all fixture counters (used in tests). */
+export function resetFixtureCounters(): void {
+  fixtureCounters.clear();
+}
+
 export const createCopilotAppBuilderDefinition = (): WorkflowDefinition<
   CopilotAppBuilderInput,
   CopilotAppBuilderOutput
@@ -262,6 +355,32 @@ export const createCopilotAppBuilderDefinition = (): WorkflowDefinition<
   transitions: copilotAppBuilderTransitions,
   states: {
     start: async (ctx) => {
+      // ---- Fixture mode ----
+      if (COPILOT_FIXTURE_DIR) {
+        const fixtureDir = ctx.input.cwd ?? COPILOT_FIXTURE_DIR;
+        const schemaKey = extractFixtureKey(ctx.input.outputSchema);
+        const fixture = loadNextFixture(fixtureDir, schemaKey);
+
+        if (fixture.__fixture_fail) {
+          ctx.fail(
+            new Error(fixture.message ?? `[copilot-fixture] Simulated failure for ${schemaKey}`),
+          );
+          return;
+        }
+
+        const structuredOutputRaw = JSON.stringify(fixture);
+        ctx.transition('finalize', {
+          stdout: `[copilot-fixture] Loaded fixture for ${schemaKey}`,
+          stderr: '',
+          exitCode: 0,
+          sessionId: `fixture-${schemaKey}`,
+          structuredOutputRaw,
+          structuredOutput: fixture,
+        });
+        return;
+      }
+
+      // ---- Normal execution ----
       const result = await executeWithCopilotAcp(ctx.input);
 
       if (!ctx.input.outputSchema) {

@@ -293,6 +293,22 @@ class SafePointInterruption extends Error {
   }
 }
 
+/**
+ * Thrown by `ctx.launchChild` when the child cannot make synchronous progress
+ * (e.g. it is waiting for external human-feedback input).  The transition
+ * runner treats this as a suspension signal: the parent run stays `running` at
+ * its current state and will be re-driven when the child completes.
+ */
+export class ChildSuspendedError extends Error {
+  readonly childRunId: string;
+
+  constructor(childRunId: string) {
+    super(`Child run ${childRunId} is suspended awaiting external input`);
+    this.name = 'ChildSuspendedError';
+    this.childRunId = childRunId;
+  }
+}
+
 const resolveTransitionName = (
   descriptors: readonly WorkflowTransitionDescriptor[] | undefined,
   from: string,
@@ -366,11 +382,19 @@ const createExecutionContext = (
   readCompletionIntent: () => CompletionIntent | undefined;
   readFailureIntent: () => FailureIntent | undefined;
   flushPendingLogs: () => Promise<void>;
+  isChildSuspended: () => boolean;
 } => {
   let transitionIntent: TransitionIntent | undefined;
   let completionIntent: CompletionIntent | undefined;
   let failureIntent: FailureIntent | undefined;
-  const pendingLogWrites: Promise<void>[] = [];
+  let childSuspended = false;
+  const pendingLogEntries: Array<{
+    eventId: string;
+    runId: string;
+    eventType: 'log';
+    timestamp: string;
+    payload: Record<string, unknown>;
+  }> = [];
   const now = deps.now ?? (() => new Date());
   const commandPolicy = deps.commandPolicy ?? defaultCommandPolicy();
   const commandRunner = deps.commandRunner ?? createSpawnCommandRunnerAdapter();
@@ -527,12 +551,14 @@ const createExecutionContext = (
   };
 
   const flushPendingLogs = async (): Promise<void> => {
-    if (pendingLogWrites.length === 0) {
+    if (pendingLogEntries.length === 0) {
       return;
     }
 
-    const writes = pendingLogWrites.splice(0, pendingLogWrites.length);
-    await Promise.all(writes);
+    const entries = pendingLogEntries.splice(0, pendingLogEntries.length);
+    for (const entry of entries) {
+      await deps.eventRepository.appendEvent(client, entry);
+    }
   };
 
   const context: RuntimeWorkflowContext<unknown, unknown> = {
@@ -543,24 +569,18 @@ const createExecutionContext = (
     log: (event) => {
       const normalized = normalizeWorkflowLog(event);
 
-      const write = deps.eventRepository
-        .appendEvent(client, {
-          eventId: deps.eventIdFactory(),
-          runId: run.runId,
-          eventType: 'log',
-          timestamp: now().toISOString(),
-          payload: {
-            level: normalized.level,
-            severity: normalized.level,
-            message: normalized.message,
-            metadata: normalized.metadata,
-          },
-        })
-        .then(() => {
-          return;
-        });
-
-      pendingLogWrites.push(write);
+      pendingLogEntries.push({
+        eventId: deps.eventIdFactory(),
+        runId: run.runId,
+        eventType: 'log',
+        timestamp: now().toISOString(),
+        payload: {
+          level: normalized.level,
+          severity: normalized.level,
+          message: normalized.message,
+          metadata: normalized.metadata,
+        },
+      });
     },
     transition: (to, data) => {
       ensureNoResolutionConflict('transition');
@@ -606,6 +626,13 @@ const createExecutionContext = (
           childRunId: childRun.runId,
         });
 
+        // Child is waiting for external input — signal suspension to the
+        // transition runner without emitting child.completed / child.failed.
+        if (awaited.waiting) {
+          childSuspended = true;
+          throw new ChildSuspendedError(childRun.runId);
+        }
+
         await deps.eventRepository.appendEvent(client, {
           eventId: deps.eventIdFactory(),
           runId: run.runId,
@@ -620,6 +647,11 @@ const createExecutionContext = (
 
         return awaited.output as CO;
       } catch (error) {
+        // Child suspended — propagate without emitting child.failed.
+        if (error instanceof ChildSuspendedError) {
+          throw error;
+        }
+
         const latestChild = await deps.runRepository.getRunSummary(client, childRun.runId);
         const childLifecycle = latestChild?.lifecycle ?? 'failed';
 
@@ -786,6 +818,7 @@ const createExecutionContext = (
     readCompletionIntent: () => completionIntent,
     readFailureIntent: () => failureIntent,
     flushPendingLogs,
+    isChildSuspended: () => childSuspended,
   };
 };
 
@@ -917,6 +950,7 @@ export const runTransitionStep = async (params: {
     readFailureIntent,
     readTransitionIntent,
     flushPendingLogs,
+    isChildSuspended,
   } = createExecutionContext(params.client, params.deps, params.run, resolvedInput);
 
   const definition = registration.factory(context) as RuntimeWorkflowDefinition<unknown, unknown>;
@@ -962,6 +996,15 @@ export const runTransitionStep = async (params: {
       return resolvedError.result;
     }
 
+    // Child waiting for external input — parent suspends at current state.
+    if (resolvedError instanceof ChildSuspendedError) {
+      return {
+        run: params.run,
+        progressed: false,
+        terminal: false,
+      };
+    }
+
     const failedRun = await failRun({
       client: params.client,
       run: params.run,
@@ -977,6 +1020,17 @@ export const runTransitionStep = async (params: {
       run: failedRun,
       progressed: true,
       terminal: true,
+    };
+  }
+
+  // A child is waiting for external input (e.g. human-feedback).  The handler
+  // may have caught the ChildSuspendedError and called ctx.fail(), but the
+  // suspension takes priority — the parent must park, not fail.
+  if (isChildSuspended()) {
+    return {
+      run: params.run,
+      progressed: false,
+      terminal: false,
     };
   }
 

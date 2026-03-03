@@ -163,6 +163,17 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | ITX-SD-013 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-013.spec.ts | TSD10 | implemented | required |
 | ITX-SD-014 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-014.spec.ts | TSD10 | implemented | required |
 
+### Spec-doc E2E golden scenarios (`GS-SD-*`, `SD-E2E-*`)
+
+| RequirementID | Suite | PlannedTestFile | OwnerTask | Status | FeatureGate |
+|---|---|---|---|---|---|
+| SD-E2E-001-HappyPathCompletion | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-001-happy-path.spec.ts | TSD11 | implemented | required |
+| SD-E2E-002-MultiLoopCompletion | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-002-multi-loop.spec.ts | TSD11 | implemented | required |
+| SD-E2E-003-CustomPromptRoundTrip | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-003-custom-roundtrip.spec.ts | TSD11 | implemented | required |
+| SD-E2E-004-LoopExceededFailure | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-004-loop-exceeded.spec.ts | TSD11 | implemented | required |
+| SD-E2E-005-CopilotFailurePropagation | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-005-copilot-failure-propagation.spec.ts | TSD11 | implemented | required |
+| SD-E2E-006-FeedbackCancellationLifecycle | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/spec-doc-feedback-cancellation.spec.ts | TSD11 | implemented | required |
+
 ## Update Rules
 - Update `Status` to `implemented` when file exists with active test cases.
 - Update `Status` to `passing` only after CI passes on the owning suite.

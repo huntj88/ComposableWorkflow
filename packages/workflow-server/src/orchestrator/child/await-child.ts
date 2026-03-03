@@ -86,6 +86,10 @@ export interface AwaitChildDependencies {
 export interface AwaitChildResult {
   childRun: RunSummary;
   output: unknown;
+  /** When `true` the child is alive but cannot make further progress on its own
+   *  (e.g. it is waiting for external input such as a human-feedback response).
+   *  The caller should treat this as a suspension signal rather than an error. */
+  waiting?: boolean;
 }
 
 export const awaitChild = async (params: {
@@ -120,9 +124,11 @@ export const awaitChild = async (params: {
     childRun = stepResult.run;
 
     if (!stepResult.progressed && !stepResult.terminal) {
-      throw new Error(
-        `Child run ${childRun.runId} is still active but made no progress during synchronous await`,
-      );
+      return {
+        childRun,
+        output: undefined,
+        waiting: true,
+      };
     }
   }
 

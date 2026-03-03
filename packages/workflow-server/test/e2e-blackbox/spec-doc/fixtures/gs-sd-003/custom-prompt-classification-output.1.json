@@ -1,0 +1,4 @@
+{
+  "intent": "clarifying-question",
+  "clarifyingQuestionText": "Can you elaborate on the expected query patterns for the REST vs GraphQL decision?"
+}
