@@ -6,6 +6,7 @@ import {
   sliceAcpPromptOutput,
   toCopilotAcpLaunchArgs,
   toSchemaFollowUpPrompt,
+  toSchemaRetryPrompt,
 } from '../../src/workflows/copilot-prompt.js';
 
 describe('toCopilotAcpLaunchArgs', () => {
@@ -46,6 +47,14 @@ describe('schema helpers', () => {
     const prompt = toSchemaFollowUpPrompt('{"field":""}');
     expect(prompt).toContain('Return only valid JSON');
     expect(prompt).toContain('{"field":""}');
+  });
+
+  it('builds a schema retry prompt that includes the previous output and schema', () => {
+    const prompt = toSchemaRetryPrompt('{"field":"string"}', '{"field":123}');
+    expect(prompt).toContain('previous JSON response was invalid');
+    expect(prompt).toContain('{"field":123}');
+    expect(prompt).toContain('Return only valid JSON');
+    expect(prompt).toContain('{"field":"string"}');
   });
 
   it('parses structured JSON output', () => {

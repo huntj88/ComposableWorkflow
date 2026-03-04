@@ -127,6 +127,8 @@ interface AcpExecutionResult {
   sessionId: string;
   initialOutputText: string;
   followUpOutputText?: string;
+  structuredOutput?: unknown;
+  structuredOutputRaw?: string;
   stderr: string;
 }
 
@@ -227,16 +229,63 @@ const executeWithCopilotAcp = async (
           };
         }
 
-        const followUpStart = transcriptText.length;
-        await connection.prompt({
-          sessionId: session.sessionId,
-          prompt: [{ type: 'text', text: toSchemaFollowUpPrompt(input.outputSchema) }],
-        });
+        // Schema follow-up with in-session retry on validation failure
+        let lastFollowUpOutput = '';
+        for (let attempt = 0; attempt <= MAX_SCHEMA_RETRIES; attempt++) {
+          const followUpStart = transcriptText.length;
+          const followUpPrompt =
+            attempt === 0
+              ? toSchemaFollowUpPrompt(input.outputSchema)
+              : toSchemaRetryPrompt(input.outputSchema, lastFollowUpOutput);
+          await connection.prompt({
+            sessionId: session.sessionId,
+            prompt: [{ type: 'text', text: followUpPrompt }],
+          });
+          lastFollowUpOutput = sliceAcpPromptOutput(transcriptText, followUpStart);
 
+          const raw = lastFollowUpOutput.trim();
+          let parsed: unknown;
+          try {
+            parsed = parseStructuredOutput(raw);
+          } catch {
+            // Not valid JSON — retry within this session
+            if (attempt < MAX_SCHEMA_RETRIES) continue;
+            return {
+              sessionId: session.sessionId,
+              initialOutputText,
+              followUpOutputText: lastFollowUpOutput,
+              stderr: stderrChunks.join(''),
+            };
+          }
+
+          const validationError = validateAgainstOutputSchema(parsed, input.outputSchema);
+          if (validationError) {
+            // Schema invalid — retry within this session
+            if (attempt < MAX_SCHEMA_RETRIES) continue;
+            return {
+              sessionId: session.sessionId,
+              initialOutputText,
+              followUpOutputText: lastFollowUpOutput,
+              stderr: stderrChunks.join(''),
+            };
+          }
+
+          // Valid — return early with parsed output
+          return {
+            sessionId: session.sessionId,
+            initialOutputText,
+            followUpOutputText: raw,
+            structuredOutput: parsed,
+            structuredOutputRaw: raw,
+            stderr: stderrChunks.join(''),
+          };
+        }
+
+        // Fallback (should not be reached)
         return {
           sessionId: session.sessionId,
           initialOutputText,
-          followUpOutputText: sliceAcpPromptOutput(transcriptText, followUpStart),
+          followUpOutputText: lastFollowUpOutput,
           stderr: stderrChunks.join(''),
         };
       })(),
@@ -252,6 +301,16 @@ export const toSchemaFollowUpPrompt = (schema: string): string =>
   [
     'Use the work completed earlier in this Copilot session to fill this output template.',
     'Return only valid JSON and no markdown code fences.',
+    schema,
+  ].join('\n\n');
+
+export const toSchemaRetryPrompt = (schema: string, previousOutput: string): string =>
+  [
+    'Your previous JSON response was invalid. Here is what you returned:',
+    '```',
+    previousOutput,
+    '```',
+    'Fix the output so it conforms exactly to the required JSON schema. Return only valid JSON and no markdown code fences.',
     schema,
   ].join('\n\n');
 
@@ -417,69 +476,64 @@ export const createCopilotAppBuilderDefinition = (): WorkflowDefinition<
       }
 
       // ---- Normal execution ----
-      let lastValidationError: string | null = null;
+      const result = await executeWithCopilotAcp(ctx.input);
 
-      for (let attempt = 0; attempt <= MAX_SCHEMA_RETRIES; attempt++) {
-        if (attempt > 0) {
-          ctx.log({
-            level: 'warn',
-            message: `Retrying copilot execution (attempt ${attempt + 1}/${MAX_SCHEMA_RETRIES + 1}) due to schema validation failure: ${lastValidationError}`,
-          });
-        }
-
-        const result = await executeWithCopilotAcp(ctx.input);
-
-        if (!ctx.input.outputSchema) {
-          ctx.transition('finalize', {
-            stdout: result.initialOutputText,
-            stderr: result.stderr,
-            exitCode: 0,
-            sessionId: result.sessionId,
-          });
-          return;
-        }
-
-        const structuredOutputRaw = result.followUpOutputText?.trim() ?? '';
-        let structuredOutput: unknown;
-        try {
-          structuredOutput = parseStructuredOutput(structuredOutputRaw);
-        } catch {
-          lastValidationError = 'Response was not valid JSON';
-          if (attempt < MAX_SCHEMA_RETRIES) continue;
-          ctx.fail(
-            new Error(
-              `Copilot follow-up response for outputSchema was not valid JSON after ${MAX_SCHEMA_RETRIES + 1} attempts. Ensure schema requests JSON-only output.`,
-            ),
-          );
-          return;
-        }
-
-        // Validate structuredOutput against the provided outputSchema
-        const validationError = validateAgainstOutputSchema(
-          structuredOutput,
-          ctx.input.outputSchema,
-        );
-        if (validationError) {
-          lastValidationError = validationError;
-          if (attempt < MAX_SCHEMA_RETRIES) continue;
-          ctx.fail(
-            new Error(
-              `Copilot structured output failed schema validation after ${MAX_SCHEMA_RETRIES + 1} attempts: ${validationError}`,
-            ),
-          );
-          return;
-        }
-
+      if (!ctx.input.outputSchema) {
         ctx.transition('finalize', {
           stdout: result.initialOutputText,
           stderr: result.stderr,
           exitCode: 0,
           sessionId: result.sessionId,
-          structuredOutputRaw,
-          structuredOutput,
         });
         return;
       }
+
+      // If executeWithCopilotAcp already validated & parsed, use that directly
+      if (result.structuredOutput !== undefined) {
+        ctx.transition('finalize', {
+          stdout: result.initialOutputText,
+          stderr: result.stderr,
+          exitCode: 0,
+          sessionId: result.sessionId,
+          structuredOutputRaw: result.structuredOutputRaw,
+          structuredOutput: result.structuredOutput,
+        });
+        return;
+      }
+
+      // All in-session retries exhausted — report the final failure
+      const structuredOutputRaw = result.followUpOutputText?.trim() ?? '';
+      let structuredOutput: unknown;
+      try {
+        structuredOutput = parseStructuredOutput(structuredOutputRaw);
+      } catch {
+        ctx.fail(
+          new Error(
+            `Copilot follow-up response for outputSchema was not valid JSON after ${MAX_SCHEMA_RETRIES + 1} attempts. Ensure schema requests JSON-only output.`,
+          ),
+        );
+        return;
+      }
+
+      const validationError = validateAgainstOutputSchema(structuredOutput, ctx.input.outputSchema);
+      if (validationError) {
+        ctx.fail(
+          new Error(
+            `Copilot structured output failed schema validation after ${MAX_SCHEMA_RETRIES + 1} attempts: ${validationError}`,
+          ),
+        );
+        return;
+      }
+
+      // Should not reach here, but handle gracefully
+      ctx.transition('finalize', {
+        stdout: result.initialOutputText,
+        stderr: result.stderr,
+        exitCode: 0,
+        sessionId: result.sessionId,
+        structuredOutputRaw,
+        structuredOutput,
+      });
     },
     finalize: (ctx, data) => {
       const result = data as

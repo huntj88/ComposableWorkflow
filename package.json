@@ -16,6 +16,7 @@
     "ci:e2e:blackbox": "pnpm --filter @composable-workflow/workflow-server test:e2e:blackbox && pnpm ci:contract && pnpm --filter @composable-workflow/workflow-cli test:e2e:blackbox",
     "ci:sse": "pnpm --filter workflow-server test:system -- api-read.spec.ts",
     "lint": "pnpm -r lint",
+    "db:truncate": "docker compose exec -T postgres psql -U workflow -d workflow -c \"TRUNCATE workflow_events, workflow_snapshots, workflow_run_children, workflow_idempotency, human_feedback_requests, workflow_runs, workflow_definitions CASCADE;\"",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "prepare": "husky"
