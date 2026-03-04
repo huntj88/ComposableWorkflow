@@ -21,12 +21,12 @@ This was observed in production run `wr_01KJWQGTZR2CQSTWWCK67QS7Y4` where a `com
 ```
 
 ## Implementation Tasks
-- [ ] In `NumberedOptionsHumanRequest`: change the `queueIndex >= queue.length` guard from a hard fail to queue-exhaustion evaluation.
+- [x] In `NumberedOptionsHumanRequest`: change the `queueIndex >= queue.length` guard from a hard fail to queue-exhaustion evaluation.
   - If any answered item is the completion-confirmation question with the done option (option 1) selected → transition to `Done`.
   - Otherwise → transition to `IntegrateIntoSpec` with accumulated normalized answers.
-- [ ] Keep `queue.length === 0` as a hard fail (truly empty queue is still an error).
-- [ ] Add unit tests for the re-entry routing branches in `numbered-options-human-request.test.ts`.
-- [ ] Verify existing tests still pass (no changes to `ClassifyCustomPrompt`).
+- [x] Keep `queue.length === 0` as a hard fail (truly empty queue is still an error).
+- [x] Add unit tests for the re-entry routing branches in `numbered-options-human-request.test.ts`.
+- [x] Verify existing tests still pass (no changes to `ClassifyCustomPrompt`).
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/states/numbered-options-human-request.ts` (modify)

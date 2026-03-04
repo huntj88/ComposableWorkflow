@@ -788,16 +788,19 @@ describe('Error handling', () => {
     expect(error.message).toContain('Queue is empty');
   });
 
-  it('fails when queueIndex is out of bounds', async () => {
-    const stateData = stateDataWithQueue([makeQueueItem('q-1')], { queueIndex: 5 });
+  it('does NOT fail when queueIndex is past end — routes via exhaustion logic', async () => {
+    const stateData = stateDataWithQueue([makeQueueItem('q-1', { answered: true })], {
+      queueIndex: 1,
+      normalizedAnswers: [createNormalizedAnswer('q-1', [2], '2026-03-03T12:00:00Z')],
+    });
 
-    const { ctx, failSpy } = createMockContext();
+    const { ctx, failSpy, transitionSpy } = createMockContext();
 
     await handleNumberedOptionsHumanRequest(ctx, stateData);
 
-    expect(failSpy).toHaveBeenCalledTimes(1);
-    const error = failSpy.mock.calls[0][0] as Error;
-    expect(error.message).toContain('out of bounds');
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', expect.any(Object));
   });
 
   it('fails when child launch throws an error', async () => {
@@ -857,6 +860,162 @@ describe('Error handling', () => {
     expect(failSpy).toHaveBeenCalledTimes(1);
     const error = failSpy.mock.calls[0][0] as Error;
     expect(error.message).toContain('Queue is empty');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// B-SD-TRANS-012: Re-entry with exhausted queue (queue-exhaustion routing)
+// ---------------------------------------------------------------------------
+
+describe('B-SD-TRANS-012-ExhaustedQueueReEntry', () => {
+  it('routes to IntegrateIntoSpec when re-entered with exhausted queue (no completion-confirmation done)', async () => {
+    // Simulate: single question answered, ClassifyCustomPrompt returned to us
+    // with queueIndex already past end.
+    const stateData = stateDataWithQueue([makeQueueItem('q-1', { answered: true })], {
+      queueIndex: 1,
+      normalizedAnswers: [
+        createNormalizedAnswer('q-1', [2], '2026-03-03T12:00:00Z', 'custom text'),
+      ],
+    });
+
+    const { ctx, failSpy, transitionSpy, launchChildSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(launchChildSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', stateData);
+  });
+
+  it('routes to Done when re-entered with exhausted queue and completion-confirmation done option was selected', async () => {
+    // Simulate: completion-confirmation was answered with option 1 (done) + custom text,
+    // ClassifyCustomPrompt classified as custom-answer and returned.
+    const completionItem = makeCompletionItem();
+    completionItem.answered = true;
+    const stateData = stateDataWithQueue([completionItem], {
+      queueIndex: 1,
+      normalizedAnswers: [
+        createNormalizedAnswer(
+          COMPLETION_CONFIRMATION_QUESTION_ID,
+          [1],
+          '2026-03-03T12:00:00Z',
+          'Looks great, ship it!',
+        ),
+      ],
+    });
+
+    const { ctx, failSpy, transitionSpy, launchChildSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(launchChildSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith('Done', stateData);
+  });
+
+  it('routes to IntegrateIntoSpec when completion-confirmation selected option 2 (not done)', async () => {
+    const completionItem = makeCompletionItem();
+    completionItem.answered = true;
+    const stateData = stateDataWithQueue([completionItem], {
+      queueIndex: 1,
+      normalizedAnswers: [
+        createNormalizedAnswer(
+          COMPLETION_CONFIRMATION_QUESTION_ID,
+          [2],
+          '2026-03-03T12:00:00Z',
+          'Need more refinement',
+        ),
+      ],
+    });
+
+    const { ctx, failSpy, transitionSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', stateData);
+  });
+
+  it('still hard-fails when queue is truly empty (length 0)', async () => {
+    const stateData = stateDataWithQueue([], { queueIndex: 0 });
+
+    const { ctx, failSpy, transitionSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).not.toHaveBeenCalled();
+    const error = failSpy.mock.calls[0][0] as Error;
+    expect(error.message).toContain('Queue is empty');
+  });
+
+  it('does not launch any child run when queue is exhausted on re-entry', async () => {
+    const stateData = stateDataWithQueue(
+      [makeQueueItem('q-1', { answered: true }), makeQueueItem('q-2', { answered: true })],
+      {
+        queueIndex: 2,
+        normalizedAnswers: [
+          createNormalizedAnswer('q-1', [1], '2026-03-03T11:00:00Z'),
+          createNormalizedAnswer('q-2', [2], '2026-03-03T12:00:00Z', 'custom text'),
+        ],
+      },
+    );
+
+    const { ctx, failSpy, launchChildSpy, transitionSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(launchChildSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', stateData);
+  });
+
+  it('passes state data unchanged to transition target on exhaustion re-entry', async () => {
+    const answers = [
+      createNormalizedAnswer('q-1', [1], '2026-03-03T11:00:00Z'),
+      createNormalizedAnswer('q-1', [2], '2026-03-03T12:00:00Z', 'supplementary'),
+    ];
+    const stateData = stateDataWithQueue([makeQueueItem('q-1', { answered: true })], {
+      queueIndex: 1,
+      normalizedAnswers: answers,
+    });
+
+    const { ctx, transitionSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    const passedData = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(passedData).toBe(stateData); // same reference, not modified
+    expect(passedData.normalizedAnswers).toHaveLength(2);
+  });
+
+  it('uses the LAST completion-confirmation answer for routing (multiple answers for same questionId)', async () => {
+    // Edge case: completion-confirmation answered twice (e.g., first said done, then
+    // a subsequent cycle appended a not-done answer). The LAST one wins.
+    const completionItem = makeCompletionItem();
+    completionItem.answered = true;
+    const stateData = stateDataWithQueue([completionItem], {
+      queueIndex: 1,
+      normalizedAnswers: [
+        createNormalizedAnswer(COMPLETION_CONFIRMATION_QUESTION_ID, [1], '2026-03-03T11:00:00Z'),
+        createNormalizedAnswer(
+          COMPLETION_CONFIRMATION_QUESTION_ID,
+          [2],
+          '2026-03-03T12:00:00Z',
+          'Actually no, keep going',
+        ),
+      ],
+    });
+
+    const { ctx, transitionSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    // Last answer selected option 2 → IntegrateIntoSpec, not Done
+    expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', stateData);
   });
 });
 

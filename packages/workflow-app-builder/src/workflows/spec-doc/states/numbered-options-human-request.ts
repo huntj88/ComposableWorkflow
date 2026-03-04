@@ -93,14 +93,46 @@ export async function handleNumberedOptionsHumanRequest(
   const { queue, queueIndex } = stateData;
 
   // ---------------------------------------------------------------------------
-  // Guard: queue must have items at the current index
+  // Guard: truly empty queue is always a hard fail
   // ---------------------------------------------------------------------------
-  if (queue.length === 0 || queueIndex >= queue.length) {
-    ctx.fail(
-      new Error(
-        `[${NUMBERED_OPTIONS_HUMAN_REQUEST_STATE}] Queue is empty or index ${queueIndex} is out of bounds (queue size: ${queue.length})`,
-      ),
+  if (queue.length === 0) {
+    ctx.fail(new Error(`[${NUMBERED_OPTIONS_HUMAN_REQUEST_STATE}] Queue is empty (queue size: 0)`));
+    return;
+  }
+
+  // ---------------------------------------------------------------------------
+  // B-SD-TRANS-012: Re-entry with exhausted queue → evaluate routing
+  // ---------------------------------------------------------------------------
+  if (queueIndex >= queue.length) {
+    // Check if any normalized answer for the completion-confirmation question
+    // selected the "done" option (option 1).
+    const completionAnswer = stateData.normalizedAnswers.findLast(
+      (a) => a.questionId === COMPLETION_CONFIRMATION_QUESTION_ID,
     );
+    const completionDone =
+      completionAnswer !== undefined && completionAnswer.selectedOptionIds.includes(1);
+
+    if (completionDone) {
+      ctx.log({
+        level: 'info',
+        message:
+          'Re-entry with exhausted queue: completion-confirmation done option selected, routing to Done',
+        payload: { queueIndex, queueSize: queue.length },
+      });
+      ctx.transition('Done', stateData);
+    } else {
+      ctx.log({
+        level: 'info',
+        message:
+          'Re-entry with exhausted queue: routing to IntegrateIntoSpec with accumulated answers',
+        payload: {
+          queueIndex,
+          queueSize: queue.length,
+          answersCount: stateData.normalizedAnswers.length,
+        },
+      });
+      ctx.transition('IntegrateIntoSpec', stateData);
+    }
     return;
   }
 
