@@ -47,7 +47,7 @@ export interface SpecDocGenerationInput {
   copilotPromptOptions?: {
     baseArgs?: string[];
     allowedDirs?: string[];
-    timeoutMs?: number;
+    timeoutMs?: number; // default: 1_200_000 (20 minutes)
     cwd?: string;
   };
 }
@@ -187,6 +187,7 @@ Per-question execution:
 - For the current queue item, request human feedback through the server-owned feedback workflow.
 - Launch one feedback child run per queue item (no batching of multiple questions into one feedback run).
 - Populate `HumanFeedbackRequestInput.questionId` with the queue item's stable `questionId` when launching each feedback request.
+- The idempotency key for each feedback child run must include the consistency-check pass number to prevent cached responses from prior passes being replayed for structurally identical questions in later passes. Format: `spec-doc:feedback:{runId}:{questionId}:pass-{consistencyCheckPasses}`.
 - Expect server feedback projection persistence to store this value as `human_feedback_requests.question_id` for question-level diagnostics and replay correlation.
 - Accept response payload with `selectedOptionIds?: number[]` and optional `text?: string` custom prompt.
 - Treat invalid `selectedOptionIds` as request-validation errors from the feedback API (no answer recorded; question remains pending until valid response).
@@ -317,8 +318,10 @@ Numbered-options question requirements:
 - Each option should include decision support details by populating `description` with concise `Pros:` and `Cons:` bullets.
 
 Validation behavior:
-- If `structuredOutput` is not valid JSON, fail the run.
-- If JSON is valid but does not satisfy the required schema for the current state, fail the run with schema-validation error details.
+- `app-builder.copilot.prompt.v1` validates `structuredOutput` against the provided `outputSchema` using Ajv2020 before accepting the result.
+- If `structuredOutput` is not valid JSON **or** is valid JSON that does not satisfy the `outputSchema`, the entire copilot ACP execution is retried (up to 3 total attempts: 1 initial + 2 retries).
+- Each retry attempt emits a warn-level log containing the validation error from the previous attempt.
+- If all attempts are exhausted without producing schema-valid output, the run fails with schema-validation error details aggregated from the final attempt.
 
 ## 7.2 Hardcoded Copilot Prompt Templates (MVP)
 

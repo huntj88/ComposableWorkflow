@@ -131,6 +131,7 @@ Each behavior should validate all relevant dimensions:
 **Then** exactly one `server.human-feedback.v1` child run is launched per queue item (no batching)
 **And** `HumanFeedbackRequestInput.questionId` matches the queue item's stable `questionId`
 **And** `human_feedback_requests.question_id` projection stores the same value
+**And** the idempotency key includes the consistency-check pass number (`spec-doc:feedback:{runId}:{questionId}:pass-{consistencyCheckPasses}`) to prevent cached responses from prior passes being replayed for structurally identical questions in later passes
 
 ## B-SD-HFB-002: Invalid selectedOptionIds do not record an answer
 **Given** a pending feedback request with defined option IDs `[1, 2, 3]`
@@ -165,15 +166,19 @@ Each behavior should validate all relevant dimensions:
 **And** `ExpandQuestionWithClarification` validates against `clarification-follow-up-output.schema.json`
 **And** `Done` terminal payload validates against `spec-doc-generation-output.schema.json`
 
-## B-SD-SCHEMA-002: Non-JSON structuredOutput fails the run
+## B-SD-SCHEMA-002: Non-JSON structuredOutput triggers retry then fails
 **Given** `app-builder.copilot.prompt.v1` returns output that is not valid JSON
 **When** output is parsed
-**Then** run transitions to terminal `failed` with parse error details
+**Then** copilot ACP execution is retried up to 3 total attempts (1 initial + 2 retries)
+**And** each retry emits a warn-level log with the parse error from the previous attempt
+**And** if all attempts produce non-JSON output, run transitions to terminal `failed` with parse error details
 
-## B-SD-SCHEMA-003: Schema-valid JSON with wrong structure fails the run
+## B-SD-SCHEMA-003: Schema-valid JSON with wrong structure triggers retry then fails
 **Given** `app-builder.copilot.prompt.v1` returns valid JSON that does not satisfy the state's required schema
-**When** schema validation executes
-**Then** run transitions to terminal `failed` with schema-validation error details
+**When** schema validation executes via Ajv2020 against the provided `outputSchema`
+**Then** copilot ACP execution is retried up to 3 total attempts (1 initial + 2 retries)
+**And** each retry emits a warn-level log with the schema-validation error from the previous attempt
+**And** if all attempts fail schema validation, run transitions to terminal `failed` with schema-validation error details
 **And** error includes the expected schema identifier and actual validation errors
 
 ## B-SD-SCHEMA-004: Numbered question items conform to schema
@@ -216,6 +221,21 @@ Each behavior should validate all relevant dimensions:
 **When** the call is constructed
 **Then** `outputSchema` corresponding to the current state is always provided
 **And** branching uses only schema-validated `structuredOutput` (not unstructured text)
+
+## B-SD-COPILOT-004: Schema validation with auto-retry on copilot output
+**Given** `app-builder.copilot.prompt.v1` returns `structuredOutput` with an `outputSchema` provided
+**When** the output is received
+**Then** `structuredOutput` is validated against the `outputSchema` using Ajv2020 before acceptance
+**And** if validation fails (invalid JSON or schema mismatch), the entire copilot ACP execution is retried
+**And** maximum total attempts is 3 (1 initial + 2 retries)
+**And** each retry attempt emits a warn-level log with the validation error from the previous attempt
+**And** if all attempts are exhausted, run fails with aggregated schema-validation error details
+
+## B-SD-COPILOT-005: Default copilot prompt timeout is 20 minutes
+**Given** `app-builder.copilot.prompt.v1` is invoked without explicit `timeoutMs`
+**When** the copilot ACP execution runs
+**Then** default timeout is 1,200,000 ms (20 minutes)
+**And** timeout is configurable via `copilotPromptOptions.timeoutMs` in `SpecDocGenerationInput`
 
 ---
 
@@ -408,7 +428,7 @@ Must assert:
 3. NumberedOptionsHumanRequest implementation (section 6.4) → `B-SD-HFB-001..004`, `B-SD-QUEUE-001..005`, `B-SD-TRANS-004..007`.
 4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..003`.
 5. Schema validation (section 7.1) → `B-SD-SCHEMA-001..006`.
-6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..003`.
+6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`.
 7. Human feedback boundary (section 8) → `B-SD-HFB-004`.
 8. Observability (section 9) → `B-SD-OBS-001..002`.
 9. Completion criteria (section 10) → `B-SD-DONE-001..003`.

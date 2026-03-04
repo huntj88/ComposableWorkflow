@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { Readable, Writable } from 'node:stream';
 
 import * as acp from '@agentclientprotocol/sdk';
+import { Ajv2020 } from 'ajv/dist/2020.js';
 import type {
   WorkflowDefinition,
   WorkflowRegistration,
@@ -162,7 +163,7 @@ const executeWithCopilotAcp = async (
   };
 
   const connection = new acp.ClientSideConnection((_agent) => client, stream);
-  const timeoutMs = input.timeoutMs ?? 120_000;
+  const timeoutMs = input.timeoutMs ?? 1_200_000;
   let timedOut = false;
 
   const terminateProcess = async (): Promise<void> => {
@@ -255,6 +256,41 @@ export const toSchemaFollowUpPrompt = (schema: string): string =>
   ].join('\n\n');
 
 export const parseStructuredOutput = (raw: string): unknown => JSON.parse(raw.trim());
+
+// ---------------------------------------------------------------------------
+// Schema validation for retry logic
+// ---------------------------------------------------------------------------
+
+const MAX_SCHEMA_RETRIES = 2;
+
+/**
+ * Validate `structuredOutput` against the provided `outputSchema` JSON string.
+ * Returns `null` when valid, or an error message string when invalid.
+ */
+function validateAgainstOutputSchema(
+  structuredOutput: unknown,
+  outputSchemaJson: string,
+): string | null {
+  let schema: Record<string, unknown>;
+  try {
+    schema = JSON.parse(outputSchemaJson) as Record<string, unknown>;
+  } catch {
+    // Cannot parse schema — skip validation (don't block on bad schema input)
+    return null;
+  }
+
+  try {
+    const ajv = new Ajv2020({ strict: false, allErrors: true });
+    const validate = ajv.compile(schema);
+    const valid = validate(structuredOutput);
+    if (valid) return null;
+
+    return ajv.errorsText(validate.errors, { separator: '; ', dataVar: 'data' });
+  } catch {
+    // Schema compilation error — skip validation
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Fixture mode for deterministic E2E testing
@@ -381,39 +417,69 @@ export const createCopilotAppBuilderDefinition = (): WorkflowDefinition<
       }
 
       // ---- Normal execution ----
-      const result = await executeWithCopilotAcp(ctx.input);
+      let lastValidationError: string | null = null;
 
-      if (!ctx.input.outputSchema) {
+      for (let attempt = 0; attempt <= MAX_SCHEMA_RETRIES; attempt++) {
+        if (attempt > 0) {
+          ctx.log({
+            level: 'warn',
+            message: `Retrying copilot execution (attempt ${attempt + 1}/${MAX_SCHEMA_RETRIES + 1}) due to schema validation failure: ${lastValidationError}`,
+          });
+        }
+
+        const result = await executeWithCopilotAcp(ctx.input);
+
+        if (!ctx.input.outputSchema) {
+          ctx.transition('finalize', {
+            stdout: result.initialOutputText,
+            stderr: result.stderr,
+            exitCode: 0,
+            sessionId: result.sessionId,
+          });
+          return;
+        }
+
+        const structuredOutputRaw = result.followUpOutputText?.trim() ?? '';
+        let structuredOutput: unknown;
+        try {
+          structuredOutput = parseStructuredOutput(structuredOutputRaw);
+        } catch {
+          lastValidationError = 'Response was not valid JSON';
+          if (attempt < MAX_SCHEMA_RETRIES) continue;
+          ctx.fail(
+            new Error(
+              `Copilot follow-up response for outputSchema was not valid JSON after ${MAX_SCHEMA_RETRIES + 1} attempts. Ensure schema requests JSON-only output.`,
+            ),
+          );
+          return;
+        }
+
+        // Validate structuredOutput against the provided outputSchema
+        const validationError = validateAgainstOutputSchema(
+          structuredOutput,
+          ctx.input.outputSchema,
+        );
+        if (validationError) {
+          lastValidationError = validationError;
+          if (attempt < MAX_SCHEMA_RETRIES) continue;
+          ctx.fail(
+            new Error(
+              `Copilot structured output failed schema validation after ${MAX_SCHEMA_RETRIES + 1} attempts: ${validationError}`,
+            ),
+          );
+          return;
+        }
+
         ctx.transition('finalize', {
           stdout: result.initialOutputText,
           stderr: result.stderr,
           exitCode: 0,
           sessionId: result.sessionId,
+          structuredOutputRaw,
+          structuredOutput,
         });
         return;
       }
-
-      const structuredOutputRaw = result.followUpOutputText?.trim() ?? '';
-      let structuredOutput: unknown;
-      try {
-        structuredOutput = parseStructuredOutput(structuredOutputRaw);
-      } catch {
-        ctx.fail(
-          new Error(
-            'Copilot follow-up response for outputSchema was not valid JSON. Ensure schema requests JSON-only output.',
-          ),
-        );
-        return;
-      }
-
-      ctx.transition('finalize', {
-        stdout: result.initialOutputText,
-        stderr: result.stderr,
-        exitCode: 0,
-        sessionId: result.sessionId,
-        structuredOutputRaw,
-        structuredOutput,
-      });
     },
     finalize: (ctx, data) => {
       const result = data as
