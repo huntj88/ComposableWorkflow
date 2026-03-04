@@ -13,7 +13,6 @@ This is a greenfield project with no users. Backwards compatibility is not a foc
 ## Server Execution Policy for Agents
 - Agents must not start application servers automatically.
 - If a task requires a running server, agents must:
-  1. Check whether the server is already running.
-  2. If not running, prompt the user to start it.
-  3. Continue only after the user confirms server availability.
+  1. Assume the server is already running.
+  2. If not running, prompt the user to start it. Continue only after the user confirms server availability.
 - Agents may run non-server start commands (build, lint, test, migrations, diagnostics) as needed.

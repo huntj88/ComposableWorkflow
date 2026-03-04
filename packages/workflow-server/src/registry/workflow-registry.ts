@@ -1,10 +1,11 @@
 import type { WorkflowTypeCollisionPolicy } from '../config.js';
+import type { RuntimeWorkflowFactory } from './runtime-types.js';
 import { WorkflowTypeCollisionError } from './errors.js';
 
 export interface WorkflowRegistration {
   workflowType: string;
   workflowVersion: string;
-  factory: (...args: unknown[]) => unknown;
+  factory: RuntimeWorkflowFactory;
   metadata?: {
     displayName?: string;
     tags?: string[];

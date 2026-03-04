@@ -1,31 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 
 import type { WorkflowRegistration } from '../../registry/workflow-registry.js';
-import type { TransitionEdge } from '../../read-models/run-tree-projection.js';
 import { ApiError, type ApiServerDependencies } from '../server.js';
 import { errorEnvelopeSchema, workflowDefinitionSchema } from '../schemas.js';
-
-interface RuntimeWorkflowContext<I = unknown, O = unknown> {
-  runId: string;
-  workflowType: string;
-  input: I;
-  now(): Date;
-  log(event: unknown): void;
-  transition<TState extends string>(to: TState, data?: unknown): void;
-  launchChild<CO>(req: unknown): Promise<CO>;
-  runCommand(req: unknown): Promise<unknown>;
-  complete(output: O): void;
-  fail(error: Error): void;
-}
-
-interface RuntimeWorkflowDefinition<I = unknown, O = unknown> {
-  initialState: string;
-  states: Record<
-    string,
-    (ctx: RuntimeWorkflowContext<I, O>, data?: unknown) => void | Promise<void>
-  >;
-  transitions?: readonly TransitionEdge[];
-}
+import type { RuntimeWorkflowContext } from '../../registry/runtime-types.js';
 
 const createInspectionContext = (
   workflowType: string,
@@ -55,9 +33,7 @@ const createInspectionContext = (
 });
 
 export const inspectRegistrationDefinition = (registration: WorkflowRegistration) => {
-  const definition = registration.factory(
-    createInspectionContext(registration.workflowType),
-  ) as RuntimeWorkflowDefinition;
+  const definition = registration.factory(createInspectionContext(registration.workflowType));
 
   const metadataAnnotations = Array.isArray(registration.metadata?.childLaunchAnnotations)
     ? registration.metadata.childLaunchAnnotations.filter(

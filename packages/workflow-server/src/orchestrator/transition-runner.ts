@@ -32,34 +32,8 @@ import {
   toChildLifecyclePayload,
 } from './child/child-lineage.js';
 import { launchChild } from './child/launch-child.js';
-
-interface WorkflowTransitionDescriptor {
-  from: string;
-  to: string;
-  name?: string;
-}
-
-interface RuntimeWorkflowContext<I = unknown, O = unknown> {
-  runId: string;
-  workflowType: string;
-  input: I;
-  now(): Date;
-  log(event: unknown): void;
-  transition<TState extends string>(to: TState, data?: unknown): void;
-  launchChild<CO>(req: unknown): Promise<CO>;
-  runCommand(req: unknown): Promise<unknown>;
-  complete(output: O): void;
-  fail(error: Error): void;
-}
-
-interface RuntimeWorkflowDefinition<I = unknown, O = unknown> {
-  initialState: string;
-  states: Record<
-    string,
-    (ctx: RuntimeWorkflowContext<I, O>, data?: unknown) => void | Promise<void>
-  >;
-  transitions?: readonly WorkflowTransitionDescriptor[];
-}
+import type { RuntimeWorkflowContext } from '../registry/runtime-types.js';
+import type { WorkflowTransitionDescriptor } from '@composable-workflow/workflow-lib';
 
 interface WorkflowFailure {
   name: string;
@@ -953,7 +927,7 @@ export const runTransitionStep = async (params: {
     isChildSuspended,
   } = createExecutionContext(params.client, params.deps, params.run, resolvedInput);
 
-  const definition = registration.factory(context) as RuntimeWorkflowDefinition<unknown, unknown>;
+  const definition = registration.factory(context);
   const handler = definition.states[params.run.currentState];
   const stateData = await params.deps.eventRepository.getLatestTransitionData?.(
     params.client,

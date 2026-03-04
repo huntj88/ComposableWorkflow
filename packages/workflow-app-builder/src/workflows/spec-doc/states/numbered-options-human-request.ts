@@ -106,9 +106,9 @@ export async function handleNumberedOptionsHumanRequest(
   if (queueIndex >= queue.length) {
     // Check if any normalized answer for the completion-confirmation question
     // selected the "done" option (option 1).
-    const completionAnswer = stateData.normalizedAnswers.findLast(
-      (a) => a.questionId === COMPLETION_CONFIRMATION_QUESTION_ID,
-    );
+    const completionAnswer = [...stateData.normalizedAnswers]
+      .reverse()
+      .find((a) => a.questionId === COMPLETION_CONFIRMATION_QUESTION_ID);
     const completionDone =
       completionAnswer !== undefined && completionAnswer.selectedOptionIds.includes(1);
 

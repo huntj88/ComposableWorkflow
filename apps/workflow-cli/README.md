@@ -59,3 +59,8 @@ pnpm --filter @composable-workflow/workflow-cli run workflow run \
 ]
 }
 }'
+
+pnpm --filter @composable-workflow/workflow-cli run workflow feedback respond \
+ --feedback-run-id wr_01KJX03CX6J87G1V21GHMGJAMJ \
+ --response '{"questionId":"completion-confirmation","selectedOptionIds":[2],"text":"This spec needs to have full implementation details so there is no ambiguity in system design or scope"}' \
+ --responded-by user

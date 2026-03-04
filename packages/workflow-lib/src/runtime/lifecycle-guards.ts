@@ -8,7 +8,6 @@ const ACTION_ALLOWED_LIFECYCLES: Readonly<
   pause: new Set<WorkflowLifecycle>(['running']),
   resume: new Set<WorkflowLifecycle>(['paused']),
   cancel: new Set<WorkflowLifecycle>([
-    'pending',
     'running',
     'pausing',
     'paused',

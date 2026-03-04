@@ -15,27 +15,7 @@ import {
   type ChildLaunchRequest,
   type ChildLifecyclePayload,
 } from './child-lineage.js';
-
-interface RuntimeWorkflowContext<I = unknown, O = unknown> {
-  runId: string;
-  workflowType: string;
-  input: I;
-  now(): Date;
-  log(event: unknown): void;
-  transition<TState extends string>(to: TState, data?: unknown): void;
-  launchChild<CO>(req: unknown): Promise<CO>;
-  runCommand(req: unknown): Promise<unknown>;
-  complete(output: O): void;
-  fail(error: Error): void;
-}
-
-interface RuntimeWorkflowDefinition<I = unknown, O = unknown> {
-  initialState: string;
-  states: Record<
-    string,
-    (ctx: RuntimeWorkflowContext<I, O>, data?: unknown) => void | Promise<void>
-  >;
-}
+import type { RuntimeWorkflowContext } from '../../registry/runtime-types.js';
 
 interface StartDecisionCreate {
   decision: 'create';
@@ -92,7 +72,7 @@ const getInitialState = (params: {
 
   const definition = registration.factory(
     createFactoryContext(params.workflowType, params.runId, params.input),
-  ) as RuntimeWorkflowDefinition<unknown, unknown>;
+  );
 
   if (!definition.initialState || !definition.states[definition.initialState]) {
     throw new Error(

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { RuntimeWorkflowFactory } from '../registry/runtime-types.js';
+
 const metadataSchema = z
   .object({
     displayName: z.string().optional(),
@@ -11,7 +13,7 @@ const metadataSchema = z
 const workflowRegistrationSchema = z.object({
   workflowType: z.string().trim().min(1),
   workflowVersion: z.string().trim().min(1),
-  factory: z.custom<(...args: unknown[]) => unknown>((value) => typeof value === 'function', {
+  factory: z.custom<RuntimeWorkflowFactory>((value) => typeof value === 'function', {
     message: 'factory must be a function',
   }),
   metadata: metadataSchema,
