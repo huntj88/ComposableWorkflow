@@ -38,6 +38,8 @@ function validReadinessChecklist(overrides?: Partial<ReadinessChecklist>): Readi
     hasConstraintsAndAssumptions: true,
     hasInterfacesOrContracts: true,
     hasTestableAcceptanceCriteria: true,
+    hasNoContradictions: true,
+    hasSufficientDetail: true,
     ...overrides,
   };
 }

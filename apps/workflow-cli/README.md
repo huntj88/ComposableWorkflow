@@ -46,14 +46,14 @@ SCHEMA
 pnpm --filter @composable-workflow/workflow-cli run workflow run \
  --type app-builder.spec-doc.v1 \
  --input '{
-"request": "Build a react app that that communicates with workflow-server for workflow visualization of the finite state machines and children, associated metadata, realtime updates, observability, human responses, and other important features for interacting with the server",
+"request": "Build a react app that that communicates with workflow-server for workflow visualization of the finite state machines and children, associated metadata, realtime updates, observability, human responses, and other important features for interacting with the server. In addition to creating the web spec, update the server spec, docs/typescript-server-workflow-spec.md, with the relevant changes to make sure api types are shared using a shared package.",
 "targetPath": "apps/workflow-web/docs/workflow-web-spec.md",
 "constraints": [
 "must be an SPA react app using vite",
 "the changes for the app must be in apps/workflow-web directory"
 ],
 "copilotPromptOptions": {
-"cwd": "/home/jameshunt/Projects/ComposableWorkflow/apps/workflow-web",
+"cwd": "/home/jameshunt/Projects/ComposableWorkflow",
 "allowedDirs": [
 "/home/jameshunt/Projects/ComposableWorkflow"
 ]

@@ -222,6 +222,8 @@ describe('successful schema validation', () => {
         hasConstraintsAndAssumptions: true,
         hasInterfacesOrContracts: true,
         hasTestableAcceptanceCriteria: true,
+        hasNoContradictions: true,
+        hasSufficientDetail: true,
       },
     });
     const result = validator.validate(raw, SCHEMA_IDS.consistencyCheckOutput);
@@ -248,6 +250,8 @@ describe('successful schema validation', () => {
         hasConstraintsAndAssumptions: true,
         hasInterfacesOrContracts: false,
         hasTestableAcceptanceCriteria: false,
+        hasNoContradictions: false,
+        hasSufficientDetail: false,
       },
     });
     const result = validator.validate(raw, SCHEMA_IDS.consistencyCheckOutput);

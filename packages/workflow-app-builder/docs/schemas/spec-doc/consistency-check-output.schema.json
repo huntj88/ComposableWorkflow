@@ -75,7 +75,9 @@
         "hasNonGoals",
         "hasConstraintsAndAssumptions",
         "hasInterfacesOrContracts",
-        "hasTestableAcceptanceCriteria"
+        "hasTestableAcceptanceCriteria",
+        "hasNoContradictions",
+        "hasSufficientDetail"
       ],
       "properties": {
         "hasScopeAndObjective": {
@@ -91,6 +93,12 @@
           "type": "boolean"
         },
         "hasTestableAcceptanceCriteria": {
+          "type": "boolean"
+        },
+        "hasNoContradictions": {
+          "type": "boolean"
+        },
+        "hasSufficientDetail": {
           "type": "boolean"
         }
       }

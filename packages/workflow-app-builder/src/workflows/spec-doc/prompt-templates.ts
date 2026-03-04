@@ -74,7 +74,8 @@ Input context:
 Spec quality requirements:
 - No unresolved contradictions in scope, constraints, or interface contracts.
 - Acceptance criteria must be testable and unambiguous.
-- Keep language implementation-ready and avoid vague statements.`;
+- Keep language implementation-ready and avoid vague statements.
+- Enough detail to implement without ambiguity.`;
 
 // -- 7.2.2 LogicalConsistencyCheckCreateFollowUpQuestions -------------------
 
@@ -93,6 +94,8 @@ Evaluation checklist (must map to readinessChecklist booleans):
 3) Constraints/assumptions explicit.
 4) Interfaces/contracts defined where needed.
 5) Acceptance criteria testable.
+6) No contradictions or unresolved issues.
+7) Enough detail to implement without ambiguity.
 
 Question-generation rules:
 - If blocking issues exist: generate issue-resolution questions for each blocking decision gap.

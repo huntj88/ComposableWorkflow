@@ -108,6 +108,8 @@ export function makeReadinessChecklist(
     hasConstraintsAndAssumptions: true,
     hasInterfacesOrContracts: true,
     hasTestableAcceptanceCriteria: true,
+    hasNoContradictions: true,
+    hasSufficientDetail: true,
     ...overrides,
   };
 }

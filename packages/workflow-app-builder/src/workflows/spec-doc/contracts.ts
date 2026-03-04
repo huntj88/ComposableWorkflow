@@ -109,6 +109,8 @@ export interface ReadinessChecklist {
   hasConstraintsAndAssumptions: boolean;
   hasInterfacesOrContracts: boolean;
   hasTestableAcceptanceCriteria: boolean;
+  hasNoContradictions: boolean;
+  hasSufficientDetail: boolean;
 }
 
 /** A numbered-option for a question item. */

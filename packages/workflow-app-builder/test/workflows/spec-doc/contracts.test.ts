@@ -206,6 +206,8 @@ describe('ConsistencyCheckOutput', () => {
         hasConstraintsAndAssumptions: true,
         hasInterfacesOrContracts: false,
         hasTestableAcceptanceCriteria: false,
+        hasNoContradictions: false,
+        hasSufficientDetail: false,
       },
     };
     expect(output.blockingIssues).toHaveLength(1);
@@ -222,6 +224,8 @@ describe('ConsistencyCheckOutput', () => {
         hasConstraintsAndAssumptions: true,
         hasInterfacesOrContracts: true,
         hasTestableAcceptanceCriteria: true,
+        hasNoContradictions: true,
+        hasSufficientDetail: true,
       },
     };
     expect(output.followUpQuestions).toHaveLength(0);
