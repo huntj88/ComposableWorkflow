@@ -214,6 +214,12 @@ Transition resolution after each response:
 - If queue is exhausted and completion-confirmation indicates done with exactly one selected option, transition to `Done`.
 - Otherwise transition to `IntegrateIntoSpec` with accumulated normalized answers (including buffered custom-answer prompts) as integration input.
 
+Re-entry with exhausted queue:
+- `NumberedOptionsHumanRequest` may be re-entered from `ClassifyCustomPrompt` (custom-answer) or `ExpandQuestionWithClarification` with `queueIndex >= queue.length`.
+- When entered with an exhausted queue, the handler must not fail. Instead it evaluates queue-exhaustion transitions using the already-recorded answers:
+  - If any answered item is the completion-confirmation question with the done option selected (option 1), transition to `Done`.
+  - Otherwise, transition to `IntegrateIntoSpec` with accumulated normalized answers.
+
 ## 6.5 IntegrateIntoSpec Input Contract (MVP)
 
 `IntegrateIntoSpec` consumes a normalized state input that supports both initial draft creation and later feedback-driven updates.

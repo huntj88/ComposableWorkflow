@@ -49,6 +49,7 @@ No dependency points to a numerically later prerequisite outside this graph.
 - `TSD09` [09-integration-harness-spec-doc.md](./09-integration-harness-spec-doc.md)
 - `TSD10` [10-integration-suite-spec-doc.md](./10-integration-suite-spec-doc.md)
 - `TSD11` [11-e2e-golden-scenarios-spec-doc.md](./11-e2e-golden-scenarios-spec-doc.md)
+- `TSD12` [12-custom-answer-queue-exhaustion-routing.md](./12-custom-answer-queue-exhaustion-routing.md)
 
 ## Full Coverage Ownership
 

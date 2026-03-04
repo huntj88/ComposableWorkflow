@@ -21,14 +21,16 @@ import {
   answerNextFeedback,
   fixtureDir,
   listAllEvents,
+  skipUnlessCopilotFixture,
   startSpecDocWorkflow,
   waitForTerminal,
   type SpecDocInput,
 } from './helpers.js';
 
 const SCENARIO = 'gs-sd-001';
+const shouldSkip = await skipUnlessCopilotFixture();
 
-describe('e2e.blackbox.spec-doc.GS-SD-001', () => {
+describe.skipIf(shouldSkip)('e2e.blackbox.spec-doc.GS-SD-001', () => {
   it('completes happy path in a single loop with correct terminal output', async () => {
     const input: SpecDocInput = {
       request: 'Create a specification for a user authentication service.',

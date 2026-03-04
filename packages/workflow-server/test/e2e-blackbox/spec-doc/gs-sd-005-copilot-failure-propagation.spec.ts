@@ -19,14 +19,16 @@ import { describe, expect, it } from 'vitest';
 import {
   fixtureDir,
   listAllEvents,
+  skipUnlessCopilotFixture,
   startSpecDocWorkflow,
   waitForTerminal,
   type SpecDocInput,
 } from './helpers.js';
 
 const SCENARIO = 'gs-sd-005';
+const shouldSkip = await skipUnlessCopilotFixture();
 
-describe('e2e.blackbox.spec-doc.GS-SD-005', () => {
+describe.skipIf(shouldSkip)('e2e.blackbox.spec-doc.GS-SD-005', () => {
   it('propagates copilot child failure with FSM state context', async () => {
     const input: SpecDocInput = {
       request: 'Create a specification for a recommendation engine.',

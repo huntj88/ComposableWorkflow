@@ -26,14 +26,16 @@ import {
   answerNextFeedback,
   fixtureDir,
   listAllEvents,
+  skipUnlessCopilotFixture,
   startSpecDocWorkflow,
   waitForTerminal,
   type SpecDocInput,
 } from './helpers.js';
 
 const SCENARIO = 'gs-sd-003';
+const shouldSkip = await skipUnlessCopilotFixture();
 
-describe('e2e.blackbox.spec-doc.GS-SD-003', () => {
+describe.skipIf(shouldSkip)('e2e.blackbox.spec-doc.GS-SD-003', () => {
   it('exercises both custom prompt intents with clarification insertion', async () => {
     const input: SpecDocInput = {
       request: 'Create a specification for a real-time analytics dashboard.',

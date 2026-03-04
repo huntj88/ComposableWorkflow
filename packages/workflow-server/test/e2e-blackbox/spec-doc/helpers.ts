@@ -9,6 +9,43 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
+// Copilot fixture-mode guard
+// ---------------------------------------------------------------------------
+
+/**
+ * Probes the running server's `/api/v1/diagnostics` endpoint to determine
+ * whether Copilot fixture mode is enabled.  Returns `true` when the server
+ * is **not** using mock copilot — meaning spec-doc tests should be skipped.
+ *
+ * The result is cached so the HTTP round-trip only happens once per test run.
+ */
+const detectSkip = async (): Promise<boolean> => {
+  try {
+    const res = await fetch(`${resolveBaseUrl()}/api/v1/diagnostics`, {
+      headers: { accept: 'application/json' },
+    });
+    if (!res.ok) return true; // endpoint missing → skip to be safe
+    const body = (await res.json()) as { copilotFixtureMode?: boolean };
+    return !body.copilotFixtureMode;
+  } catch {
+    return true; // server unreachable → skip
+  }
+};
+
+let _skipPromise: Promise<boolean> | undefined;
+
+/**
+ * Resolves to `true` when the server is **not** running with mock copilot.
+ *
+ * Use with `describe.skipIf(await skipUnlessCopilotFixture())` or the
+ * `beforeAll` / setup pattern of your choice.
+ */
+export const skipUnlessCopilotFixture = (): Promise<boolean> => {
+  _skipPromise ??= detectSkip();
+  return _skipPromise;
+};
+
+// ---------------------------------------------------------------------------
 // Base URL resolution
 // ---------------------------------------------------------------------------
 

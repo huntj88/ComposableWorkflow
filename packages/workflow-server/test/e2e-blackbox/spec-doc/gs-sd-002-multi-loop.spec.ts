@@ -24,14 +24,16 @@ import {
   answerNextFeedback,
   fixtureDir,
   listAllEvents,
+  skipUnlessCopilotFixture,
   startSpecDocWorkflow,
   waitForTerminal,
   type SpecDocInput,
 } from './helpers.js';
 
 const SCENARIO = 'gs-sd-002';
+const shouldSkip = await skipUnlessCopilotFixture();
 
-describe('e2e.blackbox.spec-doc.GS-SD-002', () => {
+describe.skipIf(shouldSkip)('e2e.blackbox.spec-doc.GS-SD-002', () => {
   it('completes multi-loop path with accumulated answers across integration passes', async () => {
     const input: SpecDocInput = {
       request: 'Create a specification for a payment processing system.',

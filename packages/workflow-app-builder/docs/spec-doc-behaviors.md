@@ -107,6 +107,13 @@ Each behavior should validate all relevant dimensions:
 **Then** new queue item with new `questionId` is inserted as immediate next question
 **And** run transitions to `NumberedOptionsHumanRequest` to ask the expanded question
 
+## B-SD-TRANS-012: NumberedOptionsHumanRequest handles re-entry with exhausted queue
+**Given** run re-enters `NumberedOptionsHumanRequest` from `ClassifyCustomPrompt` (custom-answer) or `ExpandQuestionWithClarification`
+**When** `queueIndex >= queue.length` (all items already answered)
+**Then** handler does not fail
+**And** if any answered item is completion-confirmation with done option selected, run transitions to `Done`
+**And** otherwise run transitions to `IntegrateIntoSpec` with accumulated normalized answers
+
 ## B-SD-TRANS-011: Empty follow-up output synthesizes completion-confirmation question
 **Given** `LogicalConsistencyCheckCreateFollowUpQuestions` output has empty `followUpQuestions`
 **When** workflow prepares queue payload before routing to `NumberedOptionsHumanRequest`

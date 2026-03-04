@@ -26,6 +26,7 @@ import {
   getFeedbackStatus,
   getRunSummary,
   listAllEvents,
+  skipUnlessCopilotFixture,
   sleep,
   startSpecDocWorkflow,
   waitForTerminal,
@@ -33,8 +34,9 @@ import {
 } from './helpers.js';
 
 const SCENARIO = 'cancellation';
+const shouldSkip = await skipUnlessCopilotFixture();
 
-describe('e2e.blackbox.spec-doc.feedback-cancellation', () => {
+describe.skipIf(shouldSkip)('e2e.blackbox.spec-doc.feedback-cancellation', () => {
   it('propagates cancellation to feedback child when parent is cancelled while awaiting response', async () => {
     const input: SpecDocInput = {
       request: 'Create a specification for an error handling framework.',

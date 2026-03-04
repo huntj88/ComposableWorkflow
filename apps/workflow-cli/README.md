@@ -42,3 +42,20 @@ pnpm --filter @composable-workflow/workflow-cli run workflow run --type app-buil
 SCHEMA
 )" \
  '{prompt:$prompt, cwd:$cwd, allowedDirs:[$cwd], outputSchema:$schema}')"
+
+pnpm --filter @composable-workflow/workflow-cli run workflow run \
+ --type app-builder.spec-doc.v1 \
+ --input '{
+"request": "Build a react app that that communicates with workflow-server for workflow visualization of the finite state machines and children, associated metadata, realtime updates, observability, human responses, and other important features for interacting with the server",
+"targetPath": "apps/workflow-web/docs/workflow-web-spec.md",
+"constraints": [
+"must be an SPA react app using vite",
+"the changes for the app must be in apps/workflow-web directory"
+],
+"copilotPromptOptions": {
+"cwd": "/home/jameshunt/Projects/ComposableWorkflow/apps/workflow-web",
+"allowedDirs": [
+"/home/jameshunt/Projects/ComposableWorkflow"
+]
+}
+}'
