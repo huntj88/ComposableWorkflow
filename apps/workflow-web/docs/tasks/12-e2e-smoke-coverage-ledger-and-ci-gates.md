@@ -17,12 +17,12 @@ Close the plan with representative browser E2E happy paths, deterministic integr
 - CI executes targeted integration specs and representative E2E specs.
 
 ## Implementation Tasks
-- [ ] Implement representative E2E flows for `/runs`, `/runs/:runId`, feedback submit success, and graph observability happy path.
-- [ ] Add CI jobs for integration suites, typecheck/build gates, and spec-lock drift checks.
-- [ ] Add coverage ledger mapping `B-WEB-001..056` and `ITX-WEB-001..043` to test ownership.
-- [ ] Enforce failure on missing ownership entries.
-- [ ] Add CI gate for definitions-route integration test and stream unsupported-eventType request-error test.
-- [ ] Add CI gate for spec-lock checks covering API-types export set and contract evolution-order constraints.
+- [x] Implement representative E2E flows for `/runs`, `/runs/:runId`, feedback submit success, and graph observability happy path.
+- [x] Add CI jobs for integration suites, typecheck/build gates, and spec-lock drift checks.
+- [x] Add coverage ledger mapping `B-WEB-001..056` and `ITX-WEB-001..043` to test ownership.
+- [x] Enforce failure on missing ownership entries.
+- [x] Add CI gate for definitions-route integration test and stream unsupported-eventType request-error test.
+- [x] Add CI gate for spec-lock checks covering API-types export set and contract evolution-order constraints.
 
 ## Required Artifacts
 - `apps/workflow-web/test/e2e/*.spec.ts`
