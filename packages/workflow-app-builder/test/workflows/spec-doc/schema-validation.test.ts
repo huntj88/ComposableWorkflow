@@ -7,10 +7,13 @@ import {
   type SpecDocValidator,
 } from '../../../src/workflows/spec-doc/schema-validation.js';
 
+import { Ajv2020 } from 'ajv/dist/2020.js';
+
 import {
   getAllSchemaIds,
   loadSchemaById,
   loadAllSchemas,
+  bundleSchemaForExport,
 } from '../../../src/workflows/spec-doc/schemas.js';
 
 // ---------------------------------------------------------------------------
@@ -383,5 +386,122 @@ describe('validateParsed', () => {
     if (!result.ok) {
       expect(result.error.kind).toBe('schema-validation');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// bundleSchemaForExport — standalone validation without external $ref
+// ---------------------------------------------------------------------------
+
+describe('bundleSchemaForExport', () => {
+  it('produces a schema with no external $ref entries', () => {
+    const bundled = bundleSchemaForExport(SCHEMA_IDS.clarificationFollowUpOutput);
+    const json = JSON.stringify(bundled);
+    // Internal (#/-prefixed) refs are fine; external refs should be inlined
+    const refMatches = [...json.matchAll(/"\$ref"\s*:\s*"([^"]+)"/g)];
+    for (const match of refMatches) {
+      expect(match[1]).toMatch(/^#/);
+    }
+  });
+
+  it('bundled clarificationFollowUpOutput validates with a standalone Ajv instance', () => {
+    const bundled = bundleSchemaForExport(SCHEMA_IDS.clarificationFollowUpOutput);
+    const ajv = new Ajv2020({ strict: false, allErrors: true, removeAdditional: true });
+    const validate = ajv.compile(bundled);
+
+    const valid = {
+      followUpQuestion: {
+        questionId: 'q-clarify-1',
+        prompt: 'How should the widget handle offline mode?',
+        options: [
+          { id: 1, label: 'Queue locally', description: 'Pros: Resilient. Cons: Complexity.' },
+          { id: 2, label: 'Show error', description: 'Pros: Simple. Cons: Bad UX.' },
+        ],
+      },
+    };
+    expect(validate(valid)).toBe(true);
+  });
+
+  it('bundled schema rejects invalid data with standalone Ajv', () => {
+    const bundled = bundleSchemaForExport(SCHEMA_IDS.clarificationFollowUpOutput);
+    const ajv = new Ajv2020({ strict: false, allErrors: true });
+    const validate = ajv.compile(bundled);
+
+    // Missing required followUpQuestion
+    expect(validate({})).toBe(false);
+    // followUpQuestion missing required prompt
+    expect(
+      validate({
+        followUpQuestion: {
+          questionId: 'q1',
+          options: [
+            { id: 1, label: 'A' },
+            { id: 2, label: 'B' },
+          ],
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it('standalone Ajv with removeAdditional strips extra properties from nested $ref targets', () => {
+    const bundled = bundleSchemaForExport(SCHEMA_IDS.clarificationFollowUpOutput);
+    const ajv = new Ajv2020({ strict: false, allErrors: true, removeAdditional: true });
+    const validate = ajv.compile(bundled);
+
+    const data = {
+      followUpQuestion: {
+        questionId: 'q-clarify-1',
+        prompt: 'How should caching work?',
+        options: [
+          { id: 1, label: 'Redis', description: 'Pros: Fast. Cons: Infra.' },
+          { id: 2, label: 'In-memory', description: 'Pros: Simple. Cons: Lost on restart.' },
+        ],
+        extraFieldFromLLM: 'this should be stripped',
+        anotherExtra: 42,
+      },
+    };
+
+    expect(validate(data)).toBe(true);
+    // Extra properties should have been removed by removeAdditional
+    expect(data.followUpQuestion).not.toHaveProperty('extraFieldFromLLM');
+    expect(data.followUpQuestion).not.toHaveProperty('anotherExtra');
+    // Valid properties remain
+    expect(data.followUpQuestion.questionId).toBe('q-clarify-1');
+    expect(data.followUpQuestion.options).toHaveLength(2);
+  });
+
+  it('bundles consistencyCheckOutput with nested $ref through allOf', () => {
+    const bundled = bundleSchemaForExport(SCHEMA_IDS.consistencyCheckOutput);
+    const json = JSON.stringify(bundled);
+    const refMatches = [...json.matchAll(/"\$ref"\s*:\s*"([^"]+)"/g)];
+    for (const match of refMatches) {
+      expect(match[1]).toMatch(/^#/);
+    }
+
+    // Verify it compiles and validates with standalone Ajv
+    const ajv = new Ajv2020({ strict: false, allErrors: true, removeAdditional: true });
+    const validate = ajv.compile(bundled);
+
+    const valid = {
+      blockingIssues: [],
+      followUpQuestions: [],
+      readinessChecklist: {
+        hasScopeAndObjective: true,
+        hasNonGoals: true,
+        hasConstraintsAndAssumptions: true,
+        hasInterfacesOrContracts: true,
+        hasTestableAcceptanceCriteria: true,
+        hasNoContradictions: true,
+        hasSufficientDetail: true,
+      },
+    };
+    expect(validate(valid)).toBe(true);
+  });
+
+  it('preserves internal #/ refs without inlining', () => {
+    const bundled = bundleSchemaForExport(SCHEMA_IDS.specIntegrationInput);
+    const json = JSON.stringify(bundled);
+    // specIntegrationInput uses #/$defs/normalizedAnswer — should remain
+    expect(json).toContain('#/$defs/normalizedAnswer');
   });
 });

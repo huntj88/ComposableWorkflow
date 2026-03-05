@@ -22,7 +22,7 @@ import {
   getPromptTemplate,
   interpolate,
 } from './prompt-templates.js';
-import { loadSchemaById, type SpecDocSchemaId } from './schemas.js';
+import { bundleSchemaForExport, type SpecDocSchemaId } from './schemas.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -113,8 +113,9 @@ export async function delegateToCopilot<T = unknown>(
   const template = getPromptTemplate(request.templateId);
   const prompt = interpolate(template.body, request.variables);
 
-  // Load the output schema JSON and stringify for the copilot child
-  const outputSchemaObj = loadSchemaById(request.outputSchemaId);
+  // Bundle the output schema with all $ref targets inlined so copilot-prompt's
+  // standalone Ajv instance can validate and retry without external schema loading.
+  const outputSchemaObj = bundleSchemaForExport(request.outputSchemaId);
   const outputSchema = JSON.stringify(outputSchemaObj);
 
   // Build child workflow input, forwarding copilotPromptOptions

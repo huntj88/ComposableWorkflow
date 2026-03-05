@@ -198,3 +198,61 @@ export function getSchemaFilePath(schemaId: SpecDocSchemaId): string {
 export function getAllSchemaIds(): SpecDocSchemaId[] {
   return Object.values(SCHEMA_IDS);
 }
+
+// ---------------------------------------------------------------------------
+// Schema bundling (for standalone validation in copilot-prompt)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a self-contained schema by recursively inlining all external `$ref`
+ * targets. Internal `$ref` values (starting with `#/`) are left untouched.
+ *
+ * This produces a schema that can be validated by a standalone Ajv instance
+ * without pre-loading any referenced schemas — required for copilot-prompt's
+ * in-session validation and retry loop.
+ */
+export function bundleSchemaForExport(schemaId: SpecDocSchemaId): Record<string, unknown> {
+  const allSchemas = loadAllSchemas();
+  const visited = new Set<string>();
+  return inlineRefs(loadSchemaById(schemaId), allSchemas, visited) as Record<string, unknown>;
+}
+
+/**
+ * Recursively walk a schema object and replace external `$ref` values with
+ * the full definition of the referenced schema (also recursively resolved).
+ */
+function inlineRefs(
+  obj: unknown,
+  allSchemas: Map<SpecDocSchemaId, Record<string, unknown>>,
+  visited: Set<string>,
+): unknown {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map((item) => inlineRefs(item, allSchemas, visited));
+
+  const record = obj as Record<string, unknown>;
+
+  // If this node is a $ref to an external schema, inline it
+  if (typeof record.$ref === 'string' && !record.$ref.startsWith('#')) {
+    const refId = record.$ref as string;
+    // Prevent infinite circular inlining
+    if (visited.has(refId)) return record;
+    const referenced = allSchemas.get(refId as SpecDocSchemaId);
+    if (referenced) {
+      visited.add(refId);
+      // Inline the full referenced schema (strip its $id/$schema to avoid conflicts)
+      const { $id: _, $schema: __, ...rest } = referenced;
+      void _;
+      void __;
+      return inlineRefs(rest, allSchemas, visited);
+    }
+    // Unknown $ref — leave as-is
+    return record;
+  }
+
+  // Otherwise recurse into all properties
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    result[key] = inlineRefs(value, allSchemas, visited);
+  }
+  return result;
+}
