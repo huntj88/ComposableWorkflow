@@ -513,10 +513,41 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-CONTRACT-004`.
 
+## ITX-033: Graph contract lock and overlay reference conformance
+**Why not E2E-only:** graph identity/overlay invariants require deterministic schema comparison and controlled invalid-reference assertions that are brittle in black-box-only flows.
+
+**Setup**
+- Parse and compare graph-contract sections across `docs/typescript-server-workflow-spec.md` Section 10 and `apps/workflow-web/docs/workflow-web-spec.md` Sections 6.6 and 8.5, and compare graph-identity contract surfaces exported by `@composable-workflow/workflow-api-types`.
+- Validate server-emitted runtime events/stream frames against registered definition metadata identifiers for a fixed workflow definition version.
+- Validate `RunSummaryResponse.currentState` against registered definition metadata identifiers for the same definition payload.
+
+**Assertions**
+- Graph identity semantics (`initialState` resolvability, unique/stable state IDs, transition identity derivation, transition ordering guarantees) match across server spec, web spec, and shared contract exports.
+- `RunSummaryResponse.currentState` and runtime overlay references in `state.entered`, `transition.completed`, and `transition.failed` resolve to static definition identifiers from the same definition payload.
+- Unknown runtime state/transition references are surfaced as contract violations (not silently ignored).
+- Cursor/sequence resume semantics preserve deterministic overlay reconstruction across reconnect boundaries.
+
+**Related behaviors:** `B-API-010`, `B-CONTRACT-007`.
+
+## ITX-034: Error envelope and feedback-conflict contract conformance
+**Why not E2E-only:** error-contract lock and payload-shape assertions require deterministic static cross-spec comparison plus controlled covered-failure fixtures.
+
+**Setup**
+- Parse and compare error-contract sections across `docs/typescript-server-workflow-spec.md` Sections 8.0/8.10 and `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8, and compare error-contract exports from `@composable-workflow/workflow-api-types`.
+- Validate covered endpoint failure responses for `400`/`404` envelope handling and feedback submit `409` conflict payload semantics.
+
+**Assertions**
+- Error contract semantics (`ErrorEnvelope` required fields and conflict-contract usage rules) match across server spec, web spec, and shared contract exports.
+- Covered `400`/`404` failures surface `ErrorEnvelope` with required `code`, `message`, and `requestId` fields.
+- Feedback submit `409` responses conform to `SubmitHumanFeedbackResponseConflict` and include terminal status/timestamp semantics.
+- Missing/malformed required error-contract fields are surfaced as contract violations (not silently tolerated).
+
+**Related behaviors:** `B-API-007`, `B-CONTRACT-006`.
+
 ## 5) Integration vs E2E Ownership Matrix
 
 ## 5.1 Integration-Primary
-- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019, 020, 021, 024, 027, 028, 029, 031, 032.
+- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019, 020, 021, 024, 027, 028, 029, 031, 032, 033, 034.
 
 ## 5.2 Shared Coverage (Integration + E2E)
 - ITX-008, 009, 012, 015, 022, 023, 025, 026, 030.
@@ -560,6 +591,8 @@ Integration suite is complete when:
 4. Every integration-primary test maps to one or more `docs/behaviors.md` behavior IDs.
 5. Endpoint handler type conformance against `workflow-api-types` is verified for all Section 8 routes.
 6. Contract lock drift test confirms Section 6.9.1 and web spec Section 6.2 tables match exactly.
+7. Graph contract lock and runtime overlay reference conformance are verified for server spec Section 10 and web spec Sections 6.6/8.5.
+8. Error-envelope and feedback-conflict contract conformance are verified for server spec Sections 8.0/8.10 and web spec Section 6.8.
 
 ---
 

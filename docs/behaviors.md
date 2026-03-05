@@ -427,6 +427,15 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 - Pagination must be stable across reconnect/retry so clients can avoid duplicates.
 - Endpoint must return only feedback requests associated with the specified run lineage and must not degrade to global/unscoped listing behavior.
 
+## B-API-010: Runtime overlay references resolve against static graph identifiers
+Endpoints: `GET /api/v1/workflows/definitions/{workflowType}`, `GET /api/v1/workflows/runs/{runId}/events`, `GET /api/v1/workflows/runs/{runId}/stream`
+- `RunSummaryResponse.currentState` and runtime state/transition references used for overlays resolve against identifiers declared by the same definition metadata payload.
+- Runtime state/transition references in `state.entered`, `transition.completed`, and `transition.failed` resolve against identifiers declared by definition metadata.
+- Unknown state/transition references are surfaced as contract violations and are not silently ignored.
+- Transition ordering in definition metadata is stable for a given definition version and supports deterministic edge identity reconstruction.
+- Static graph validity invariants hold for definition metadata used by overlays: `initialState` resolves to a declared state identifier and definition state identifiers are unique/stable for the definition version.
+- Event ordering (`sequence` + cursor resume semantics) preserves deterministic overlay reconstruction after reconnect.
+
 ---
 
 ## 10) Persistence and Durability Behaviors
@@ -534,6 +543,12 @@ Security and multi-tenancy are not goals of this project and are intentionally e
 **When** the change is implemented
 **Then** coordinated updates land in: (1) `packages/workflow-api-types`, (2) `docs/typescript-server-workflow-spec.md`, (3) `apps/workflow-web/docs/workflow-web-spec.md`
 **And** implementation is not considered complete until all three are updated
+
+## B-CONTRACT-007: Graph identity and overlay semantics stay cross-spec aligned
+**Given** graph identity and overlay semantics are defined in server spec Section 10 and web spec Sections 6.6 and 8.5
+**When** graph contracts, transition ordering semantics, or overlay event-reference semantics change
+**Then** updates are coordinated across `packages/workflow-api-types`, server spec Section 10, and web spec Sections 6.6 and 8.5
+**And** CI drift checks fail when those graph contract artifacts diverge, including drift against graph identity surfaces exported by `@composable-workflow/workflow-api-types`
 
 ---
 
@@ -650,7 +665,7 @@ Must assert:
 2. Dynamic loading + start by type → `B-LOAD-001`, `B-START-001`.
 3. Parent launches child and awaits typed result → `B-CHILD-001`.
 4. API exposes current state, children, linear events → `B-API-001`, `B-API-002`, `B-CHILD-003`.
-5. API supports flowchart data → `B-API-005` + dynamic endpoints (`B-API-001..003`).
+5. API exposes definition + runtime data satisfying Section 10 invariants → `B-API-005`, `B-API-010`, dynamic endpoints (`B-API-001..003`, `B-API-006`).
 6. Logging/telemetry hooks for major operations → `B-OBS-001..003`.
 7. Workflow command execution + policy + observability → `B-CMD-001..004`.
 8. User CLI independent of workflow step commands → `B-CLI-001..004`.
@@ -666,6 +681,7 @@ Must assert:
 18. Endpoints and shared contracts in Section 6.9.1 match web spec Section 6.2 exactly → `B-CONTRACT-004`.
 19. CI fails on contract drift between spec and `workflow-api-types` → `B-CONTRACT-004`, `B-CONTRACT-006`.
 20. Feedback requests endpoint enforces run-scoped filtering → `B-API-009`.
+21. Server graph contracts stay aligned with web graph requirements and shared exports → `B-API-010`, `B-CONTRACT-007`.
 
 ---
 
@@ -677,4 +693,5 @@ MVP is considered behaviorally complete when:
 - Golden scenarios `GS-001` through `GS-007` pass reliably.
 - Human feedback orchestration behaviors (`B-HFB-001..012`) pass for at least one feedback-requesting workflow.
 - Run-scoped feedback discovery (`B-API-009`) returns correct paginated, filtered results.
+- Graph contract alignment behaviors (`B-API-010`, `B-CONTRACT-007`) are verified for deterministic static/dynamic overlay reconstruction and cross-spec lock parity.
 - Failures provide enough diagnostics via events/logs/traces to identify root cause without code-level debugging.

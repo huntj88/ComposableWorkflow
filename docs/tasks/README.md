@@ -7,7 +7,7 @@ This folder contains the end-to-end implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute task documents in numeric order (`T00` -> `T23`).
+1. Execute task documents in numeric order (`T00` -> `T30`).
 2. Do not start a task until all `Depends On` items are complete.
 3. If a task is split across PRs, keep all acceptance criteria in the same task document.
 4. Treat optional scopes as gated and explicitly documented.
@@ -43,6 +43,8 @@ This folder contains the end-to-end implementation plan for:
 - `T26` -> `T13`, `T24`, `T25`
 - `T27` -> `T24`, `T25`
 - `T28` -> `T12`, `T22`, `T23`, `T25`
+- `T29` -> `T23`, `T24`, `T27`
+- `T30` -> `T24`, `T27`
 
 ## Task Index
 
@@ -75,6 +77,8 @@ This folder contains the end-to-end implementation plan for:
 - `T26` [26-integration-feedback-pagination-contract-conformance.md](./26-integration-feedback-pagination-contract-conformance.md)
 - `T27` [27-contract-lock-drift-verification.md](./27-contract-lock-drift-verification.md)
 - `T28` [28-golden-scenarios-human-feedback.md](./28-golden-scenarios-human-feedback.md)
+- `T29` [29-error-envelope-contract-lock-conformance.md](./29-error-envelope-contract-lock-conformance.md)
+- `T30` [30-graph-contract-lock-overlay-conformance.md](./30-graph-contract-lock-overlay-conformance.md)
 
 ## Phase Alignment (Spec Section 15)
 
@@ -90,7 +94,9 @@ This folder contains the end-to-end implementation plan for:
 | Phase 8 (feedback API and operator UX) | `T23` | Deliver strict feedback API validation/conflict semantics, CLI feedback commands, and expanded integration/E2E coverage. |
 | Phase 9 (shared contracts and feedback endpoint) | `T24`, `T25` | Shared API contract package (`workflow-api-types`) and run-scoped feedback requests endpoint. |
 | Phase 10 (contract verification and golden scenarios) | `T26`, `T27`, `T28` | Integration suite for feedback pagination/contract conformance, contract lock drift verification, and golden scenarios for human feedback E2E. |
-| Phase 11 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
+| Phase 11 (error envelope contract lock alignment) | `T29` | Implement Section 8.0/8.10 shared error-envelope and conflict-contract lock verification with runtime conformance checks. |
+| Phase 12 (graph contract lock alignment) | `T30` | Implement Section 10 graph identity/overlay contract lock verification and deterministic overlay reference conformance tests. |
+| Phase 13 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
 | Cross-phase verification/gates | `T13`-`T17` | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
 
 ## Coverage Expectations
@@ -124,6 +130,7 @@ This folder contains the end-to-end implementation plan for:
 | 18) Endpoint contract lock matches web spec | `T27` |
 | 19) CI fails on contract drift | `T27` |
 | 20) Feedback requests endpoint enforces run-scoped filtering | `T25`, `T26` |
+| 21) Section 10 graph contracts stay aligned with web graph requirements and shared exports | `T30` |
 
 ## Task Document Contract (Mandatory Sections)
 

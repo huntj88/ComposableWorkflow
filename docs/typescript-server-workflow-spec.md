@@ -473,11 +473,12 @@ Minimum export set:
 - `GetRunLogsQuery`, `RunLogsResponse`, `WorkflowLogEntryDto`
 - `WorkflowDefinitionResponse` (graph metadata)
 - `CancelRunResponse`
-- `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse`
+- `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse`, `SubmitHumanFeedbackResponseConflict`
 - `HumanFeedbackRequestStatusResponse`
 - `ListRunFeedbackRequestsQuery`, `ListRunFeedbackRequestsResponse`, `RunFeedbackRequestSummary`
 - `EventCursor` (opaque cursor string contract used by events pagination/stream resume surfaces)
 - `WorkflowStreamEvent` / `WorkflowStreamFrame`
+- `ErrorEnvelope`
 
 Contract governance:
 - Any server API contract change must land in `workflow-api-types` first.
@@ -742,6 +743,25 @@ Endpoint-to-contract mapping (normative):
 
 For endpoints where path/query primitives are used, their serialized field names and value semantics are governed by `workflow-api-types`.
 
+## 8.0 Error Envelope Contract (Normative)
+
+For covered API failures, shared transport errors use:
+
+```ts
+interface ErrorEnvelope {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+  requestId: string;
+}
+```
+
+Rules:
+- `400`/`404` failures for covered endpoints return `ErrorEnvelope`.
+- `details` is endpoint-specific and must remain JSON-serializable.
+- `requestId` is required for cross-system diagnostics and support correlation.
+- Endpoint-specific conflict contracts may be used where explicitly defined (for example feedback submit `409`).
+
 ## 8.1 Start Workflow
 `POST /api/v1/workflows/start`
 
@@ -896,7 +916,8 @@ Behavior:
 - First accepted response wins.
 - Any subsequent response submission for the same `feedbackRunId` must return `409` (strict conflict model), including duplicate payloads.
 - On acceptance, feedback run completes and parent run may resume at next safe point.
-- `409` response must include current feedback status and terminal timestamp metadata (`respondedAt` or `cancelledAt`).
+- `409` response must use shared `SubmitHumanFeedbackResponseConflict` and include current feedback status plus terminal timestamp metadata (`respondedAt` or `cancelledAt`).
+- `400` validation failures and `404` not-found failures for this endpoint return shared `ErrorEnvelope`.
 
 ## 8.11 Get Human Feedback Request Status
 `GET /api/v1/human-feedback/requests/{feedbackRunId}`

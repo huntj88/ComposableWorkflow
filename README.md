@@ -78,6 +78,12 @@ Expected startup diagnostic log events include:
 - `pnpm format:check` - checks formatting with Prettier.
 - `pnpm format` - writes formatting changes.
 
+## Workflow web docs
+
+- `apps/workflow-web/docs/workflow-web-spec.md`
+- `apps/workflow-web/docs/workflow-web-behaviors.md`
+- `apps/workflow-web/docs/workflow-web-integration-tests.md`
+
 ## Pre-commit quality gates
 
 Pre-commit checks are mandatory and run:

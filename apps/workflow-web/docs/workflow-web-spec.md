@@ -1,5 +1,10 @@
 # Workflow Web SPA Specification
 
+Related documents:
+- `apps/workflow-web/docs/workflow-web-behaviors.md`
+- `apps/workflow-web/docs/workflow-web-integration-tests.md`
+- `docs/typescript-server-workflow-spec.md`
+
 ## 1) Objective and Scope
 
 Build a Vite-based React SPA in `apps/workflow-web` that communicates with `workflow-server` to support workflow operations and observability for composable finite state machines (FSMs), including child workflow relationships and human response interactions.
@@ -33,6 +38,7 @@ In scope:
 - Stream endpoint is `GET /api/v1/workflows/runs/{runId}/stream`.
 - Server is source of truth; the UI performs read-heavy operations with explicit write actions (cancel run, submit feedback).
 - Stream ordering and resume behavior are provided by server `sequence` + cursor semantics.
+- Stream cursor values are opaque cursor strings (base64url-compatible) and must be treated as transport tokens, not parsed by the client.
 
 ## 4) Functional Scope
 
@@ -84,13 +90,36 @@ In scope:
 - Deduplicate by `(runId, sequence)` across reconnects.
 - Apply updates incrementally (no full page reload) to summary, tree, graph overlay, timeline, and feedback panel status.
 
-### 5.3 Failure and Recovery Rules
+### 5.3 Stream Wire Protocol and Resume Semantics (Normative)
+- `GET /api/v1/workflows/runs/{runId}/stream` uses SSE with:
+  - `event: workflow-event`,
+  - `id: <cursor>`,
+  - `data: <WorkflowStreamFrame JSON>`.
+- Client stream adapters must parse `data` payloads directly as `WorkflowStreamFrame` from `@composable-workflow/workflow-api-types`.
+- The SSE `id` field is the cursor value to persist as `lastSeenCursor` after a frame is accepted.
+- Reconnect must send `cursor=<lastSeenCursor>` and must not send locally synthesized cursors.
+- Resume boundary semantics are strict: server resumes with events whose `sequence` is strictly greater than the cursor boundary.
+- Optional stream query filter `eventType` may be used only with server-supported values; unsupported values must surface a request error state.
+
+### 5.4 Failure and Recovery Rules
 - SSE disconnection shows a non-blocking reconnect state and retries with exponential backoff.
+- Reconnect policy constants are normative:
+  - initial delay: `500ms`,
+  - multiplier: `2x`,
+  - jitter strategy: `full-jitter` per attempt,
+  - maximum delay cap: `30s`,
+  - stream-health transition to `stale`: no accepted stream frame for `45s`.
 - REST failures are panel-scoped with explicit retry actions.
 - `404` on run summary renders a run-not-found state with navigation back to `/runs`.
 - Feedback submission:
   - `400`: show server validation details and keep user input,
   - `409`: show terminal status and disable further submission for that request.
+
+### 5.5 Deterministic Ordering and Deduplication Rules (Normative)
+- Event ordering for timeline/overlay must be driven by `sequence` (not wall-clock timestamps).
+- For duplicate deliveries of the same `(runId, sequence)`, keep the first accepted frame/event and ignore subsequent duplicates.
+- If an incoming stream event has `sequence <= highestAcceptedSequence(runId)`, it is treated as duplicate/out-of-order and must not regress rendered state.
+- Cursor advancement is monotonic: client must never move `lastSeenCursor` backward.
 
 ## 6) Interfaces and Contracts
 
@@ -105,10 +134,11 @@ The web app must consume shared contracts from `@composable-workflow/workflow-ap
 - `WorkflowLifecycle`
 - `WorkflowDefinitionResponse`
 - `CancelRunResponse`
-- `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse`
+- `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse`, `SubmitHumanFeedbackResponseConflict`
 - `HumanFeedbackRequestStatusResponse`
 - `ListRunFeedbackRequestsQuery`, `ListRunFeedbackRequestsResponse`, `RunFeedbackRequestSummary`
 - `WorkflowStreamEvent`, `WorkflowStreamFrame`
+- `ErrorEnvelope`
 
 For covered endpoints, local duplicate DTO definitions in `apps/workflow-web` are prohibited.
 
@@ -138,6 +168,9 @@ Additional normative rules:
 - UI allows optional `text`; protocol-level length enforcement is server-driven.
 - First accepted response wins; duplicate post-accept submissions are terminal conflicts.
 - `feedbackRunId` discovery uses `GET /api/v1/workflows/runs/{runId}/feedback-requests` (no manual user entry requirement).
+- For numbered-options completion-confirmation questions, `selectedOptionIds` must contain exactly one option; invalid cardinality is a `400` validation error.
+- Invalid `selectedOptionIds` or other validation failures must leave feedback request status unchanged as pending (`awaiting_response`) until a valid terminal action is accepted.
+- `409` submit responses are terminal conflicts and must include current feedback status plus terminal timestamp metadata (`respondedAt` or `cancelledAt`) for conflict rendering.
 
 ### 6.4 Cross-Spec Consistency Rules
 - Section 6.2 of this spec and Sections 6.9.1 + 8 of `docs/typescript-server-workflow-spec.md` must stay path- and contract-consistent for web-visible endpoints.
@@ -164,7 +197,7 @@ Rules:
 - Public transport function signatures for covered endpoints must not expose `any`/`unknown` where a shared contract type exists.
 - Endpoint URL construction and query serialization must preserve the field names defined in shared query contracts.
 - `GetRunLogsQuery` serialization must use exact contract keys: `severity`, `since`, `until`, `correlationId`, and `eventId`.
-- Runtime mapping from `WorkflowStreamFrame` to UI state must be exhaustive for all discriminated `WorkflowStreamEvent` variants used by the server.
+- Runtime mapping from `WorkflowStreamFrame` to UI state must be exhaustive for the closed variant set in Section 6.9.
 - Log filter query serialization must be derived from `GetRunLogsQuery` (no local remapped filter keys for server requests).
 
 ### 6.6 FSM Contract Invariants (Normative)
@@ -173,6 +206,77 @@ Rules:
 - Definition transition ordering must be stable for the same definition version; this ordering is the source for `transitionOrdinal` used in deterministic edge IDs.
 - `RunSummaryResponse.currentState` and runtime event references used for graph overlays must reference definition state/transition identifiers from the same `WorkflowDefinitionResponse`.
 - Contract violations (for example duplicate state IDs, missing referenced states, or unstable transition identity across repeated fetches for the same definition version) must be surfaced as visible graph-panel error states in development/test builds.
+
+### 6.7 Query, Filter, and Pagination Semantics (Normative)
+- `GET /api/v1/workflows/runs/{runId}/logs` query semantics are governed by `GetRunLogsQuery`:
+  - `limit` default is `100`, max is `500`,
+  - `severity` in `debug|info|warn|error`,
+  - `since` is inclusive lower bound,
+  - `until` is exclusive upper bound,
+  - `correlationId` and `eventId` are exact-match filters,
+  - omitted fields are unconstrained,
+  - provided fields are AND-combined,
+  - response ordering is `timestamp ASC` with tie-break `eventId ASC` when timestamps match.
+- `GET /api/v1/workflows/runs/{runId}/feedback-requests` query semantics:
+  - default `status=awaiting_response,responded`,
+  - optional CSV `status` values are `awaiting_response|responded|cancelled`,
+  - default `limit=50`, max `200`,
+  - optional `cursor` for pagination,
+  - response ordering is `requestedAt DESC` with tie-break `feedbackRunId ASC`,
+  - pagination must remain stable across retry/reconnect.
+- `GET /api/v1/workflows/runs/{runId}/events` supports `cursor`, `limit`, `eventType`, `since`, and `until`.
+  - `limit` default is `100`, max is `500`,
+  - response ordering is append order by `sequence ASC`.
+- Endpoint query key names must match shared contracts exactly; local key aliases/remapping for server requests are prohibited.
+
+### 6.8 Error Contract Handling (Normative)
+- Shared transport error envelope contract is normative for covered panel-level errors:
+  - `ErrorEnvelope = { code: string; message: string; details?: Record<string, unknown>; requestId: string }`.
+- Panel error rendering for covered `400/404` failures must parse and display `ErrorEnvelope.code`, `ErrorEnvelope.message`, and `ErrorEnvelope.requestId`, preserving `details` for diagnostics/UI hints.
+- Feedback submit conflicts (`409`) must use shared `SubmitHumanFeedbackResponseConflict` contract and render `status` plus terminal timestamps (`respondedAt` or `cancelledAt`).
+- Validation and conflict errors are panel-scoped and must not clear in-progress draft response text unless submission was accepted.
+
+### 6.9 Stream Event Variant Coverage (Normative, Closed Set)
+For run dashboard behavior, stream/event processing must support this closed event-type set:
+- `workflow.started`
+- `workflow.pausing`
+- `workflow.paused`
+- `workflow.resuming`
+- `workflow.resumed`
+- `workflow.recovering`
+- `workflow.recovered`
+- `workflow.cancelling`
+- `state.entered`
+- `transition.requested`
+- `transition.completed`
+- `transition.failed`
+- `human-feedback.requested`
+- `human-feedback.received`
+- `human-feedback.cancelled`
+- `command.started`
+- `command.completed`
+- `command.failed`
+- `child.started`
+- `child.completed`
+- `child.failed`
+- `workflow.completed`
+- `workflow.failed`
+- `workflow.cancelled`
+- `log`
+
+Rules:
+- Variants in this set must have deterministic runtime handling in summary/tree/graph/timeline/log/feedback projections where applicable.
+- In development/test builds, any stream variant outside this closed set must fail visibly (not silently dropped).
+- Expanding this set requires synchronized updates to this section, web behavior docs, and integration test coverage.
+
+### 6.10 Field-Level DTO Authority (Normative)
+For covered endpoints/events, field-level transport semantics are authoritative in `@composable-workflow/workflow-api-types` exports and associated schemas.
+
+Rules:
+- Required/optional/nullability semantics are sourced from shared contract types/schemas, not duplicated local DTO definitions.
+- Timestamp, cursor, and enum field serialization/parse semantics are sourced from shared contracts.
+- Web transport/state mapping must not introduce ad-hoc local field aliases or transport-shape rewrites for covered DTOs.
+- Any field-level contract change is incomplete until `workflow-api-types` is updated first and this spec remains consistent with those exports.
 
 ## 7) Technologies and Libraries (Normative)
 
@@ -262,6 +366,7 @@ Rules:
   - `transition.completed` -> mark edge as traversed with latest timestamp and increment traverse count,
   - `transition.failed` -> mark edge as failed and attach failure metadata tooltip.
 - If runtime events reference a missing state/edge (not present in the definition graph), the UI must show a visible contract-mismatch indicator in the graph panel and record diagnostic details in development logs.
+- Contract-mismatch references must never be silently ignored in any build; production may reduce diagnostic verbosity but must preserve visible mismatch indication.
 
 #### 8.5.4 Visual Encoding Rules
 - Node shapes:
@@ -312,6 +417,18 @@ Rules:
 - Event timeline filters: event type, time range (`since/until`), and free-text search.
 - Log filters use `GetRunLogsQuery` fields: `severity`, `since`, `until`, `correlationId`, and `eventId` when present.
 - Applying a filter in one panel must not silently mutate filters in unrelated panels unless explicit "link filters" mode is enabled.
+- Event time-range requests must preserve shared query field names (`since`, `until`) without transport aliasing.
+- Log time-range semantics follow Section 6.7 (`since` inclusive, `until` exclusive).
+- Event free-text search semantics are normative:
+  - matching is case-insensitive substring,
+  - match domain includes `eventType`, `state`, `transition.name`, string-valued `payload` fields, and `error.message` when present,
+  - empty or whitespace-only search input is treated as no text filter.
+- Link-filters mode semantics are normative:
+  - mode is explicit and user-controlled (OFF by default),
+  - when ON, only `since` and `until` are bidirectionally synchronized between events/log panels,
+  - correlation context may synchronize when available (`eventId` and `correlationId`) without rewriting unrelated panel-specific filters,
+  - event/log domain-specific filters (for example `eventType`, `severity`, free-text search) remain panel-local,
+  - unsupported/missing correlated fields are ignored (no implicit fallback key remapping).
 
 ### 9.4 Realtime Update Behavior
 - New stream events append in chronological sequence and preserve user scroll position unless user opted into auto-follow.
@@ -340,6 +457,13 @@ Rules:
   - feedback option selection and submission.
 - Visible focus indicators must meet WCAG contrast expectations.
 - Status updates from SSE should use accessible announcements for critical state changes (for example transition to `failed`).
+- Live announcement semantics are normative:
+  - non-terminal stream/lifecycle updates use `aria-live="polite"`,
+  - critical terminal failure transitions (for example `workflow.failed`) use `aria-live="assertive"`.
+- Focus management semantics are normative:
+  - after panel-level retry actions, focus returns to the retry trigger in that panel,
+  - after successful feedback submit, focus moves to the updated feedback status region for the selected request,
+  - after run-not-found navigation action, focus lands on the primary heading/action region in `/runs`.
 
 ### 10.4 Empty, Loading, and Error States
 - Empty-state copy must be task-oriented (for example "No awaiting feedback for this run").
@@ -381,3 +505,15 @@ Rules:
 31. `packages/workflow-api-types` exists in the workspace and exports all transport contracts listed in Section 6.1.
 32. `GET /api/v1/workflows/runs/{runId}/feedback-requests` is consumed as a run-scoped discovery API and returns only feedback requests linked to the specified run.
 33. FSM contract invariants in Section 6.6 hold for each rendered definition: unique state IDs, stable transition ordering for a given definition version, and runtime state/transition references that resolve against the loaded definition.
+34. SSE processing uses wire semantics in Section 5.3 (`event: workflow-event`, `id=<cursor>`, `data=<WorkflowStreamFrame JSON>`) and persists cursor from accepted frame IDs.
+35. Stream resume boundary semantics are strictly greater-than cursor `sequence`; duplicate/out-of-order events do not regress rendered state (Section 5.5).
+36. Run-feedback discovery pagination uses Section 6.7 defaults/limits and stable ordering (`requestedAt DESC`, tie-break `feedbackRunId ASC`).
+37. `400` and `409` feedback submit handling follows Sections 6.3 and 6.8, including terminal timestamp display for conflicts and preservation of draft input for validation failures.
+38. Stream reconnect behavior follows Section 5.4 constants (initial `500ms`, `2x` growth, full-jitter, `30s` cap, and `45s` stale threshold).
+39. Stream processing handles the closed variant set in Section 6.9; unsupported variants fail visibly in development/test.
+40. Events/logs pagination and ordering follow Section 6.7 defaults and limits (default `100`, max `500`) with deterministic ordering rules.
+41. Event free-text filtering follows Section 9.3 case-insensitive substring semantics across the defined event fields.
+42. Link-filters mode follows Section 9.3 explicit-toggle semantics (default OFF, sync only `since/until` plus available correlation context, preserve panel-local domain filters).
+43. Covered panel error handling follows Section 6.8 shared contracts (`ErrorEnvelope` for `400/404` and `SubmitHumanFeedbackResponseConflict` for feedback `409`).
+44. Accessibility behavior follows Section 10.3 live-region and focus-management semantics (`polite`/`assertive` announcement levels and deterministic post-action focus targets).
+45. Field-level DTO semantics for covered endpoints/events are sourced from `@composable-workflow/workflow-api-types` per Section 6.10 (no local transport-shape duplication or ad-hoc remapping).
