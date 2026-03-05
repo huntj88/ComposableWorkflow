@@ -379,7 +379,15 @@ ORDER BY sequence ASC
       );
 
       const registration = deps.registry.getByType(root.workflowType);
-      const definition = registration ? inspectRegistrationDefinition(registration) : null;
+      let definition: ReturnType<typeof inspectRegistrationDefinition> | null = null;
+      if (registration) {
+        try {
+          definition = inspectRegistrationDefinition(registration);
+        } catch {
+          // Factory may throw during inspection (e.g. input validation);
+          // fall back to no transitions rather than failing the tree request.
+        }
+      }
       const transitions: TransitionEdge[] = definition?.transitions ?? [];
 
       const overlay = buildDynamicOverlay({

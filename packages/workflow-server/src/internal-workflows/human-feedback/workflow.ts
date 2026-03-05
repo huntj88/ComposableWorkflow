@@ -25,7 +25,10 @@ export const createServerHumanFeedbackWorkflowRegistration = (): WorkflowRegistr
   workflowVersion: SERVER_HUMAN_FEEDBACK_WORKFLOW_VERSION,
   factory: (context: RuntimeWorkflowContext) => {
     // Validate input shape even though the handler is a no-op; fail fast on bad input.
-    parseHumanFeedbackRequestInput(context.input);
+    // Skip validation during definition inspection (input is undefined).
+    if (context.input !== undefined) {
+      parseHumanFeedbackRequestInput(context.input);
+    }
     return createServerHumanFeedbackDefinition();
   },
   metadata: {
