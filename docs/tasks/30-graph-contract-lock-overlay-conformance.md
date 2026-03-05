@@ -30,14 +30,14 @@ Implement CI-verifiable graph contract alignment and runtime overlay conformance
   - `sequence` + cursor resume semantics preserve deterministic reconstruction.
 
 ## Implementation Tasks
-- [ ] Add graph contract lock drift test for server spec Section 10 vs web spec Sections 6.6 and 8.5.
-- [ ] Extend graph contract lock drift test to assert three-way alignment across server spec Section 10, web spec Sections 6.6/8.5, and graph contract identifiers exported by `@composable-workflow/workflow-api-types`.
-- [ ] Add static graph validity assertions for `initialState` resolvability and state identifier uniqueness/stability expectations in lock coverage.
-- [ ] Add overlay reference conformance test asserting `state.entered`, `transition.completed`, and `transition.failed` references resolve to static definition IDs.
-- [ ] Add overlay reference conformance assertion that `RunSummaryResponse.currentState` resolves to a definition state identifier from the same definition payload.
-- [ ] Add negative test coverage for unknown state/transition references and assert explicit contract violation handling.
-- [ ] Verify deterministic reconstruction behavior across paged events and stream resume cursors.
-- [ ] Update coverage ledger ownership to map new requirement IDs to this task.
+- [x] Add graph contract lock drift test for server spec Section 10 vs web spec Sections 6.6 and 8.5.
+- [x] Extend graph contract lock drift test to assert three-way alignment across server spec Section 10, web spec Sections 6.6/8.5, and graph contract identifiers exported by `@composable-workflow/workflow-api-types`.
+- [x] Add static graph validity assertions for `initialState` resolvability and state identifier uniqueness/stability expectations in lock coverage.
+- [x] Add overlay reference conformance test asserting `state.entered`, `transition.completed`, and `transition.failed` references resolve to static definition IDs.
+- [x] Add overlay reference conformance assertion that `RunSummaryResponse.currentState` resolves to a definition state identifier from the same definition payload.
+- [x] Add negative test coverage for unknown state/transition references and assert explicit contract violation handling.
+- [x] Verify deterministic reconstruction behavior across paged events and stream resume cursors.
+- [x] Update coverage ledger ownership to map new requirement IDs to this task.
 
 ## Required Artifacts
 - `packages/workflow-server/test/integration/contract/graph-contract-lock-drift.spec.ts`

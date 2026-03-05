@@ -90,7 +90,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | GS-007 | e2e | packages/workflow-server/test/e2e/golden/GS-007.spec.ts | T28 | implemented | required |
 | B-API-009 | e2e | packages/workflow-server/test/e2e/behaviors/api-feedback-requests.spec.ts | T25 | implemented | required |
 | B-API-009 | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/human-feedback/run-feedback-requests.spec.ts | T25 | implemented | required |
-| B-API-010 | integration | packages/workflow-server/test/integration/api/graph-overlay-reference-conformance.spec.ts | T30 | planned | required |
+| B-API-010 | integration | packages/workflow-server/test/integration/api/graph-overlay-reference-conformance.spec.ts | T30 | passing | required |
 | B-CONTRACT-001 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | implemented | required |
 | B-CONTRACT-002 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | implemented | required |
 | B-CONTRACT-003 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | implemented | required |
@@ -98,7 +98,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | B-CONTRACT-005 | integration | packages/workflow-api-types/package.json | T24 | planned | required |
 | B-CONTRACT-006 | integration | packages/workflow-api-types/package.json | T24 | planned | required |
 | B-CONTRACT-006 | integration | packages/workflow-server/test/integration/contract/error-envelope-contract-lock-drift.spec.ts | T29 | implemented | required |
-| B-CONTRACT-007 | integration | packages/workflow-server/test/integration/contract/graph-contract-lock-drift.spec.ts | T30 | planned | required |
+| B-CONTRACT-007 | integration | packages/workflow-server/test/integration/contract/graph-contract-lock-drift.spec.ts | T30 | passing | required |
 
 ## Integration Coverage (`ITX-*`)
 
@@ -149,7 +149,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | ITX-030 | integration | packages/workflow-server/test/integration/human-feedback/run-scoped-pagination.spec.ts | T26 | implemented | required |
 | ITX-031 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T26 | implemented | required |
 | ITX-032 | integration | packages/workflow-server/test/integration/contract/contract-lock-drift.spec.ts | T27 | implemented | required |
-| ITX-033 | integration | packages/workflow-server/test/integration/contract/graph-contract-lock-drift.spec.ts | T30 | planned | required |
+| ITX-033 | integration | packages/workflow-server/test/integration/contract/graph-contract-lock-drift.spec.ts | T30 | passing | required |
 | ITX-034 | integration | packages/workflow-server/test/integration/contract/error-envelope-contract-lock-drift.spec.ts | T29 | implemented | required |
 | LifecycleStart-001-NoPendingQueue | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
 | LifecycleStart-002-ImmediateStepHandoff | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
