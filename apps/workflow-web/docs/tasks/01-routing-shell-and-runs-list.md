@@ -16,12 +16,12 @@ Implement canonical `HashRouter` routes and route-level shells for `/runs`, `/ru
 - Route parameter contracts for `runId` and `workflowType`.
 
 ## Implementation Tasks
-- [ ] Define route tree and app shell with canonical hash routes.
-- [ ] Implement `/runs` table/list with lifecycle/workflowType filters.
-- [ ] Wire row activation (mouse + keyboard) to run route navigation.
-- [ ] Implement `/definitions/:workflowType` route with definition metadata + graph container shell.
-- [ ] Ensure deep-link entry to definitions route resolves without prior run-route state.
-- [ ] Preserve deep-link and back/forward contexts for run navigation.
+- [x] Define route tree and app shell with canonical hash routes.
+- [x] Implement `/runs` table/list with lifecycle/workflowType filters.
+- [x] Wire row activation (mouse + keyboard) to run route navigation.
+- [x] Implement `/definitions/:workflowType` route with definition metadata + graph container shell.
+- [x] Ensure deep-link entry to definitions route resolves without prior run-route state.
+- [x] Preserve deep-link and back/forward contexts for run navigation.
 
 ## Required Artifacts
 - `apps/workflow-web/src/app/router.tsx`

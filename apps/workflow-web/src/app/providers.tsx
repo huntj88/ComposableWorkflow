@@ -5,7 +5,6 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { BrowserRouter } from 'react-router-dom';
 import { Box, ThemeProvider, createTheme } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactFlowProvider } from 'reactflow';
@@ -73,12 +72,10 @@ export const AppProviders = ({ children }: PropsWithChildren): ReactElement => (
   <ThemeProvider theme={runtimeTheme}>
     <QueryClientProvider client={queryClient}>
       <RuntimeStoreContext.Provider value={useRuntimeStore}>
-        <BrowserRouter>
-          <ReactFlowProvider>
-            <RuntimeAnchors />
-            {children}
-          </ReactFlowProvider>
-        </BrowserRouter>
+        <ReactFlowProvider>
+          <RuntimeAnchors />
+          {children}
+        </ReactFlowProvider>
       </RuntimeStoreContext.Provider>
     </QueryClientProvider>
   </ThemeProvider>

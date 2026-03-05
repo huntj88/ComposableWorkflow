@@ -1,16 +1,12 @@
 import { StrictMode, type ReactElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Route, Routes } from 'react-router-dom';
-import { CssBaseline, Typography } from '@mui/material';
 
 import { AppProviders } from './app/providers';
+import { AppRouter } from './app/router';
 
 const AppShell = (): ReactElement => (
   <>
-    <CssBaseline />
-    <Routes>
-      <Route path="/" element={<Typography component="h1">Workflow Web</Typography>} />
-    </Routes>
+    <AppRouter />
   </>
 );
 
