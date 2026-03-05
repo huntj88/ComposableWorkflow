@@ -17,15 +17,15 @@ Implement the web transport layer with strict shared DTO authority, absolute `/a
 - Error contracts in web spec Section 6.8.
 
 ## Implementation Tasks
-- [ ] Implement typed transport operations for every Section 6.2 endpoint, including run summary/tree/events/logs/definition/cancel/feedback/submit/status.
-- [ ] Enforce logs/events/feedback query key, default limit, max limit, and ordering semantics from spec Section 6.7.
-- [ ] Enforce logs bounds semantics (`since` inclusive, `until` exclusive) and AND-combination behavior for provided filters.
-- [ ] Enforce events query defaults/max limits and append-order expectations by `sequence ASC`.
-- [ ] Remove/avoid local duplicate DTO definitions for covered surfaces.
-- [ ] Add transport/spec lock checks for endpoint and shared contract drift.
-- [ ] Add shared-contract export lock test ensuring web-consumed Section 6.1 symbols exist in `workflow-api-types`.
-- [ ] Add cross-spec contract evolution-order guard (`workflow-api-types` -> server -> web docs/usages).
-- [ ] Implement panel-scoped error parsing/rendering with request IDs.
+- [x] Implement typed transport operations for every Section 6.2 endpoint, including run summary/tree/events/logs/definition/cancel/feedback/submit/status.
+- [x] Enforce logs/events/feedback query key, default limit, max limit, and ordering semantics from spec Section 6.7.
+- [x] Enforce logs bounds semantics (`since` inclusive, `until` exclusive) and AND-combination behavior for provided filters.
+- [x] Enforce events query defaults/max limits and append-order expectations by `sequence ASC`.
+- [x] Remove/avoid local duplicate DTO definitions for covered surfaces.
+- [x] Add transport/spec lock checks for endpoint and shared contract drift.
+- [x] Add shared-contract export lock test ensuring web-consumed Section 6.1 symbols exist in `workflow-api-types`.
+- [x] Add cross-spec contract evolution-order guard (`workflow-api-types` -> server -> web docs/usages).
+- [x] Implement panel-scoped error parsing/rendering with request IDs.
 
 ## Required Artifacts
 - `apps/workflow-web/src/transport/workflowApiClient.ts`
