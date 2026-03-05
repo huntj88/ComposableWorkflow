@@ -38,6 +38,11 @@ This folder contains the end-to-end implementation plan for:
 - `T21` -> `T06`, `T20`
 - `T22` -> `T02`, `T04`, `T05`, `T07`
 - `T23` -> `T11`, `T13`, `T22`
+- `T24` -> `T05`, `T10`, `T22`, `T23`
+- `T25` -> `T24`, `T22`, `T23`
+- `T26` -> `T13`, `T24`, `T25`
+- `T27` -> `T24`, `T25`
+- `T28` -> `T12`, `T22`, `T23`, `T25`
 
 ## Task Index
 
@@ -65,6 +70,11 @@ This folder contains the end-to-end implementation plan for:
 - `T21` [21-recovery-progress-aware-reconcile.md](./21-recovery-progress-aware-reconcile.md)
 - `T22` [22-server-human-feedback-runtime.md](./22-server-human-feedback-runtime.md)
 - `T23` [23-feedback-api-cli-and-coverage.md](./23-feedback-api-cli-and-coverage.md)
+- `T24` [24-shared-api-contract-package.md](./24-shared-api-contract-package.md)
+- `T25` [25-run-scoped-feedback-endpoint.md](./25-run-scoped-feedback-endpoint.md)
+- `T26` [26-integration-feedback-pagination-contract-conformance.md](./26-integration-feedback-pagination-contract-conformance.md)
+- `T27` [27-contract-lock-drift-verification.md](./27-contract-lock-drift-verification.md)
+- `T28` [28-golden-scenarios-human-feedback.md](./28-golden-scenarios-human-feedback.md)
 
 ## Phase Alignment (Spec Section 15)
 
@@ -78,7 +88,9 @@ This folder contains the end-to-end implementation plan for:
 | Phase 6 (recovery progress gating) | `T21` | Enforce repeat-recovery gating on observed post-boundary progression and skip duplicate reconcile side effects. |
 | Phase 7 (human feedback runtime) | `T22` | Deliver server-owned default human feedback workflow contract, event semantics, and transactional projection. |
 | Phase 8 (feedback API and operator UX) | `T23` | Deliver strict feedback API validation/conflict semantics, CLI feedback commands, and expanded integration/E2E coverage. |
-| Phase 9 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
+| Phase 9 (shared contracts and feedback endpoint) | `T24`, `T25` | Shared API contract package (`workflow-api-types`) and run-scoped feedback requests endpoint. |
+| Phase 10 (contract verification and golden scenarios) | `T26`, `T27`, `T28` | Integration suite for feedback pagination/contract conformance, contract lock drift verification, and golden scenarios for human feedback E2E. |
+| Phase 11 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
 | Cross-phase verification/gates | `T13`-`T17` | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
 
 ## Coverage Expectations
@@ -104,6 +116,14 @@ This folder contains the end-to-end implementation plan for:
 | 10) Pause/resume/recovery lifecycle + endpoints | `T06` |
 | 11) Required lifecycle checkpoint events emitted | `T06`, `T15`, `T16` |
 | 12) Server-owned human feedback default workflow contract | `T22`, `T23` |
+| 13) Shared transport DTOs from `workflow-api-types` | `T24` |
+| 14) API endpoints with consistent `/api/v1` path prefixes | all `B-API-*` task owners |
+| 15) API contract updates versioned via `workflow-api-types` | `T24` |
+| 16) Run-scoped feedback discovery endpoint | `T25` |
+| 17) Every Section 8 endpoint has matching shared contract | `T24`, `T26` |
+| 18) Endpoint contract lock matches web spec | `T27` |
+| 19) CI fails on contract drift | `T27` |
+| 20) Feedback requests endpoint enforces run-scoped filtering | `T25`, `T26` |
 
 ## Task Document Contract (Mandatory Sections)
 

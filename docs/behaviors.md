@@ -15,6 +15,7 @@ Primary source: `docs/typescript-server-workflow-spec.md`.
 
 ## 1.1 Environment Baseline
 - Server running with Postgres (`postgresql://workflow:workflow@localhost:5432/workflow`).
+- `packages/workflow-api-types` built and importable by server, CLI, and web consumers.
 - At least one workflow package dynamically loadable by server.
 - Test package includes:
   - a simple success workflow,
@@ -26,9 +27,10 @@ Primary source: `docs/typescript-server-workflow-spec.md`.
 ## 1.2 Assertion Types
 Each behavior should validate all relevant dimensions:
 1. **API contract** (status code + response payload shape + value semantics).
-2. **Persistence** (`workflow_runs`, `workflow_events`, required `workflow_run_children`, and snapshots if enabled).
-3. **Event stream correctness** (event type, ordering, sequence monotonicity, linkage fields).
-4. **Observability** (logs/metrics/traces emitted with required fields).
+2. **Shared contract conformance** (server, CLI, and web consumers import transport DTOs from `@composable-workflow/workflow-api-types`; no local DTO duplication for covered endpoints).
+3. **Persistence** (`workflow_runs`, `workflow_events`, required `workflow_run_children`, and snapshots if enabled).
+4. **Event stream correctness** (event type, ordering, sequence monotonicity, linkage fields).
+5. **Observability** (logs/metrics/traces emitted with required fields).
 
 ## 1.3 Event Invariants (Global)
 For every run:
@@ -371,8 +373,11 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/events`
 - Maintains strict ordering by sequence.
 - Pagination is stable (no duplicates/missing events for same cursor contract).
 
-## B-API-003: Logs endpoint links logs to run transitions/events
+## B-API-003: Logs endpoint supports filtering and links logs to run transitions/events
 Endpoint: `GET /api/v1/workflows/runs/{runId}/logs`
+- Query contract: `GetRunLogsQuery` from `workflow-api-types` with `severity?`, `since?`, `until?`, `correlationId?`, `eventId?`.
+- Omitted query fields are unconstrained; multiple provided filters are AND-combined.
+- Query parameter keys must match the `GetRunLogsQuery` contract exactly.
 - Returns structured logs with event linkage (`eventId`, transition/run context).
 - Command logs include command metadata fields when applicable.
 
@@ -386,10 +391,13 @@ Endpoint: `GET /api/v1/workflows/definitions/{workflowType}`
 - Returns states (nodes), transitions (edges), child-launch annotations, and display metadata.
 - Sufficient to render static flowchart graph without runtime execution.
 
-## B-API-006: Live stream delivers near-real-time ordered events
+## B-API-006: Live stream delivers near-real-time ordered events via WorkflowStreamFrame
 Endpoint: `GET /api/v1/workflows/runs/{runId}/stream` (SSE)
+- SSE frame contract: `event: workflow-event`, `id: <cursor>`, `data: <WorkflowStreamFrame JSON>`.
 - Emits new events in sequence order.
-- Reconnection behavior (if supported) preserves no-loss semantics under documented cursor strategy.
+- Supports optional `cursor?` (opaque base64url) and `eventType?` query parameters.
+- Reconnection with `cursor=<lastSeenCursor>` resumes with events strictly after cursor boundary (no-loss, ordered delivery).
+- Client adapters must parse SSE `data` payloads as `WorkflowStreamFrame` from `@composable-workflow/workflow-api-types`.
 
 ## B-API-007: Submit feedback response endpoint validates and accepts
 Endpoint: `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond`
@@ -406,6 +414,18 @@ Endpoint: `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond`
 Endpoint: `GET /api/v1/human-feedback/requests/{feedbackRunId}`
 - Returns feedback request lifecycle/status, prompt/options metadata, response payload (if present), and parent run linkage fields.
 - Values are consistent with `human_feedback_requests` projection and canonical event stream.
+
+## B-API-009: List feedback requests for a run returns run-scoped paginated results
+Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
+- Purpose: deterministic feedback discovery for run dashboards without prior `feedbackRunId` knowledge.
+- Query: `status` (optional CSV of `awaiting_response|responded|cancelled`; default `awaiting_response,responded`), `limit` (optional, default `50`, max `200`), `cursor` (optional pagination cursor).
+- Response contract: `ListRunFeedbackRequestsResponse` with `items: RunFeedbackRequestSummary[]` and `nextCursor?: string`.
+- Each `RunFeedbackRequestSummary` includes: `feedbackRunId`, `parentRunId`, `questionId`, `status`, `requestedAt`, `respondedAt?`, `cancelledAt?`, `respondedBy?`, `prompt`, `options`, `constraints`.
+- Source is the `human_feedback_requests` projection keyed by `parent_run_id`.
+- Results are sorted by `requested_at DESC`, tie-break by `feedback_run_id ASC`.
+- Endpoint must not require event-stream replay on read path.
+- Pagination must be stable across reconnect/retry so clients can avoid duplicates.
+- Endpoint must return only feedback requests associated with the specified run lineage and must not degrade to global/unscoped listing behavior.
 
 ---
 
@@ -476,7 +496,48 @@ Security and multi-tenancy are not goals of this project and are intentionally e
 
 ---
 
-## 13) CLI Behaviors (`apps/workflow-cli`)
+## 13) Shared API Contract Behaviors (`workflow-api-types`)
+
+## B-CONTRACT-001: Server imports shared transport contracts for all Section 8 endpoints
+**Given** `packages/workflow-api-types` exports transport request/response/query/event types for all Section 8 endpoints
+**When** `workflow-server` compiles and serves those endpoints
+**Then** route handler/service boundaries reference types from `@composable-workflow/workflow-api-types`
+**And** no local transport DTO redefinitions exist for covered endpoints
+
+## B-CONTRACT-002: CLI and web consume shared contracts without local duplication
+**Given** `apps/workflow-cli` and `apps/workflow-web` depend on `@composable-workflow/workflow-api-types`
+**When** those consumers compile against covered endpoint contracts
+**Then** no local transport DTO interfaces/types are declared for endpoints covered by Sections 6.9.1 and 8
+**And** typecheck/build fails on missing or drifted shared contract exports
+
+## B-CONTRACT-003: SSE stream frames use WorkflowStreamFrame contract
+**Given** SSE `data` payloads emitted by `GET /api/v1/workflows/runs/{runId}/stream`
+**When** server serializes and client adapters parse stream payloads
+**Then** serialization and parsing use the `WorkflowStreamFrame` contract from `@composable-workflow/workflow-api-types`
+**And** client adapters do not define local mirror interfaces for stream frames
+
+## B-CONTRACT-004: Endpoint contract lock matches web spec exactly
+**Given** the endpoint contract lock table in spec Section 6.9.1
+**And** the web spec endpoint matrix in `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2
+**When** both tables are compared
+**Then** method, path, and shared contract names match exactly
+**And** CI fails on any drift between the two tables
+
+## B-CONTRACT-005: Breaking contract changes require semver-major bump
+**Given** an incompatible change to a transport contract in `workflow-api-types`
+**When** the change is versioned
+**Then** `workflow-api-types` receives a semver-major version bump
+**And** server/client compile-time checks reflect the change
+
+## B-CONTRACT-006: Coordinated contract updates span three artifacts
+**Given** a change to endpoint path, payload shape, or event frame schema
+**When** the change is implemented
+**Then** coordinated updates land in: (1) `packages/workflow-api-types`, (2) `docs/typescript-server-workflow-spec.md`, (3) `apps/workflow-web/docs/workflow-web-spec.md`
+**And** implementation is not considered complete until all three are updated
+
+---
+
+## 14) CLI Behaviors (`apps/workflow-cli`)
 
 ## B-CLI-001: `workflow run` starts run via server API
 CLI command sends expected payload and surfaces run id/lifecycle.
@@ -498,7 +559,7 @@ CLI command submits a response payload for a given `feedbackRunId` via the serve
 
 ---
 
-## 14) End-to-End Golden Scenarios
+## 15) End-to-End Golden Scenarios
 
 These scenarios should be implemented as top-level E2E tests because they validate multiple behavior families at once.
 
@@ -556,9 +617,10 @@ Must assert:
 1. Start parent workflow that reaches a state requiring human feedback.
 2. Parent launches `server.human-feedback.v1` child with prompt/options.
 3. Verify feedback child run is `running` and `human_feedback_requests` status is `awaiting_response`.
-4. Submit valid response via feedback response endpoint.
-5. Verify feedback child completes with `status: "responded"`.
-6. Verify parent resumes and eventually completes.
+4. Verify `GET /api/v1/workflows/runs/{runId}/feedback-requests` returns the pending feedback request for the parent run.
+5. Submit valid response via feedback response endpoint.
+6. Verify feedback child completes with `status: "responded"`.
+7. Verify parent resumes and eventually completes.
 
 Must assert:
 - `human-feedback.requested` and `human-feedback.received` events are emitted with correct linkage.
@@ -582,7 +644,7 @@ Must assert:
 
 ---
 
-## 15) Coverage Matrix (Spec Acceptance Criteria → E2E Behaviors)
+## 16) Coverage Matrix (Spec Acceptance Criteria → E2E Behaviors)
 
 1. Decoupled package build/publish without server internals → `B-LOAD-001`, `B-LOAD-002`.
 2. Dynamic loading + start by type → `B-LOAD-001`, `B-START-001`.
@@ -596,13 +658,23 @@ Must assert:
 10. Pause/resume/recovery lifecycle + endpoints → `B-LIFE-001..008`, `GS-003`, `GS-005`.
 11. Required lifecycle checkpoint events emitted → `B-LIFE-001`, `B-LIFE-003`, `B-LIFE-007`.
 12. Human feedback collection available as server-owned default workflow contract → `B-HFB-001..012`, `B-API-007`, `B-API-008`, `B-DATA-004`, `B-CLI-005`, `B-CLI-006`, `GS-006`, `GS-007`.
+13. Server, CLI, and web consumers use shared transport DTOs from `workflow-api-types` → `B-CONTRACT-001`, `B-CONTRACT-002`.
+14. API endpoints documented with consistent absolute `/api/v1` path prefixes → all `B-API-*` behaviors verify absolute paths.
+15. API contract updates versioned via `workflow-api-types` with semver-major for breaking changes → `B-CONTRACT-005`.
+16. Run-scoped feedback discovery endpoint returns paginated data → `B-API-009`.
+17. Every Section 8 endpoint has matching shared transport contract → `B-CONTRACT-001`, `B-CONTRACT-002`.
+18. Endpoints and shared contracts in Section 6.9.1 match web spec Section 6.2 exactly → `B-CONTRACT-004`.
+19. CI fails on contract drift between spec and `workflow-api-types` → `B-CONTRACT-004`, `B-CONTRACT-006`.
+20. Feedback requests endpoint enforces run-scoped filtering → `B-API-009`.
 
 ---
 
-## 16) Exit Criteria for MVP E2E Suite
+## 17) Exit Criteria for MVP E2E Suite
 
 MVP is considered behaviorally complete when:
 - All critical behaviors in sections 2–11 pass in CI for at least one reference workflow package.
+- Shared API contract behaviors in section 13 are verified (type conformance, no local DTO duplication, contract lock parity).
 - Golden scenarios `GS-001` through `GS-007` pass reliably.
 - Human feedback orchestration behaviors (`B-HFB-001..012`) pass for at least one feedback-requesting workflow.
+- Run-scoped feedback discovery (`B-API-009`) returns correct paginated, filtered results.
 - Failures provide enough diagnostics via events/logs/traces to identify root cause without code-level debugging.

@@ -465,13 +465,61 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-HFB-012`, `B-API-007`.
 
+## ITX-030: Run-scoped feedback discovery pagination and filter behavior
+**Why not E2E-only:** pagination stability under concurrent feedback creation and status filter combinatorics are expensive to prove in black-box mode.
+
+**Setup**
+- Create parent workflow with multiple feedback child runs in mixed statuses (`awaiting_response`, `responded`, `cancelled`).
+- Page through `GET /api/v1/workflows/runs/{runId}/feedback-requests` with varying `status`, `limit`, and `cursor` parameters.
+- Create feedback requests under a different parent run to verify scoping.
+
+**Assertions**
+- Endpoint returns only feedback requests associated with the specified run lineage.
+- Unrelated feedback requests from other runs are never returned.
+- Status filter correctly constrains results (default `awaiting_response,responded`).
+- Results are sorted by `requested_at DESC`, tie-break by `feedback_run_id ASC`.
+- Pagination cursor is stable across reconnect/retry (no duplicates or omissions).
+- Source is the `human_feedback_requests` projection (no event-stream replay on read path).
+
+**Related behaviors:** `B-API-009`, `B-DATA-004`.
+
+## ITX-031: Endpoint handler type conformance against `workflow-api-types`
+**Why not E2E-only:** compile-time and structural type conformance assertions require static analysis or type-level tests, not runtime API calls.
+
+**Setup**
+- For each Section 8 endpoint, verify that server route handler/service boundaries import and type-conform to transport contracts from `@composable-workflow/workflow-api-types`.
+- Check that `apps/workflow-web` and `apps/workflow-cli` consume the same shared contracts without local DTO redefinition.
+
+**Assertions**
+- All Section 8 endpoints have matching shared transport contracts in `packages/workflow-api-types`.
+- Server handler request/response types reference `workflow-api-types` exports (no local duplicate DTOs for covered endpoints).
+- `workflow-web` and `workflow-cli` compile against shared contracts without local transport DTO declarations for covered endpoints.
+- SSE stream frame emission and parsing aligns to `WorkflowStreamFrame` / `WorkflowStreamEvent` exports.
+- Build/typecheck pipelines fail on missing or drifted shared contract exports.
+
+**Related behaviors:** `B-CONTRACT-001`, `B-CONTRACT-002`, `B-CONTRACT-003`.
+
+## ITX-032: Contract lock drift test (Section 6.9.1 vs web spec Section 6.2)
+**Why not E2E-only:** table comparison is a static validation concern, not a runtime behavior.
+
+**Setup**
+- Parse the endpoint contract lock table from `docs/typescript-server-workflow-spec.md` Section 6.9.1.
+- Parse the web spec endpoint matrix from `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2.
+
+**Assertions**
+- Method, path, and shared contract names match exactly between the two tables.
+- CI fails on any drift between the two tables.
+- No endpoint in Section 6.9.1 is missing from web spec Section 6.2 or vice versa.
+
+**Related behaviors:** `B-CONTRACT-004`.
+
 ## 5) Integration vs E2E Ownership Matrix
 
 ## 5.1 Integration-Primary
-- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019, 020, 021, 024, 027, 028, 029.
+- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019, 020, 021, 024, 027, 028, 029, 031, 032.
 
 ## 5.2 Shared Coverage (Integration + E2E)
-- ITX-008, 009, 012, 015, 022, 023, 025, 026.
+- ITX-008, 009, 012, 015, 022, 023, 025, 026, 030.
 
 Guideline:
 - Keep one happy-path proof in E2E.
@@ -484,9 +532,11 @@ Guideline:
 - `packages/workflow-lib/test/integration/...`
   - runtime transitions, child orchestration, command policies, hook contracts.
 - `packages/workflow-server/test/integration/...`
-  - loader/registry, API adapter + persistence behavior, reconcile/locking, human feedback API + projection.
+  - loader/registry, API adapter + persistence behavior, reconcile/locking, human feedback API + projection, run-scoped feedback discovery.
 - `packages/workflow-server/test/harness/...`
   - fake clock, fault injector, barrier primitives, sink capture.
+- `packages/workflow-api-types/test/...`
+  - contract lock drift tests, shared type export completeness.
 
 Naming convention:
 - `itx.<domain>.<behavior-id>.spec.ts`
@@ -505,8 +555,11 @@ Integration suite is complete when:
    - reconciliation,
    - command policy/redaction,
    - instrumentation isolation,
-   - human feedback response idempotency, projection transactionality, and option validation.
+   - human feedback response idempotency, projection transactionality, and option validation,
+   - run-scoped feedback discovery pagination and filter behavior.
 4. Every integration-primary test maps to one or more `docs/behaviors.md` behavior IDs.
+5. Endpoint handler type conformance against `workflow-api-types` is verified for all Section 8 routes.
+6. Contract lock drift test confirms Section 6.9.1 and web spec Section 6.2 tables match exactly.
 
 ---
 
