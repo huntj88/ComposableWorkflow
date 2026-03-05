@@ -154,7 +154,7 @@ export interface CustomPromptClassificationOutput {
 
 /**
  * Server-owned base question item (no required `kind`).
- * Conforms to `docs/schemas/human-input/numbered-question-item.schema.json`.
+ * Conforms to `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json`.
  */
 export interface BaseNumberedQuestionItem {
   questionId: string;

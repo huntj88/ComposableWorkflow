@@ -27,7 +27,7 @@ Close the plan with representative browser E2E happy paths, deterministic integr
 ## Required Artifacts
 - `apps/workflow-web/test/e2e/*.spec.ts`
 - `.github/workflows/*` (or workspace CI equivalent)
-- `docs/testing/coverage-matrix.md`
+- `packages/workflow-server/docs/testing/coverage-matrix.md`
 
 ## File Plan (Exact)
 ### Create
@@ -35,7 +35,7 @@ Close the plan with representative browser E2E happy paths, deterministic integr
 - `apps/workflow-web/test/e2e/web-feedback-happy-path.spec.ts`
 
 ### Modify
-- `docs/testing/coverage-matrix.md`
+- `packages/workflow-server/docs/testing/coverage-matrix.md`
 - `.github/workflows/ci.yml`
 
 ## Acceptance Criteria
@@ -56,7 +56,7 @@ Close the plan with representative browser E2E happy paths, deterministic integr
 ## One-to-One Requirement Mapping
 | Requirement ID | Primary Artifact | Verification Assertion |
 |---|---|---|
-| TWEB12-GATE-001 | `docs/testing/coverage-matrix.md` | Coverage ledger contains complete ownership entries for `B-WEB-001..056` and `ITX-WEB-001..043`; missing ownership fails CI. |
+| TWEB12-GATE-001 | `packages/workflow-server/docs/testing/coverage-matrix.md` | Coverage ledger contains complete ownership entries for `B-WEB-001..056` and `ITX-WEB-001..043`; missing ownership fails CI. |
 | TWEB12-GATE-002 | `.github/workflows/ci.yml` | CI runs targeted definitions-route and unsupported-`eventType` stream integration checks defined by TWEB12 verification commands. |
 | TWEB12-GATE-003 | `.github/workflows/ci.yml` | CI runs spec-lock checks for API-types export-set and contract-evolution-order conformance. |
 | TWEB12-GATE-004 | `.github/workflows/ci.yml` | CI includes integration checks that cover free-text/filter-link semantics and defaults/max ordering semantics through targeted integration jobs. |

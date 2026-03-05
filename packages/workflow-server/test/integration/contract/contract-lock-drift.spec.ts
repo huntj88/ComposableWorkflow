@@ -13,7 +13,10 @@ type EndpointContractRow = {
 const HTTP_METHOD_PATTERN = /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+(.+)$/u;
 
 const repoRoot = resolve(fileURLToPath(new URL('../../../../../', import.meta.url)));
-const serverSpecPath = resolve(repoRoot, 'docs/typescript-server-workflow-spec.md');
+const serverSpecPath = resolve(
+  repoRoot,
+  'packages/workflow-server/docs/typescript-server-workflow-spec.md',
+);
 const webSpecPath = resolve(repoRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
 
 const parseContractLockRows = (options: {

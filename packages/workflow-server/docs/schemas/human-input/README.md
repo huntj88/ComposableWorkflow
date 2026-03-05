@@ -44,7 +44,7 @@ Example pattern:
 ```json
 {
   "allOf": [
-    { "$ref": "../../../../../docs/schemas/human-input/numbered-question-item.schema.json" },
+    { "$ref": "../../../../workflow-server/docs/schemas/human-input/numbered-question-item.schema.json" },
     {
       "type": "object",
       "required": ["kind"],

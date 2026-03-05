@@ -11,7 +11,10 @@ type EndpointMatrixEntry = {
 const workspaceRoot = resolve(import.meta.dirname, '../../../../..');
 
 const webSpecPath = resolve(workspaceRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
-const serverSpecPath = resolve(workspaceRoot, 'docs/typescript-server-workflow-spec.md');
+const serverSpecPath = resolve(
+  workspaceRoot,
+  'packages/workflow-server/docs/typescript-server-workflow-spec.md',
+);
 
 const extractTableRows = (content: string, sectionTitle: string): string[] => {
   const lines = content.split('\n');

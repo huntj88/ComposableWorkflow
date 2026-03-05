@@ -70,7 +70,7 @@ Implement deterministic integration coverage for all integration-primary and sha
 
 ### Modify
 - `packages/workflow-app-builder/test/integration/index.ts`
-- `docs/testing/coverage-matrix.md`
+- `packages/workflow-server/docs/testing/coverage-matrix.md`
 
 ## Verification
 - Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- test/integration/spec-doc`

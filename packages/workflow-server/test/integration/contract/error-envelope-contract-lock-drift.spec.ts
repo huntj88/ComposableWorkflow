@@ -16,7 +16,10 @@ interface ErrorContractDescriptor {
 }
 
 const repoRoot = resolve(fileURLToPath(new URL('../../../../../', import.meta.url)));
-const serverSpecPath = resolve(repoRoot, 'docs/typescript-server-workflow-spec.md');
+const serverSpecPath = resolve(
+  repoRoot,
+  'packages/workflow-server/docs/typescript-server-workflow-spec.md',
+);
 const webSpecPath = resolve(repoRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
 
 const extractSection = (params: { markdownPath: string; sectionHeadingPrefix: string }): string => {
@@ -116,7 +119,7 @@ describe('integration.contract.error-envelope-contract-lock-drift', () => {
 
     if (JSON.stringify(serverDescriptor) !== JSON.stringify(webDescriptor)) {
       throwDrift(
-        'Error-contract drift detected between docs/typescript-server-workflow-spec.md (8.0/8.10) and apps/workflow-web/docs/workflow-web-spec.md (6.8).',
+        'Error-contract drift detected between packages/workflow-server/docs/typescript-server-workflow-spec.md (8.0/8.10) and apps/workflow-web/docs/workflow-web-spec.md (6.8).',
         serverDescriptor,
         webDescriptor,
       );

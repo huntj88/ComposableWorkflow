@@ -32,7 +32,10 @@ interface StaticGraphDefinition {
 }
 
 const repoRoot = resolve(fileURLToPath(new URL('../../../../../', import.meta.url)));
-const serverSpecPath = resolve(repoRoot, 'docs/typescript-server-workflow-spec.md');
+const serverSpecPath = resolve(
+  repoRoot,
+  'packages/workflow-server/docs/typescript-server-workflow-spec.md',
+);
 const webSpecPath = resolve(repoRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
 
 const extractSection = (params: { markdownPath: string; sectionHeadingPrefix: string }): string => {

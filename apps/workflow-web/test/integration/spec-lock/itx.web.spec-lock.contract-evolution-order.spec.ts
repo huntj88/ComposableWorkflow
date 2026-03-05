@@ -6,7 +6,10 @@ import { describe, expect, it } from 'vitest';
 const workspaceRoot = resolve(import.meta.dirname, '../../../../..');
 
 const apiTypesIndexPath = resolve(workspaceRoot, 'packages/workflow-api-types/src/index.ts');
-const serverSpecPath = resolve(workspaceRoot, 'docs/typescript-server-workflow-spec.md');
+const serverSpecPath = resolve(
+  workspaceRoot,
+  'packages/workflow-server/docs/typescript-server-workflow-spec.md',
+);
 const webSpecPath = resolve(workspaceRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
 const webTransportClientPath = resolve(
   workspaceRoot,

@@ -19,7 +19,7 @@ Deliver black-box E2E coverage for all documented spec-doc golden scenarios (`GS
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-003-custom-roundtrip.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/gs-sd-005-copilot-failure-propagation.spec.ts`
 - `packages/workflow-server/test/e2e/blackbox/spec-doc/spec-doc-feedback-cancellation.spec.ts`
-- `docs/testing/coverage-matrix.md`
+- `packages/workflow-server/docs/testing/coverage-matrix.md`
 
 ## Acceptance Criteria
 - `GS-SD-001..005` all pass against production server process.
@@ -52,7 +52,7 @@ Deliver black-box E2E coverage for all documented spec-doc golden scenarios (`GS
 
 ### Modify
 - `packages/workflow-server/test/e2e/blackbox/index.spec.ts`
-- `docs/testing/coverage-matrix.md`
+- `packages/workflow-server/docs/testing/coverage-matrix.md`
 
 ## Verification
 - Command: `pnpm --filter @composable-workflow/workflow-server test:e2e:blackbox -- spec-doc`

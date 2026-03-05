@@ -3,7 +3,7 @@
 Related documents:
 - `apps/workflow-web/docs/workflow-web-behaviors.md`
 - `apps/workflow-web/docs/workflow-web-integration-tests.md`
-- `docs/typescript-server-workflow-spec.md`
+- `packages/workflow-server/docs/typescript-server-workflow-spec.md`
 
 ## 1) Objective and Scope
 
@@ -15,7 +15,7 @@ In scope:
 - run-level observability (events and logs),
 - run-scoped human feedback discovery and response submission,
 - strict use of shared transport contracts from `packages/workflow-api-types`,
-- path/contract alignment with `docs/typescript-server-workflow-spec.md`.
+- path/contract alignment with `packages/workflow-server/docs/typescript-server-workflow-spec.md`.
 
 ## 2) Non-Goals
 
@@ -31,7 +31,7 @@ In scope:
 - The application must be a React SPA using Vite.
 - App implementation changes for this feature must stay in `apps/workflow-web`.
 - For covered endpoints, request/response/query/event DTOs must be imported from `@composable-workflow/workflow-api-types` (`packages/workflow-api-types`).
-- Endpoint and DTO decisions in this spec must be kept consistent with `docs/typescript-server-workflow-spec.md` in the same change set.
+- Endpoint and DTO decisions in this spec must be kept consistent with `packages/workflow-server/docs/typescript-server-workflow-spec.md` in the same change set.
 
 ### 3.2 Assumptions
 - API base path is `/api/v1` for all REST and SSE routes.
@@ -173,8 +173,8 @@ Additional normative rules:
 - `409` submit responses are terminal conflicts and must include current feedback status plus terminal timestamp metadata (`respondedAt` or `cancelledAt`) for conflict rendering.
 
 ### 6.4 Cross-Spec Consistency Rules
-- Section 6.2 of this spec and Sections 6.9.1 + 8 of `docs/typescript-server-workflow-spec.md` must stay path- and contract-consistent for web-visible endpoints.
-- Section 6.6 + 8.5 of this spec and Section 10 of `docs/typescript-server-workflow-spec.md` must stay consistent for FSM identity and overlay semantics.
+- Section 6.2 of this spec and Sections 6.9.1 + 8 of `packages/workflow-server/docs/typescript-server-workflow-spec.md` must stay path- and contract-consistent for web-visible endpoints.
+- Section 6.6 + 8.5 of this spec and Section 10 of `packages/workflow-server/docs/typescript-server-workflow-spec.md` must stay consistent for FSM identity and overlay semantics.
 - Contract evolution order: `packages/workflow-api-types` -> server spec + server handlers -> web spec + web client usage.
 - Any endpoint/path/payload change is incomplete until both specs reflect the same contract.
 
@@ -473,7 +473,7 @@ Rules:
 ## 11) Acceptance Criteria (Testable)
 
 1. `apps/workflow-web` is a Vite React SPA and builds via workspace build tooling.
-2. Feature app-code changes are limited to `apps/workflow-web` (documentation update to `docs/typescript-server-workflow-spec.md` is allowed/required).
+2. Feature app-code changes are limited to `apps/workflow-web` (documentation update to `packages/workflow-server/docs/typescript-server-workflow-spec.md` is allowed/required).
 3. Covered web transport contracts are imported from `@composable-workflow/workflow-api-types` with no duplicate local DTOs for those endpoints.
 4. Every REST/SSE call used by this feature uses absolute `/api/v1`-prefixed paths exactly as listed in Section 6.2.
 5. `/runs` renders server-backed run data and supports lifecycle/workflow type filters.
@@ -485,7 +485,7 @@ Rules:
 11. Feedback submit `400` shows validation details and preserves user-entered values.
 12. Feedback submit `409` shows terminal status and disables additional submissions for that request.
 13. Successful feedback submit updates the visible request status to responded/accepted without manual reload.
-14. `docs/typescript-server-workflow-spec.md` documents matching paths and shared DTO ownership for every endpoint in Section 6.2.
+14. `packages/workflow-server/docs/typescript-server-workflow-spec.md` documents matching paths and shared DTO ownership for every endpoint in Section 6.2.
 15. Covered web transport function signatures use shared DTO/query/event exports directly (no local duplicate DTO definitions for those surfaces).
 16. Stream processing logic handles all server-emitted `WorkflowStreamEvent` variants used for run dashboard updates; unsupported variants fail visibly in development/test instead of being silently dropped.
 17. `apps/workflow-web/package.json` declares and uses the stack defined in Sections 7.2-7.4 (`react-router-dom`, `@tanstack/react-query`, `zustand`, `@mui/material`, `reactflow`, `recharts`) unless the spec is updated in the same change set.

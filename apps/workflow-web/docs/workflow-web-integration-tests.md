@@ -5,7 +5,7 @@ This document defines integration-focused test coverage for `apps/workflow-web` 
 Use this with:
 - `apps/workflow-web/docs/workflow-web-spec.md`
 - `apps/workflow-web/docs/workflow-web-behaviors.md`
-- `docs/typescript-server-workflow-spec.md`
+- `packages/workflow-server/docs/typescript-server-workflow-spec.md`
 
 ---
 

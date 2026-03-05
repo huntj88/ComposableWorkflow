@@ -271,8 +271,8 @@ Schema artifacts for this workflow:
 - `packages/workflow-app-builder/docs/schemas/spec-doc/spec-doc-generation-output.schema.json`
 
 Schema ownership boundary:
-- `packages/workflow-app-builder/docs/schemas/spec-doc/numbered-question-item.schema.json` extends the server-owned base envelope in `docs/schemas/human-input/numbered-question-item.schema.json` by adding app-builder-specific `kind` semantics.
-- Numbered response transport validation remains server-owned via `docs/schemas/human-input/numbered-options-response-input.schema.json`.
+- `packages/workflow-app-builder/docs/schemas/spec-doc/numbered-question-item.schema.json` extends the server-owned base envelope in `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json` by adding app-builder-specific `kind` semantics.
+- Numbered response transport validation remains server-owned via `packages/workflow-server/docs/schemas/human-input/numbered-options-response-input.schema.json`.
 
 Minimum usage contract by FSM state:
 - `IntegrateIntoSpec`
@@ -289,7 +289,7 @@ Minimum usage contract by FSM state:
   - `structuredOutput.intent` is the single source of truth for intent routing (`clarifying-question` vs `custom-answer`).
 - `ExpandQuestionWithClarification`
   - `outputSchema` must use `clarification-follow-up-output.schema.json`.
-  - `structuredOutput.followUpQuestion` must conform to server-owned base `docs/schemas/human-input/numbered-question-item.schema.json`; workflow logic assigns `kind: "issue-resolution"` and inserts as immediate next queue item.
+  - `structuredOutput.followUpQuestion` must conform to server-owned base `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json`; workflow logic assigns `kind: "issue-resolution"` and inserts as immediate next queue item.
 - `Done`
   - terminal payload must conform to `spec-doc-generation-output.schema.json`.
 
@@ -494,7 +494,7 @@ Required boundary:
 - changes to feedback transport, waiting semantics, or timeout/escalation policy must not require edits in `workflow-app-builder` workflows.
 
 Server-spec placement requirement:
-- introduce/maintain feedback orchestration behavior in `docs/typescript-server-workflow-spec.md` (not in app-builder package internals).
+- introduce/maintain feedback orchestration behavior in `packages/workflow-server/docs/typescript-server-workflow-spec.md` (not in app-builder package internals).
 
 ## 9) Minimum Observability Requirements
 

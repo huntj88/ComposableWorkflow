@@ -106,12 +106,16 @@ const SCHEMA_FILE_MAP: Record<SpecDocSchemaId, string> = {
     'spec-doc-generation-output.schema.json',
   ),
   [SCHEMA_IDS.serverNumberedQuestionItem]: fromMonorepoRoot(
+    'packages',
+    'workflow-server',
     'docs',
     'schemas',
     'human-input',
     'numbered-question-item.schema.json',
   ),
   [SCHEMA_IDS.serverNumberedOptionsResponseInput]: fromMonorepoRoot(
+    'packages',
+    'workflow-server',
     'docs',
     'schemas',
     'human-input',
@@ -129,7 +133,7 @@ const SCHEMA_FILE_MAP: Record<SpecDocSchemaId, string> = {
  * values that use relative file paths.
  */
 const REF_FILE_TO_ID: Record<string, SpecDocSchemaId> = {
-  '../../../../../docs/schemas/human-input/numbered-question-item.schema.json':
+  '../../../../workflow-server/docs/schemas/human-input/numbered-question-item.schema.json':
     SCHEMA_IDS.serverNumberedQuestionItem,
   './numbered-question-item.schema.json': SCHEMA_IDS.numberedQuestionItem,
 };

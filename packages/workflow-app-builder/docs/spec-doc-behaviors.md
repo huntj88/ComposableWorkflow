@@ -8,7 +8,7 @@ It is intended to be used as:
 - a contract between `workflow-app-builder`, `workflow-lib`, `workflow-server`, and `app-builder.copilot.prompt.v1`.
 
 Primary source: `packages/workflow-app-builder/docs/spec-doc-generation-workflow.md`.
-System-level behavior catalog: `docs/behaviors.md`.
+System-level behavior catalog: `packages/workflow-server/docs/behaviors.md`.
 
 ---
 
@@ -35,7 +35,7 @@ Each behavior should validate all relevant dimensions:
 
 ## 1.3 Behavior ID Scheme
 - `B-SD-*` prefix for all spec-doc generation behaviors.
-- References to system-level behaviors use `B-*` IDs from `docs/behaviors.md`.
+- References to system-level behaviors use `B-*` IDs from `packages/workflow-server/docs/behaviors.md`.
 
 ---
 
@@ -192,7 +192,7 @@ Each behavior should validate all relevant dimensions:
 ## B-SD-SCHEMA-005: Clarification follow-up conforms to server-owned base schema
 **Given** `ExpandQuestionWithClarification` produces a follow-up question
 **When** question is validated
-**Then** it conforms to server-owned `docs/schemas/human-input/numbered-question-item.schema.json`
+**Then** it conforms to server-owned `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json`
 **And** workflow logic assigns `kind: "issue-resolution"` before queue insertion
 
 ## B-SD-SCHEMA-006: Numbered options include decision-support descriptions

@@ -8,7 +8,7 @@ It is intended to be used as:
 - a contract between `apps/workflow-web`, `workflow-server`, and shared transport contracts.
 
 Primary source: `apps/workflow-web/docs/workflow-web-spec.md`.
-Cross-spec alignment source: `docs/typescript-server-workflow-spec.md`.
+Cross-spec alignment source: `packages/workflow-server/docs/typescript-server-workflow-spec.md`.
 
 ---
 

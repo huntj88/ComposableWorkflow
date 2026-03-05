@@ -17,8 +17,8 @@ This document defines **integration tests for `app-builder.spec-doc.v1` behavior
 Use this alongside:
 - `packages/workflow-app-builder/docs/spec-doc-generation-workflow.md`
 - `packages/workflow-app-builder/docs/spec-doc-behaviors.md`
-- `docs/behaviors.md`
-- `docs/integration-tests.md`
+- `packages/workflow-server/docs/behaviors.md`
+- `packages/workflow-server/docs/integration-tests.md`
 
 ---
 
