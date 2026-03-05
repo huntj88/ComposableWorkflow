@@ -21,7 +21,7 @@ Implement the two remaining E2E golden scenarios for human feedback: GS-006 (req
 - GS-007 validates: `human-feedback.cancelled` event; feedback projection `cancelled` status; no response acceptance after cancellation; terminal states across summary/tree/events.
 
 ## Implementation Tasks
-- [ ] Implement GS-006: Human feedback request-response round trip.
+- [x] Implement GS-006: Human feedback request-response round trip.
   1. Start parent workflow that reaches a state requiring human feedback.
   2. Parent launches `server.human-feedback.v1` child with prompt/options.
   3. Verify feedback child run is `running` and `human_feedback_requests` status is `awaiting_response`.
@@ -30,13 +30,13 @@ Implement the two remaining E2E golden scenarios for human feedback: GS-006 (req
   6. Verify feedback child completes with `status: "responded"`.
   7. Verify parent resumes and eventually completes.
   8. Assert: events emitted with correct linkage; projection transitions; duplicate response returns `409`; invalid options return `400`; run tree shows feedback child.
-- [ ] Implement GS-007: Feedback cancellation propagation.
+- [x] Implement GS-007: Feedback cancellation propagation.
   1. Start parent workflow that launches a feedback child.
   2. Cancel parent while feedback is pending.
   3. Verify cancellation propagates to feedback child.
   4. Verify both runs reach terminal `cancelled` state.
   5. Assert: `human-feedback.cancelled` event emitted; projection status `cancelled`; no response acceptance after cancellation; terminal states consistent.
-- [ ] Update coverage matrix with new entries.
+- [x] Update coverage matrix with new entries.
 
 ## Required Artifacts
 - `packages/workflow-server/test/e2e/golden/GS-006.spec.ts`
