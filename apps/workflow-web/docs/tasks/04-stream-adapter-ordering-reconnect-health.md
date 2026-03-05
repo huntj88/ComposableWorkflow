@@ -17,12 +17,12 @@ Implement typed SSE streaming for run dashboards with deterministic incremental 
 - Stream/ordering semantics from spec sections 5.3, 5.4, 5.5, 6.9.
 
 ## Implementation Tasks
-- [ ] Implement typed EventSource adapter and run stream abstraction.
-- [ ] Persist `lastSeenCursor` from accepted frame IDs and reconnect with cursor query.
-- [ ] Enforce sequence-driven ordering, dedup, and strict non-regression rules.
-- [ ] Implement health states (`connected`, `reconnecting`, `stale`) with non-blocking UX.
-- [ ] Enforce stream query `eventType` handling so unsupported values surface explicit request error state.
-- [ ] Surface unsupported stream variants visibly in dev/test.
+- [x] Implement typed EventSource adapter and run stream abstraction.
+- [x] Persist `lastSeenCursor` from accepted frame IDs and reconnect with cursor query.
+- [x] Enforce sequence-driven ordering, dedup, and strict non-regression rules.
+- [x] Implement health states (`connected`, `reconnecting`, `stale`) with non-blocking UX.
+- [x] Enforce stream query `eventType` handling so unsupported values surface explicit request error state.
+- [x] Surface unsupported stream variants visibly in dev/test.
 
 ## Required Artifacts
 - `apps/workflow-web/src/stream/openRunStream.ts`
