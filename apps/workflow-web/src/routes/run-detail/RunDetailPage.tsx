@@ -293,12 +293,7 @@ export const RunDetailPage = (): ReactElement => {
             errorMessage={dashboard.panels.logs.errorMessage}
             onRetry={() => dashboard.retryPanel('logs')}
           />
-          <HumanFeedbackPanel
-            feedback={dashboard.panels.feedback.data}
-            isLoading={dashboard.panels.feedback.isLoading}
-            errorMessage={dashboard.panels.feedback.errorMessage}
-            onRetry={() => dashboard.retryPanel('feedback')}
-          />
+          <HumanFeedbackPanel runId={runId} />
         </Stack>
       </Stack>
     </Stack>

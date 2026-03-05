@@ -18,11 +18,11 @@ Implement run-scoped human feedback discovery, awaiting-first prioritization, in
 - `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse`, `SubmitHumanFeedbackResponseConflict`.
 
 ## Implementation Tasks
-- [ ] Render run-scoped feedback list with awaiting-first visual priority.
-- [ ] Implement feedback item selection details (prompt/options/form context).
-- [ ] Enforce client validity gates and submission transitions.
-- [ ] Render `400`/`409` semantics with draft preservation and terminal metadata.
-- [ ] Enforce stable pagination and deterministic ordering semantics.
+- [x] Render run-scoped feedback list with awaiting-first visual priority.
+- [x] Implement feedback item selection details (prompt/options/form context).
+- [x] Enforce client validity gates and submission transitions.
+- [x] Render `400`/`409` semantics with draft preservation and terminal metadata.
+- [x] Enforce stable pagination and deterministic ordering semantics.
 
 ## Required Artifacts
 - `apps/workflow-web/src/routes/run-detail/components/HumanFeedbackPanel.tsx`
