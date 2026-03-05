@@ -344,7 +344,6 @@ describe('delegateToCopilot - copilotPromptOptions forwarding', () => {
         sourceQuestionPrompt: 'Pick one',
         sourceOptionsJson: '[]',
         clarifyingQuestionText: 'What about X?',
-        nextQuestionOrdinal: '2',
       },
       'ExpandQuestionWithClarification',
       opts,
@@ -560,7 +559,6 @@ describe('delegateToCopilot - observability logging', () => {
         sourceQuestionPrompt: 'Pick one',
         sourceOptionsJson: '[]',
         clarifyingQuestionText: 'Can you clarify?',
-        nextQuestionOrdinal: '3',
       },
       'ExpandQuestionWithClarification',
     );
@@ -636,7 +634,6 @@ describe('delegateToCopilot - all four templates', () => {
         sourceQuestionPrompt: 'Pick one',
         sourceOptionsJson: '[]',
         clarifyingQuestionText: 'Clarify please',
-        nextQuestionOrdinal: '2',
       },
       state: 'ExpandQuestionWithClarification',
     },

@@ -132,7 +132,6 @@ Input context:
 - sourceQuestionPrompt: {{sourceQuestionPrompt}}
 - sourceOptions: {{sourceOptionsJson}}
 - clarifyingQuestionText: {{clarifyingQuestionText}}
-- nextQuestionOrdinalHint: {{nextQuestionOrdinal}}
 
 Rules:
 - followUpQuestion.questionId must be new and deterministic.
@@ -179,7 +178,6 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
       'sourceQuestionPrompt',
       'sourceOptionsJson',
       'clarifyingQuestionText',
-      'nextQuestionOrdinal',
     ],
   },
 } as const;

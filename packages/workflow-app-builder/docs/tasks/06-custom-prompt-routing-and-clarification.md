@@ -34,7 +34,7 @@ Implement `ClassifyCustomPrompt` and `ExpandQuestionWithClarification` routing, 
 - Intent routing authority is only `structuredOutput.intent` from validated classification output.
 - Clarification expansion creates new queue item; no mutation of previously asked questions.
 - Insert position for clarification follow-up is `currentIndex + 1`.
-- Follow-up `questionId` authority is the schema-validated delegated output; workflow enforces that it is both new (distinct from source) and deterministic for identical inputs (using `sourceQuestionId` + `nextQuestionOrdinalHint` prompt context).
+- Follow-up `questionId` authority is the schema-validated delegated output; workflow enforces that it is both new (distinct from source) and deterministic for identical inputs (using `sourceQuestionId` prompt context).
 
 ## Interface/Schema Contracts
 - Classification schema: `custom-prompt-classification-output.schema.json`.

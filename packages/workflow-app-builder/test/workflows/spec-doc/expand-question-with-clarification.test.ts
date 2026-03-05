@@ -526,17 +526,6 @@ describe('Prompt context', () => {
     expect(childInput.prompt).toContain('Resolve issue for q-cc-1');
     expect(childInput.prompt).toContain('Should this be a monolith?');
   });
-
-  it('includes nextQuestionOrdinal hint in the prompt', async () => {
-    const stateData = stateDataForExpansion();
-    const { ctx, launchChildSpy } = createMockContext();
-
-    await handleExpandQuestionWithClarification(ctx, stateData);
-
-    const childInput = launchChildSpy.mock.calls[0][0].input;
-    // First clarification from q-cc-1 → ordinal 1
-    expect(childInput.prompt).toContain('1');
-  });
 });
 
 // ===========================================================================

@@ -461,7 +461,6 @@ Required runtime interpolation variables:
 - `{{sourceQuestionPrompt}}`
 - `{{sourceOptionsJson}}`
 - `{{clarifyingQuestionText}}`
-- `{{nextQuestionOrdinal}}`
 
 Prompt text:
 
@@ -473,7 +472,6 @@ Input context:
 - sourceQuestionPrompt: {{sourceQuestionPrompt}}
 - sourceOptions: {{sourceOptionsJson}}
 - clarifyingQuestionText: {{clarifyingQuestionText}}
-- nextQuestionOrdinalHint: {{nextQuestionOrdinal}}
 
 Rules:
 - followUpQuestion.questionId must be new and deterministic.

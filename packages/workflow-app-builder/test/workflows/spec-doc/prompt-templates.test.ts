@@ -164,7 +164,6 @@ describe('PROMPT_TEMPLATES', () => {
       expect(tpl.requiredVars).toContain('sourceQuestionPrompt');
       expect(tpl.requiredVars).toContain('sourceOptionsJson');
       expect(tpl.requiredVars).toContain('clarifyingQuestionText');
-      expect(tpl.requiredVars).toContain('nextQuestionOrdinal');
     });
 
     it('body contains key spec 7.2.4 phrases', () => {

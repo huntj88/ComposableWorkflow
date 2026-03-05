@@ -60,13 +60,18 @@ export async function handleIntegrateIntoSpec(
   const isFirstPass = stateData.normalizedAnswers.length === 0;
   const source = isFirstPass ? 'workflow-input' : 'numbered-options-feedback';
 
+  // On first pass, pre-seed specPath from targetPath so the copilot knows to
+  // read and iterate on any existing file rather than generating from scratch.
+  const specPath =
+    stateData.artifacts.specPath ?? (isFirstPass ? (ctx.input.targetPath ?? '') : '');
+
   // Build interpolation variables for the prompt template
   const variables: Record<string, string> = {
     source,
     request: ctx.input.request,
     targetPath: ctx.input.targetPath ?? '',
     constraintsJson: JSON.stringify(ctx.input.constraints ?? []),
-    specPath: stateData.artifacts.specPath ?? '',
+    specPath,
     answersJson: isFirstPass ? '[]' : JSON.stringify(stateData.normalizedAnswers),
   };
 

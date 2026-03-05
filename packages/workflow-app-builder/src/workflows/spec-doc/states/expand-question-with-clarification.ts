@@ -121,18 +121,11 @@ export async function handleExpandQuestionWithClarification(
   // Delegate to copilot for clarification expansion
   // ---------------------------------------------------------------------------
 
-  // Count existing questions derived from the same source to compute ordinal hint
-  const existingClarifications = stateData.queue.filter(
-    (q) => q.questionId.startsWith(sourceQuestionId) && q.questionId !== sourceQuestionId,
-  );
-  const nextQuestionOrdinal = String(existingClarifications.length + 1);
-
   const variables: Record<string, string> = {
     sourceQuestionId,
     sourceQuestionPrompt: sourceQuestion.prompt,
     sourceOptionsJson: JSON.stringify(sourceQuestion.options),
     clarifyingQuestionText,
-    nextQuestionOrdinal,
   };
 
   const request = buildDelegationRequest(

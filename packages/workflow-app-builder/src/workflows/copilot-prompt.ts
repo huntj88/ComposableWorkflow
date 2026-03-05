@@ -339,7 +339,7 @@ function validateAgainstOutputSchema(
   }
 
   try {
-    const ajv = new Ajv2020({ strict: false, allErrors: true });
+    const ajv = new Ajv2020({ strict: false, allErrors: true, removeAdditional: true });
     const validate = ajv.compile(schema);
     const valid = validate(structuredOutput);
     if (valid) return null;
