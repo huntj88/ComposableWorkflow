@@ -22,15 +22,15 @@ Create `packages/workflow-api-types` as the canonical shared transport contract 
 - `EventCursor` is an opaque string type used by events pagination and stream resume surfaces.
 
 ## Implementation Tasks
-- [ ] Create `packages/workflow-api-types` workspace package with `package.json`, `tsconfig.json`, and `src/index.ts`.
-- [ ] Define and export all minimum-set transport types/schemas from spec Section 6.9.
-- [ ] Move applicable zod schemas from `workflow-server` API schemas into `workflow-api-types` (re-export from server to avoid breakage).
-- [ ] Wire `packages/workflow-server` to import transport contracts from `@composable-workflow/workflow-api-types` in route handler/service boundaries.
-- [ ] Wire `apps/workflow-cli` to import transport contracts from `@composable-workflow/workflow-api-types` for covered endpoints.
-- [ ] Wire `apps/workflow-web` to declare dependency on `@composable-workflow/workflow-api-types` (stub consumer if web app is not yet implemented).
-- [ ] Remove all local transport DTO redefinitions in consumers for covered endpoints.
-- [ ] Verify build/typecheck pipelines for all three consumers fail on missing or drifted shared contract exports.
-- [ ] Add `workflow-api-types` to `pnpm-workspace.yaml` packages list.
+- [x] Create `packages/workflow-api-types` workspace package with `package.json`, `tsconfig.json`, and `src/index.ts`.
+- [x] Define and export all minimum-set transport types/schemas from spec Section 6.9.
+- [x] Move applicable zod schemas from `workflow-server` API schemas into `workflow-api-types` (re-export from server to avoid breakage).
+- [x] Wire `packages/workflow-server` to import transport contracts from `@composable-workflow/workflow-api-types` in route handler/service boundaries.
+- [x] Wire `apps/workflow-cli` to import transport contracts from `@composable-workflow/workflow-api-types` for covered endpoints.
+- [x] Wire `apps/workflow-web` to declare dependency on `@composable-workflow/workflow-api-types` (stub consumer if web app is not yet implemented).
+- [x] Remove all local transport DTO redefinitions in consumers for covered endpoints.
+- [x] Verify build/typecheck pipelines for all three consumers fail on missing or drifted shared contract exports.
+- [x] Add `workflow-api-types` to `pnpm-workspace.yaml` packages list.
 
 ## Required Artifacts
 - `packages/workflow-api-types/package.json`

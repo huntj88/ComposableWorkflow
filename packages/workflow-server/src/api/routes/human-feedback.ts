@@ -2,6 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 import type { FastifyInstance } from 'fastify';
 
+import {
+  humanFeedbackRequestStatusResponseSchema,
+  listRunFeedbackRequestsQuerySchema,
+  listRunFeedbackRequestsResponseSchema,
+  submitHumanFeedbackResponseConflictSchema,
+  submitHumanFeedbackResponseRequestSchema,
+  submitHumanFeedbackResponseResponseSchema,
+} from '@composable-workflow/workflow-api-types';
+
 import type { HumanFeedbackProjectionRow } from '../../persistence/human-feedback-projection-repository.js';
 import { withTransaction, type DbClient } from '../../persistence/db.js';
 import { createEventRepository } from '../../persistence/event-repository.js';
@@ -9,14 +18,6 @@ import { createHumanFeedbackProjectionRepository } from '../../persistence/human
 import { createRunRepository } from '../../persistence/run-repository.js';
 import { ApiError, type ApiServerDependencies } from '../server.js';
 import { errorEnvelopeSchema } from '../schemas.js';
-import {
-  humanFeedbackListQuerySchema,
-  humanFeedbackListResponseSchema,
-  humanFeedbackRequestStatusSchema,
-  humanFeedbackRespondBodySchema,
-  humanFeedbackRespondConflictSchema,
-  humanFeedbackRespondSuccessSchema,
-} from '../schemas/human-feedback.js';
 
 interface RunLifecycleRow {
   run_id: string;
@@ -136,7 +137,7 @@ FOR UPDATE
 };
 
 const mapStatusRow = (row: HumanFeedbackProjectionRow) =>
-  humanFeedbackRequestStatusSchema.parse({
+  humanFeedbackRequestStatusResponseSchema.parse({
     feedbackRunId: row.feedbackRunId,
     parentRunId: row.parentRunId,
     parentWorkflowType: row.parentWorkflowType,
@@ -234,15 +235,15 @@ export const registerHumanFeedbackRoutes = async (
     '/api/v1/human-feedback/requests',
     {
       schema: {
-        querystring: humanFeedbackListQuerySchema,
+        querystring: listRunFeedbackRequestsQuerySchema,
         response: {
-          200: humanFeedbackListResponseSchema,
+          200: listRunFeedbackRequestsResponseSchema,
           400: errorEnvelopeSchema,
         },
       },
     },
     async (request) => {
-      const query = humanFeedbackListQuerySchema.parse(request.query);
+      const query = listRunFeedbackRequestsQuerySchema.parse(request.query);
       const values: unknown[] = [];
       const where: string[] = [];
 
@@ -324,7 +325,7 @@ LIMIT 200
     {
       schema: {
         response: {
-          200: humanFeedbackRequestStatusSchema,
+          200: humanFeedbackRequestStatusResponseSchema,
           404: errorEnvelopeSchema,
         },
       },
@@ -351,18 +352,18 @@ LIMIT 200
     '/api/v1/human-feedback/requests/:feedbackRunId/respond',
     {
       schema: {
-        body: humanFeedbackRespondBodySchema,
+        body: submitHumanFeedbackResponseRequestSchema,
         response: {
-          200: humanFeedbackRespondSuccessSchema,
+          200: submitHumanFeedbackResponseResponseSchema,
           400: errorEnvelopeSchema,
           404: errorEnvelopeSchema,
-          409: humanFeedbackRespondConflictSchema,
+          409: submitHumanFeedbackResponseConflictSchema,
         },
       },
     },
     async (request, reply) => {
       const feedbackRunId = (request.params as { feedbackRunId: string }).feedbackRunId;
-      const body = humanFeedbackRespondBodySchema.parse(request.body);
+      const body = submitHumanFeedbackResponseRequestSchema.parse(request.body);
 
       const result = await withTransaction(deps.pool, async (client) => {
         const projection = await getProjectionForUpdate(client, feedbackRunId);
@@ -377,7 +378,7 @@ LIMIT 200
         if (projection.status !== 'awaiting_response') {
           return {
             kind: 'conflict' as const,
-            body: humanFeedbackRespondConflictSchema.parse({
+            body: submitHumanFeedbackResponseConflictSchema.parse({
               feedbackRunId,
               status: projection.status,
               respondedAt: projection.respondedAt,
@@ -390,7 +391,7 @@ LIMIT 200
         if (run.lifecycle !== 'running') {
           return {
             kind: 'conflict' as const,
-            body: humanFeedbackRespondConflictSchema.parse({
+            body: submitHumanFeedbackResponseConflictSchema.parse({
               feedbackRunId,
               status: projection.status,
               respondedAt: projection.respondedAt,
@@ -427,7 +428,7 @@ LIMIT 200
           const currentProjection = await getProjectionForUpdate(client, feedbackRunId);
           return {
             kind: 'conflict' as const,
-            body: humanFeedbackRespondConflictSchema.parse({
+            body: submitHumanFeedbackResponseConflictSchema.parse({
               feedbackRunId,
               status: currentProjection?.status ?? 'awaiting_response',
               respondedAt: currentProjection?.respondedAt ?? null,
@@ -468,7 +469,7 @@ LIMIT 200
         return {
           kind: 'accepted' as const,
           parentRunId: run.parent_run_id,
-          body: humanFeedbackRespondSuccessSchema.parse({
+          body: submitHumanFeedbackResponseResponseSchema.parse({
             feedbackRunId,
             status: 'accepted',
             acceptedAt: respondedAt,

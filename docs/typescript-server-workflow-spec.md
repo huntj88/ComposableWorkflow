@@ -983,18 +983,38 @@ OpenTelemetry-compatible spans:
 To support UI later, API must provide both static and dynamic graph inputs.
 
 ## 10.1 Static Graph Schema
-For a workflow definition:
-- nodes: state IDs + labels,
-- edges: transition from/to + label,
-- child-launch annotations on edges or states.
+`GET /api/v1/workflows/definitions/{workflowType}` (`WorkflowDefinitionResponse`) must provide a deterministic definition graph payload with:
+- definition identity: `workflowType` + `workflowVersion|definitionVersion`,
+- `initialState` that resolves to a declared state identifier,
+- states with stable identifiers (unique within the definition), display labels/metadata, and optional role hints,
+- transitions with `fromState`, `toState`, optional display label/metadata, and optional child-launch annotations,
+- stable transition ordering for a given definition version.
+
+Normative invariants:
+- State identifiers are immutable for a published definition version.
+- Transition identity is derived from `(fromState,toState,ordinalWithinPair)` where `ordinalWithinPair` uses server-provided transition order.
+- Child-launch annotations must include enough metadata for UI to render launch affordances without additional definition fetches.
+- Schema shape and field names are exported from `packages/workflow-api-types`; server/web/cli must consume those shared exports.
 
 ## 10.2 Dynamic Overlay Schema
-For a run instance:
-- active node,
-- traversed edges (ordered),
-- pending/failed edges,
-- child node linkage to separate workflow graph instances,
-- timestamps/tooltips/log references.
+For a run instance, overlay data is composed from shared transport contracts:
+- `RunSummaryResponse.currentState` (initial active node),
+- `RunEventsResponse` history (ordered traversal/failure context),
+- `WorkflowStreamFrame` live updates.
+
+Required alignment rules:
+- Runtime state/transition references in events must resolve against the static definition identifiers from Section 10.1.
+- Server-emitted event payloads for `state.entered`, `transition.completed`, and `transition.failed` must include identifiers sufficient for deterministic node/edge overlay updates.
+- Unknown state/transition references are contract violations and must be surfaced by consumers (not silently ignored).
+- Stream/event ordering guarantees (`sequence` + cursor resume semantics) must preserve deterministic overlay reconstruction after reconnect.
+
+## 10.3 Cross-Spec Graph Contract Lock
+- Section 10 invariants are locked to `apps/workflow-web/docs/workflow-web-spec.md` Sections 6.6 and 8.5.
+- Endpoint contract lock in Section 6.9.1 guarantees path + DTO alignment; this section additionally locks graph identity semantics used by the web renderer.
+- Any change to graph identity fields, transition ordering semantics, or overlay event-reference semantics requires coordinated updates in:
+  1) `packages/workflow-api-types`,
+  2) this server spec Section 10,
+  3) web spec Sections 6.6 and 8.5.
 
 ---
 
@@ -1206,7 +1226,7 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
 2. Server can dynamically load package(s) and start a workflow by type.
 3. Parent workflow can launch child workflow and await typed result.
 4. API exposes current run state, active children, and full linear transition/event history.
-5. API exposes sufficient definition + runtime data to render future flowchart UI.
+5. API exposes definition + runtime data that satisfies Section 10 invariants (deterministic state/transition identity, stable transition ordering, and resolvable runtime overlay references).
 6. Logs and telemetry are emitted for all major workflow-lib operations through server instrumentation.
 7. Workflows can execute CLI commands through `workflow-lib` with policy enforcement, and those command steps are visible in events/logs/telemetry.
 8. User-facing CLI commands (in `apps/workflow-cli`) can start/inspect workflows via server APIs, independent of workflow step command execution.
@@ -1222,6 +1242,7 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
 18. Endpoints and shared contracts in Section 6.9.1 are an exact match to `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2 (path + contract names).
 19. CI fails if any Section 8 covered endpoint transport contract diverges from `packages/workflow-api-types` exports or if Section 6.9.1 and web spec Section 6.2 tables drift.
 20. `GET /api/v1/workflows/runs/{runId}/feedback-requests` enforces run-scoped filtering semantics and does not expose unrelated feedback requests.
+21. Server graph contracts in Section 10 stay aligned with web graph requirements in `apps/workflow-web/docs/workflow-web-spec.md` Sections 6.6 and 8.5, and shared contract exports in `packages/workflow-api-types`.
 
 ---
 

@@ -52,8 +52,17 @@ describe('stream helpers', () => {
       event: {
         eventId: 'evt-9',
         runId: 'run-evt',
+        workflowType: 'reference.success.v1',
+        parentRunId: null,
         sequence: 9,
         eventType: 'transition.completed',
+        state: null,
+        transition: {
+          from: 'start',
+          to: 'done',
+        },
+        child: null,
+        command: null,
         timestamp: '2026-01-01T00:00:00.000Z',
         payload: { to: 'done' },
         error: null,
@@ -64,7 +73,7 @@ describe('stream helpers', () => {
     expect(lines[0]).toBe('event: workflow-event');
     expect(lines[1]).toMatch(/^id: [A-Za-z0-9_-]+$/);
     expect(lines[2]).toBe(
-      'data: {"eventId":"evt-9","runId":"run-evt","sequence":9,"eventType":"transition.completed","timestamp":"2026-01-01T00:00:00.000Z","payload":{"to":"done"},"error":null}',
+      'data: {"eventId":"evt-9","runId":"run-evt","workflowType":"reference.success.v1","parentRunId":null,"sequence":9,"eventType":"transition.completed","state":null,"transition":{"from":"start","to":"done"},"child":null,"command":null,"timestamp":"2026-01-01T00:00:00.000Z","payload":{"to":"done"},"error":null}',
     );
   });
 });

@@ -1,6 +1,6 @@
 # Agent Policy
 
-This is a greenfield project with no users. Backwards compatibility is not a focus, refactor as needed to keep implementation simple.
+This is a greenfield project with no users. Backwards compatibility is not a focus, refactor as needed to keep implementation simple. NO legacy fallback, even if server is out of date.
 
 ## Reuse Preference
 - Avoid changes that reduce existing reuse across shared schemas, contracts, or utilities unless explicitly requested.

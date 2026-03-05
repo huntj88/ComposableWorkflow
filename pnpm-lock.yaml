@@ -38,12 +38,27 @@ importers:
 
   apps/workflow-cli:
     dependencies:
+      '@composable-workflow/workflow-api-types':
+        specifier: workspace:*
+        version: link:../../packages/workflow-api-types
       commander:
         specifier: ^14.0.1
         version: 14.0.3
       undici:
         specifier: ^7.16.0
         version: 7.22.0
+
+  apps/workflow-web:
+    dependencies:
+      '@composable-workflow/workflow-api-types':
+        specifier: workspace:*
+        version: link:../../packages/workflow-api-types
+
+  packages/workflow-api-types:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
   packages/workflow-app-builder:
     dependencies:
@@ -70,6 +85,9 @@ importers:
 
   packages/workflow-server:
     dependencies:
+      '@composable-workflow/workflow-api-types':
+        specifier: workspace:*
+        version: link:../workflow-api-types
       '@composable-workflow/workflow-lib':
         specifier: workspace:*
         version: link:../workflow-lib

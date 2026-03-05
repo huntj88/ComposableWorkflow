@@ -24,6 +24,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@composable-workflow/workflow-api-types": "workspace:*",
     "commander": "^14.0.1",
     "undici": "^7.16.0"
   }

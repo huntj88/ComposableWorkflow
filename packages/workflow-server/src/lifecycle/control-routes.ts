@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import type { FastifyInstance } from 'fastify';
 
+import { cancelRunResponseSchema } from '@composable-workflow/workflow-api-types';
+
 import { type DbClient, withTransaction } from '../persistence/db.js';
 import type { ReconcileService } from '../recovery/reconcile-service.js';
 import { ApiError, type ApiServerDependencies } from '../api/server.js';
@@ -319,7 +321,7 @@ export const registerLifecycleControlRoutes = async (
       schema: {
         body: controlRequestBodySchema,
         response: {
-          200: controlResponseSchema,
+          200: cancelRunResponseSchema,
           404: errorEnvelopeSchema,
           409: errorEnvelopeSchema,
         },
@@ -328,7 +330,7 @@ export const registerLifecycleControlRoutes = async (
     async (request) => {
       const runId = (request.params as { runId: string }).runId;
       const body = controlRequestBodySchema.parse(request.body);
-      return controlResponseSchema.parse(await requestCancel(deps, runId, body));
+      return cancelRunResponseSchema.parse(await requestCancel(deps, runId, body));
     },
   );
 

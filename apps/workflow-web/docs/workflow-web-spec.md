@@ -141,6 +141,7 @@ Additional normative rules:
 
 ### 6.4 Cross-Spec Consistency Rules
 - Section 6.2 of this spec and Sections 6.9.1 + 8 of `docs/typescript-server-workflow-spec.md` must stay path- and contract-consistent for web-visible endpoints.
+- Section 6.6 + 8.5 of this spec and Section 10 of `docs/typescript-server-workflow-spec.md` must stay consistent for FSM identity and overlay semantics.
 - Contract evolution order: `packages/workflow-api-types` -> server spec + server handlers -> web spec + web client usage.
 - Any endpoint/path/payload change is incomplete until both specs reflect the same contract.
 
@@ -165,6 +166,13 @@ Rules:
 - `GetRunLogsQuery` serialization must use exact contract keys: `severity`, `since`, `until`, `correlationId`, and `eventId`.
 - Runtime mapping from `WorkflowStreamFrame` to UI state must be exhaustive for all discriminated `WorkflowStreamEvent` variants used by the server.
 - Log filter query serialization must be derived from `GetRunLogsQuery` (no local remapped filter keys for server requests).
+
+### 6.6 FSM Contract Invariants (Normative)
+- `WorkflowDefinitionResponse` consumed by the SPA must provide stable state and transition identity for a given `(workflowType, definitionVersion|workflowVersion)`.
+- Definition state identifiers must be unique within the definition payload.
+- Definition transition ordering must be stable for the same definition version; this ordering is the source for `transitionOrdinal` used in deterministic edge IDs.
+- `RunSummaryResponse.currentState` and runtime event references used for graph overlays must reference definition state/transition identifiers from the same `WorkflowDefinitionResponse`.
+- Contract violations (for example duplicate state IDs, missing referenced states, or unstable transition identity across repeated fetches for the same definition version) must be surfaced as visible graph-panel error states in development/test builds.
 
 ## 7) Technologies and Libraries (Normative)
 
@@ -224,7 +232,7 @@ Rules:
 #### 8.5.1 Definition-to-React Flow Mapping
 - Graph source is `WorkflowDefinitionResponse` from `GET /api/v1/workflows/definitions/{workflowType}`.
 - Each definition state maps to exactly one React Flow node with deterministic id format: `{workflowType}::state::{stateId}`.
-- Each definition transition maps to exactly one React Flow edge with deterministic id format: `{workflowType}::edge::{fromState}::{toState}::{transitionOrdinal}`.
+- Each definition transition maps to exactly one React Flow edge with deterministic id format: `{workflowType}::edge::{fromState}::{toState}::{transitionOrdinal}` where `transitionOrdinal` is the zero-based index of that transition among transitions sharing the same `{fromState,toState}` pair in server-provided transition order.
 - Node label precedence: `display metadata label` -> `stateId`.
 - Edge label precedence: `transition display label` -> `{fromState} -> {toState}`.
 - Node role classification rules:
@@ -372,3 +380,4 @@ Rules:
 30. Runtime references to unknown states/transitions produce a visible graph-panel contract-mismatch indicator rather than being silently ignored.
 31. `packages/workflow-api-types` exists in the workspace and exports all transport contracts listed in Section 6.1.
 32. `GET /api/v1/workflows/runs/{runId}/feedback-requests` is consumed as a run-scoped discovery API and returns only feedback requests linked to the specified run.
+33. FSM contract invariants in Section 6.6 hold for each rendered definition: unique state IDs, stable transition ordering for a given definition version, and runtime state/transition references that resolve against the loaded definition.

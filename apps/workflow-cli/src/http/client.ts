@@ -1,4 +1,24 @@
 import {
+  runEventsResponseSchema,
+  type HumanFeedbackRequestStatusResponse,
+  type ListRunFeedbackRequestsQuery,
+  type ListRunFeedbackRequestsResponse,
+  type ListRunsResponse,
+  type RunEventsResponse,
+  type RunSummaryResponse,
+  type RunTreeNode as SharedRunTreeNode,
+  type RunTreeResponse,
+  type StartWorkflowResponse,
+  type StartWorkflowRequest,
+  type SubmitHumanFeedbackResponseConflict,
+  type SubmitHumanFeedbackResponsePayload,
+  type SubmitHumanFeedbackResponseResponse,
+  type WorkflowDefinitionResponse,
+  type WorkflowEventDto,
+  type WorkflowStreamFrame,
+  workflowStreamFrameSchema,
+} from '@composable-workflow/workflow-api-types';
+import {
   fetch as undiciFetch,
   Headers,
   type Dispatcher,
@@ -13,123 +33,14 @@ export interface ErrorEnvelope {
   requestId?: string;
 }
 
-export interface RunSummary {
-  runId: string;
-  workflowType: string;
-  workflowVersion: string;
-  lifecycle: string;
-  currentState: string;
-  currentTransitionContext?: Record<string, unknown> | null;
-  parentRunId: string | null;
-  childrenSummary: {
-    total: number;
-    active: number;
-    completed: number;
-    failed: number;
-    cancelled: number;
-  };
-  startedAt: string;
-  endedAt: string | null;
-  counters: {
-    eventCount: number;
-    logCount: number;
-    childCount: number;
-  };
-}
-
-export interface WorkflowEvent {
-  eventId: string;
-  runId: string;
-  workflowType: string;
-  parentRunId: string | null;
-  sequence: number;
-  eventType: string;
-  state: string | null;
-  transition: {
-    from?: string;
-    to?: string;
-    name?: string;
-  } | null;
-  child: {
-    childRunId: string;
-    childWorkflowType: string;
-    lifecycle: string;
-  } | null;
-  command: {
-    command: string;
-    args?: string[];
-    stdin?: string;
-    stdout?: string;
-    stderr?: string;
-    exitCode?: number;
-  } | null;
-  timestamp: string;
-  payload: Record<string, unknown> | null;
-  error: Record<string, unknown> | null;
-}
-
-export interface RunTreeNode {
-  runId: string;
-  workflowType: string;
-  workflowVersion: string;
-  lifecycle: string;
-  currentState: string;
-  parentRunId: string | null;
-  startedAt: string;
-  endedAt: string | null;
-  children: RunTreeNode[];
-}
-
-export interface RunTreeResponse {
-  tree: RunTreeNode;
-}
-
-export interface WorkflowDefinition {
-  workflowType: string;
-  workflowVersion: string;
-  states: string[];
-  transitions: Array<{ from: string; to: string; name?: string }>;
-  childLaunchAnnotations: Record<string, unknown>[];
-  metadata: Record<string, unknown>;
-}
-
-export interface HumanFeedbackResponsePayload {
-  questionId: string;
-  selectedOptionIds?: number[];
-  text?: string;
-}
-
-export interface HumanFeedbackRequestStatus {
-  feedbackRunId: string;
-  parentRunId: string;
-  parentWorkflowType: string;
-  parentState: string;
-  questionId: string;
-  requestEventId: string;
-  prompt: string;
-  options: Array<{ id: number; label: string; description?: string }> | null;
-  constraints: string[] | null;
-  correlationId: string | null;
-  status: 'awaiting_response' | 'responded' | 'cancelled';
-  requestedAt: string;
-  respondedAt: string | null;
-  cancelledAt: string | null;
-  response: HumanFeedbackResponsePayload | null;
-  respondedBy: string | null;
-}
-
-export interface HumanFeedbackRespondAccepted {
-  feedbackRunId: string;
-  status: 'accepted';
-  acceptedAt: string;
-}
-
-export interface HumanFeedbackRespondConflict {
-  feedbackRunId: string;
-  status: 'awaiting_response' | 'responded' | 'cancelled';
-  respondedAt?: string | null;
-  cancelledAt?: string | null;
-}
+export type RunSummary = RunSummaryResponse;
+export type WorkflowEvent = WorkflowEventDto;
+export type RunTreeNode = SharedRunTreeNode;
+export type WorkflowDefinition = WorkflowDefinitionResponse;
+export type HumanFeedbackResponsePayload = SubmitHumanFeedbackResponsePayload;
+export type HumanFeedbackRequestStatus = HumanFeedbackRequestStatusResponse;
+export type HumanFeedbackRespondAccepted = SubmitHumanFeedbackResponseResponse;
+export type HumanFeedbackRespondConflict = SubmitHumanFeedbackResponseConflict;
 
 export interface RetryOptions {
   maxAttempts: number;
@@ -161,11 +72,7 @@ export class WorkflowApiError extends Error {
   }
 }
 
-export interface StartRunRequest {
-  workflowType: string;
-  input: unknown;
-  idempotencyKey?: string;
-}
+export type StartRunRequest = StartWorkflowRequest;
 
 export interface ListRunsRequest {
   lifecycle?: string;
@@ -190,11 +97,9 @@ export interface FollowEventChunk {
 }
 
 export interface WorkflowApiClient {
-  startWorkflow: (request: StartRunRequest) => Promise<RunSummary>;
+  startWorkflow: (request: StartRunRequest) => Promise<StartWorkflowResponse>;
   listRuns: (request: ListRunsRequest) => Promise<RunSummary[]>;
-  listRunEvents: (
-    request: ListEventsRequest,
-  ) => Promise<{ items: WorkflowEvent[]; nextCursor?: string }>;
+  listRunEvents: (request: ListEventsRequest) => Promise<RunEventsResponse>;
   streamRunEvents: (request: StreamEventsRequest) => AsyncGenerator<FollowEventChunk>;
   inspectRunTree: (request: {
     runId: string;
@@ -203,7 +108,7 @@ export interface WorkflowApiClient {
   }) => Promise<RunTreeResponse>;
   inspectDefinition: (workflowType: string) => Promise<WorkflowDefinition>;
   listFeedbackRequests: (request?: {
-    status?: 'awaiting_response' | 'responded' | 'cancelled';
+    status?: ListRunFeedbackRequestsQuery['status'];
   }) => Promise<HumanFeedbackRequestStatus[]>;
   getFeedbackRequestStatus: (feedbackRunId: string) => Promise<HumanFeedbackRequestStatus>;
   respondFeedbackRequest: (request: {
@@ -385,8 +290,8 @@ export const createWorkflowApiClient = (
     });
   };
 
-  const startWorkflow = async (request: StartRunRequest): Promise<RunSummary> =>
-    requestJson<RunSummary>('/api/v1/workflows/start', {
+  const startWorkflow = async (request: StartRunRequest): Promise<StartWorkflowResponse> =>
+    requestJson<StartWorkflowResponse>('/api/v1/workflows/start', {
       method: 'POST',
       body: JSON.stringify({
         workflowType: request.workflowType,
@@ -407,13 +312,11 @@ export const createWorkflowApiClient = (
     }
 
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
-    const response = await requestJson<{ items: RunSummary[] }>(`/api/v1/workflows/runs${suffix}`);
+    const response = await requestJson<ListRunsResponse>(`/api/v1/workflows/runs${suffix}`);
     return response.items;
   };
 
-  const listRunEvents = async (
-    request: ListEventsRequest,
-  ): Promise<{ items: WorkflowEvent[]; nextCursor?: string }> => {
+  const listRunEvents = async (request: ListEventsRequest): Promise<RunEventsResponse> => {
     const query = new URLSearchParams();
 
     if (request.cursor) {
@@ -421,9 +324,11 @@ export const createWorkflowApiClient = (
     }
 
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
-    return requestJson<{ items: WorkflowEvent[]; nextCursor?: string }>(
+    const response = await requestJson<RunEventsResponse>(
       `/api/v1/workflows/runs/${encodeURIComponent(request.runId)}/events${suffix}`,
     );
+
+    return runEventsResponseSchema.parse(response);
   };
 
   const streamRunEvents = async function* (
@@ -489,16 +394,20 @@ export const createWorkflowApiClient = (
         return undefined;
       }
 
-      const parsed = JSON.parse(currentData) as WorkflowEvent;
+      const parsedFrame = workflowStreamFrameSchema.parse({
+        event: currentEvent,
+        id: currentId ?? '',
+        data: JSON.parse(currentData),
+      } as WorkflowStreamFrame);
 
       currentEvent = '';
       currentData = '';
-      const cursor = currentId;
+      const cursor = parsedFrame.id || currentId;
       currentId = undefined;
 
       return {
         cursor,
-        event: parsed,
+        event: parsedFrame.data,
       };
     };
 
@@ -569,7 +478,7 @@ export const createWorkflowApiClient = (
   };
 
   const listFeedbackRequests = async (request?: {
-    status?: 'awaiting_response' | 'responded' | 'cancelled';
+    status?: ListRunFeedbackRequestsQuery['status'];
   }): Promise<HumanFeedbackRequestStatus[]> => {
     const query = new URLSearchParams();
 
@@ -578,7 +487,7 @@ export const createWorkflowApiClient = (
     }
 
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
-    const response = await requestJson<{ items: HumanFeedbackRequestStatus[] }>(
+    const response = await requestJson<ListRunFeedbackRequestsResponse>(
       `/api/v1/human-feedback/requests${suffix}`,
     );
     return response.items;

@@ -1,17 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 
 import {
+  runEventsResponseSchema,
+  workflowEventDtoSchema,
+} from '@composable-workflow/workflow-api-types';
+
+import {
   decodeEventCursor,
   encodeEventCursor,
   resolveSequenceBoundary,
 } from '../../read-models/event-pagination.js';
 import { ApiError, type ApiServerDependencies } from '../server.js';
-import {
-  errorEnvelopeSchema,
-  eventsQuerySchema,
-  eventsResponseSchema,
-  workflowEventSchema,
-} from '../schemas.js';
+import { errorEnvelopeSchema, eventsQuerySchema } from '../schemas.js';
 
 const toTransition = (payload: Record<string, unknown> | null) => {
   if (!payload) {
@@ -86,7 +86,7 @@ export const registerEventRoutes = async (
       schema: {
         querystring: eventsQuerySchema,
         response: {
-          200: eventsResponseSchema,
+          200: runEventsResponseSchema,
           400: errorEnvelopeSchema,
           404: errorEnvelopeSchema,
         },
@@ -178,7 +178,7 @@ LIMIT $${index}
       );
 
       const rawItems = eventRows.rows.slice(0, query.limit).map((row) =>
-        workflowEventSchema.parse({
+        workflowEventDtoSchema.parse({
           eventId: row.event_id,
           runId: row.run_id,
           workflowType: row.workflow_type,

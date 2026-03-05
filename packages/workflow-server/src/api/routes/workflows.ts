@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 
-import { ApiError, type ApiServerDependencies } from '../server.js';
 import {
-  errorEnvelopeSchema,
-  startWorkflowBodySchema,
+  startWorkflowRequestSchema,
   startWorkflowResponseSchema,
-} from '../schemas.js';
+} from '@composable-workflow/workflow-api-types';
+
+import { ApiError, type ApiServerDependencies } from '../server.js';
+import { errorEnvelopeSchema } from '../schemas.js';
 
 export const registerWorkflowRoutes = async (
   server: FastifyInstance,
@@ -15,7 +16,7 @@ export const registerWorkflowRoutes = async (
     '/api/v1/workflows/start',
     {
       schema: {
-        body: startWorkflowBodySchema,
+        body: startWorkflowRequestSchema,
         response: {
           200: startWorkflowResponseSchema,
           201: startWorkflowResponseSchema,
@@ -25,7 +26,7 @@ export const registerWorkflowRoutes = async (
       },
     },
     async (request, reply) => {
-      const body = startWorkflowBodySchema.parse(request.body);
+      const body = startWorkflowRequestSchema.parse(request.body);
 
       if (deps.startupReconcile) {
         await deps.startupReconcile.waitUntilReady();

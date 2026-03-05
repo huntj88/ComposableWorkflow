@@ -1,8 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
+import {
+  workflowEventDtoSchema,
+  workflowStreamFrameSchema,
+} from '@composable-workflow/workflow-api-types';
+
 import { ApiError, type ApiServerDependencies } from '../api/server.js';
-import { errorEnvelopeSchema, workflowEventSchema } from '../api/schemas.js';
+import { errorEnvelopeSchema } from '../api/schemas.js';
 import {
   encodeStreamCursor,
   resolveStreamBoundary,
@@ -86,13 +91,15 @@ export const serializeSseFrame = (params: { event: string; id: string; data: unk
 
 export const serializeWorkflowEventFrame = (params: {
   cursorPayload: StreamCursorPayload;
-  event: z.infer<typeof workflowEventSchema>;
+  event: z.infer<typeof workflowEventDtoSchema>;
 }): string =>
-  serializeSseFrame({
-    event: 'workflow-event',
-    id: encodeStreamCursor(params.cursorPayload),
-    data: params.event,
-  });
+  serializeSseFrame(
+    workflowStreamFrameSchema.parse({
+      event: 'workflow-event',
+      id: encodeStreamCursor(params.cursorPayload),
+      data: params.event,
+    }),
+  );
 
 const delay = async (ms: number): Promise<void> =>
   new Promise((resolve) => {
@@ -231,7 +238,7 @@ LIMIT $${index}
               break;
             }
 
-            const event = workflowEventSchema.parse({
+            const event = workflowEventDtoSchema.parse({
               eventId: row.event_id,
               runId: row.run_id,
               workflowType: row.workflow_type,

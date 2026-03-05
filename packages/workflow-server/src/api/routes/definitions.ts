@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 
+import { workflowDefinitionResponseSchema } from '@composable-workflow/workflow-api-types';
+
 import type { WorkflowRegistration } from '../../registry/workflow-registry.js';
 import { ApiError, type ApiServerDependencies } from '../server.js';
-import { errorEnvelopeSchema, workflowDefinitionSchema } from '../schemas.js';
+import { errorEnvelopeSchema } from '../schemas.js';
 import type { RuntimeWorkflowContext } from '../../registry/runtime-types.js';
 
 const createInspectionContext = (
@@ -107,7 +109,7 @@ export const registerDefinitionRoutes = async (
     {
       schema: {
         response: {
-          200: workflowDefinitionSchema,
+          200: workflowDefinitionResponseSchema,
           404: errorEnvelopeSchema,
         },
       },
@@ -118,7 +120,7 @@ export const registerDefinitionRoutes = async (
 
       if (registration) {
         const inspected = inspectRegistrationDefinition(registration);
-        return workflowDefinitionSchema.parse({
+        return workflowDefinitionResponseSchema.parse({
           workflowType: registration.workflowType,
           workflowVersion: registration.workflowVersion,
           states: inspected.states,
@@ -157,7 +159,7 @@ WHERE workflow_type = $1
 
       const definition = row.rows[0];
       const metadata = definition.metadata_jsonb ?? {};
-      return workflowDefinitionSchema.parse({
+      return workflowDefinitionResponseSchema.parse({
         workflowType: definition.workflow_type,
         workflowVersion: definition.workflow_version,
         states: parseMetadataStates(metadata),

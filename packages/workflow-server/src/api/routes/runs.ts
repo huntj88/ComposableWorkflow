@@ -1,6 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 
 import {
+  listRunsResponseSchema,
+  runLogsResponseSchema,
+  runSummaryResponseSchema,
+  runTreeResponseSchema,
+} from '@composable-workflow/workflow-api-types';
+
+import {
   buildDynamicOverlay,
   filterRunTreeByDepth,
   projectRunTree,
@@ -11,15 +18,7 @@ import {
 import { registerLifecycleControlRoutes } from '../../lifecycle/control-routes.js';
 import { registerSseRunRoute } from '../../stream/sse-route.js';
 import { ApiError, type ApiServerDependencies } from '../server.js';
-import {
-  errorEnvelopeSchema,
-  logsResponseSchema,
-  runSummarySchema,
-  runTreeQuerySchema,
-  runTreeResponseSchema,
-  runsListQuerySchema,
-  runsListResponseSchema,
-} from '../schemas.js';
+import { errorEnvelopeSchema, runTreeQuerySchema, runsListQuerySchema } from '../schemas.js';
 import { inspectRegistrationDefinition } from './definitions.js';
 
 interface SummaryRow {
@@ -125,7 +124,7 @@ const normalizeLogLevel = (payload: Record<string, unknown> | null): string => {
 };
 
 const mapSummaryRow = (row: SummaryRow) =>
-  runSummarySchema.parse({
+  runSummaryResponseSchema.parse({
     runId: row.run_id,
     workflowType: row.workflow_type,
     workflowVersion: row.workflow_version,
@@ -292,7 +291,7 @@ export const registerRunRoutes = async (
     {
       schema: {
         response: {
-          200: runSummarySchema,
+          200: runSummaryResponseSchema,
           404: errorEnvelopeSchema,
         },
       },
@@ -319,7 +318,7 @@ export const registerRunRoutes = async (
       schema: {
         querystring: runsListQuerySchema,
         response: {
-          200: runsListResponseSchema,
+          200: listRunsResponseSchema,
           400: errorEnvelopeSchema,
         },
       },
@@ -408,7 +407,7 @@ ORDER BY sequence ASC
     {
       schema: {
         response: {
-          200: logsResponseSchema,
+          200: runLogsResponseSchema,
           404: errorEnvelopeSchema,
         },
       },

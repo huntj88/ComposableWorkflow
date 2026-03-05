@@ -1,3 +1,5 @@
+import type { RunTreeNode } from '@composable-workflow/workflow-api-types';
+
 export interface RunTreeNodeRecord {
   runId: string;
   workflowType: string;
@@ -28,18 +30,6 @@ export interface TransitionEdge {
   from: string;
   to: string;
   name?: string;
-}
-
-export interface RunTreeNode {
-  runId: string;
-  workflowType: string;
-  workflowVersion: string;
-  lifecycle: string;
-  currentState: string;
-  parentRunId: string | null;
-  startedAt: string;
-  endedAt: string | null;
-  children: RunTreeNode[];
 }
 
 export const filterRunTreeByDepth = (root: RunTreeNode, maxDepth?: number): RunTreeNode => {
