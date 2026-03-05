@@ -22,14 +22,14 @@ Create deterministic integration harness capabilities for route rendering, typed
 - Harness supports observability over query-cache and local UI store transitions.
 
 ## Implementation Tasks
-- [ ] Build route-level integration renderer and test utilities.
-- [ ] Implement typed transport mock boundary and call tracing.
-- [ ] Implement stream replay injector with sequence/cursor controls.
-- [ ] Implement fake-timer controls for reconnect backoff and stale transitions.
-- [ ] Add fixture factories for summary/tree/events/logs/definition/feedback/stream payloads.
-- [ ] Add deterministic viewport/resize controls for layout and graph direction assertions.
-- [ ] Add panel-local state probes for filter-store and query-cache transition assertions.
-- [ ] Add fixture helpers for malformed graph definitions and unknown runtime overlay references.
+- [x] Build route-level integration renderer and test utilities.
+- [x] Implement typed transport mock boundary and call tracing.
+- [x] Implement stream replay injector with sequence/cursor controls.
+- [x] Implement fake-timer controls for reconnect backoff and stale transitions.
+- [x] Add fixture factories for summary/tree/events/logs/definition/feedback/stream payloads.
+- [x] Add deterministic viewport/resize controls for layout and graph direction assertions.
+- [x] Add panel-local state probes for filter-store and query-cache transition assertions.
+- [x] Add fixture helpers for malformed graph definitions and unknown runtime overlay references.
 
 ## Required Artifacts
 - `apps/workflow-web/test/integration/harness/renderWebApp.tsx`
