@@ -19,12 +19,12 @@ Implement deterministic integration coverage for stream ordering/reconnect seman
 - Graph and stream semantics from web spec Sections 5, 6.5-6.10, and 8.5.
 
 ## Implementation Tasks
-- [ ] Add stream integration tests for ordered patching, reconnect/dedup, unsupported variants, backoff constants, wire framing, and non-regression.
-- [ ] Add transport conformance tests for DTO imports, signatures, endpoint/query serialization, and shared error mapping.
-- [ ] Add graph integration tests for projection/layout/overlay/mismatch/performance/legend/selection/highlight behavior.
-- [ ] Add spec-lock drift tests for server/web endpoint matrix and DTO authority constraints.
-- [ ] Add integration tests for event/log defaults-max ordering semantics and event free-text matching domain behavior.
-- [ ] Add spec-lock tests for shared API-types required export set and contract evolution-order enforcement.
+- [x] Add stream integration tests for ordered patching, reconnect/dedup, unsupported variants, backoff constants, wire framing, and non-regression.
+- [x] Add transport conformance tests for DTO imports, signatures, endpoint/query serialization, and shared error mapping.
+- [x] Add graph integration tests for projection/layout/overlay/mismatch/performance/legend/selection/highlight behavior.
+- [x] Add spec-lock drift tests for server/web endpoint matrix and DTO authority constraints.
+- [x] Add integration tests for event/log defaults-max ordering semantics and event free-text matching domain behavior.
+- [x] Add spec-lock tests for shared API-types required export set and contract evolution-order enforcement.
 
 ## Required Artifacts
 - `apps/workflow-web/test/integration/stream/*.spec.ts`
