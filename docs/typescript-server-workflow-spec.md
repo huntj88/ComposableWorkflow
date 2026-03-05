@@ -6,11 +6,13 @@ This document specifies a server-side TypeScript implementation inspired by `hun
 
 The system is a monorepo with:
 - a workflow runtime library used by all workflow packages,
+- a shared API contract package for HTTP/SSE request-response/event types,
 - a server process that dynamically loads and executes workflow packages,
 - an API for launching workflows and querying rich runtime state/history/logs,
+- a web SPA client that consumes the shared API contract package,
 - first-class support for child workflows and complete transition lineage.
 
-UI is out of scope, but API responses must support rendering workflow and child workflow graphs.
+UI implementation details are out of scope for this server spec, but API responses and event contracts must support `apps/workflow-web` workflow and child-workflow visualization.
 
 ---
 
@@ -34,6 +36,7 @@ UI is out of scope, but API responses must support rendering workflow and child 
 6. Library includes workflow-invoked command execution support for workflow steps.
 7. User-facing CLI tooling is a separate capability (for operators/developers), not part of workflow step execution.
 8. Server instruments workflow library operations with logging + telemetry.
+9. API request/response/event types are defined once in a shared package and consumed by both server and clients.
 
 ## 3) Non-Goals
 
@@ -48,7 +51,7 @@ To keep later generator adoption low-risk while deferring it now:
 - Standardize state/transition naming conventions across workflow packages (`domain.action.state` style or equivalent documented scheme).
 - Keep all workflow contracts (`WorkflowDefinition`, `WorkflowContext`, event payload shapes) stable and versioned through `workflow-lib` only.
 - Require transition validity/unit tests for every workflow package (including invalid-transition failure paths).
-- Ensure definition metadata exposed by API (`/definitions/{workflowType}`) remains complete and generator-friendly.
+- Ensure definition metadata exposed by API (`/api/v1/workflows/definitions/{workflowType}`) remains complete and generator-friendly.
 - Avoid package-specific DSLs/macros that would conflict with a future shared generator output format.
 
 ---
@@ -99,11 +102,13 @@ ComposableWorkflow/
   docs/
   packages/
     workflow-lib/                # shared runtime + contracts + workflow command runner helpers
+    workflow-api-types/          # shared HTTP/SSE API schemas + TypeScript types
     workflow-server/             # HTTP/gRPC server + persistence + instrumentation
     workflow-package-<name>/     # one or more decoupled workflow definitions
     workflow-package-<name2>/
   apps/
     workflow-cli/                # optional user-facing CLI app (operator/developer commands)
+    workflow-web/                # browser SPA for workflow visualization + operator controls
 ```
 
 ## 5.1 Package Responsibilities
@@ -119,6 +124,18 @@ Exports:
 - workflow-invoked command execution helpers for workflow steps.
 
 No server-specific DB, transport, or framework coupling.
+
+### `packages/workflow-api-types`
+Exports versioned API contracts shared by server and clients:
+- route DTO types for REST requests/responses,
+- SSE stream frame/event types,
+- query parameter/pagination/filter contract types,
+- JSON schema or Zod schema artifacts (where validation is required at runtime).
+
+Dependency rules:
+- may depend on foundational shared contracts from `workflow-lib`,
+- must not depend on server implementation modules/framework internals,
+- server and clients (CLI/web) must import these API contracts instead of redefining DTOs.
 
 ### `packages/workflow-server`
 Implements:
@@ -139,6 +156,11 @@ Each package may expose one workflow or multiple related workflows.
 Optional user-facing CLI application for operators/developers.
 Uses server APIs and/or package metadata for tasks like run/inspect/list/tail events.
 This is intentionally separate from workflow step command execution APIs in `workflow-lib`.
+
+### `apps/workflow-web`
+User-facing SPA for live workflow visualization and interaction.
+Consumes server APIs and SSE stream using shared DTO/event contracts from `packages/workflow-api-types`.
+Must not import server implementation modules.
 
 ---
 
@@ -433,6 +455,84 @@ Implementation ownership/package decision (locked):
 - Enforcement in MVP uses dual guards: bootstrap reserves and registers `server.human-feedback.v1`, and registry collision checks reject any competing registration for that workflow type.
 - Any future extension mechanism must preserve the default contract and first-response-wins semantics.
 
+## 6.9 Shared API Contract Package (`workflow-api-types`)
+
+`workflow-api-types` is the canonical source for transport-layer contracts used by server and clients (`workflow-cli`, `workflow-web`).
+
+Baseline package requirements:
+- `packages/workflow-api-types` must exist as a first-class workspace package before Section 8 endpoint implementation is considered complete.
+- `workflow-server`, `workflow-web`, and `workflow-cli` must consume exported transport contracts from `@composable-workflow/workflow-api-types` for covered endpoints/events.
+- Build/typecheck pipelines for those three consumers must fail on missing or drifted shared contract exports.
+
+Minimum export set:
+- `StartWorkflowRequest`, `StartWorkflowResponse`
+- `ListRunsResponse`
+- `RunSummaryResponse`
+- `RunTreeResponse`, `RunTreeNode`
+- `RunEventsResponse`, `WorkflowEventDto`, `EventCursor`
+- `GetRunLogsQuery`, `RunLogsResponse`, `WorkflowLogEntryDto`
+- `WorkflowDefinitionResponse` (graph metadata)
+- `CancelRunResponse`
+- `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse`
+- `HumanFeedbackRequestStatusResponse`
+- `ListRunFeedbackRequestsQuery`, `ListRunFeedbackRequestsResponse`, `RunFeedbackRequestSummary`
+- `EventCursor` (opaque cursor string contract used by events pagination/stream resume surfaces)
+- `WorkflowStreamEvent` / `WorkflowStreamFrame`
+
+Contract governance:
+- Any server API contract change must land in `workflow-api-types` first.
+- `workflow-server` route schemas must conform to `workflow-api-types` exports.
+- `workflow-web` and `workflow-cli` must compile against `workflow-api-types` without local DTO duplication for covered endpoints.
+- Breaking contract changes require semver-major version bump for `workflow-api-types`.
+- The canonical transport contract identifiers for Section 8 endpoints are locked by this spec and must remain synchronized with `apps/workflow-web/docs/workflow-web-spec.md`.
+- Web-visible endpoint paths and DTO/event mappings are additionally locked by Section 6.9.1 (must match web spec Section 6.2 exactly).
+
+Implementation requirements:
+- `workflow-server` must import endpoint request/response/query/event contracts from `@composable-workflow/workflow-api-types` in handler/service boundaries (no local redefinition of covered transport DTOs).
+- `apps/workflow-web` and `apps/workflow-cli` must consume the same exported contracts for covered endpoints and stream frames.
+- `apps/workflow-web` transport adapters (including SSE adapters) must deserialize and expose stream payloads as `WorkflowStreamFrame` from `@composable-workflow/workflow-api-types` rather than local mirror interfaces.
+- Any change to endpoint path, payload shape, or event frame schema requires coordinated updates in:
+  1) `packages/workflow-api-types`,
+  2) `docs/typescript-server-workflow-spec.md`,
+  3) `apps/workflow-web/docs/workflow-web-spec.md`,
+  before implementation is considered complete.
+
+## 6.9.1 Web SPA Endpoint Contract Lock
+
+The following web-visible endpoints are normative and must remain aligned with `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2:
+
+| Capability | Method + Path | Shared Contract(s) |
+| --- | --- | --- |
+| List runs | `GET /api/v1/workflows/runs?lifecycle=running&workflowType=...` | `ListRunsResponse` |
+| Run summary | `GET /api/v1/workflows/runs/{runId}` | `RunSummaryResponse` |
+| Run tree | `GET /api/v1/workflows/runs/{runId}/tree` | `RunTreeResponse` |
+| Event history | `GET /api/v1/workflows/runs/{runId}/events` | `RunEventsResponse` |
+| Logs | `GET /api/v1/workflows/runs/{runId}/logs` | `GetRunLogsQuery`, `RunLogsResponse` |
+| Definition metadata | `GET /api/v1/workflows/definitions/{workflowType}` | `WorkflowDefinitionResponse` |
+| Cancel run | `POST /api/v1/workflows/runs/{runId}/cancel` | `CancelRunResponse` |
+| Live stream | `GET /api/v1/workflows/runs/{runId}/stream` (SSE) | `WorkflowStreamFrame` |
+| Feedback requests by run | `GET /api/v1/workflows/runs/{runId}/feedback-requests` | `ListRunFeedbackRequestsQuery`, `ListRunFeedbackRequestsResponse` |
+| Submit feedback response | `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond` | `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse` |
+| Feedback request status | `GET /api/v1/human-feedback/requests/{feedbackRunId}` | `HumanFeedbackRequestStatusResponse` |
+
+Run-scoping rule (normative):
+- `GET /api/v1/workflows/runs/{runId}/feedback-requests` must return only feedback requests associated with the specified run lineage and must not degrade to global/unscoped listing behavior.
+
+## 6.9.2 Shared Contract Consumption Enforcement
+
+Normative enforcement requirements:
+- Server route/handler/service boundaries for all Section 8 endpoints must reference transport request/query/response/event types from `@composable-workflow/workflow-api-types`.
+- `workflow-server`, `workflow-web`, and `workflow-cli` must not declare local transport DTO interfaces/types for endpoints covered by Sections 6.9.1 and 8.
+- Any serializer/parser used for covered endpoint query fields must preserve shared contract field names and value semantics.
+- Stream frame parsing and emission must remain aligned to `WorkflowStreamFrame` and `WorkflowStreamEvent` exports from `workflow-api-types`.
+- SSE `data` payloads for `GET /api/v1/workflows/runs/{runId}/stream` must serialize to the `WorkflowStreamFrame` contract; client adapters must parse that payload shape directly.
+
+Verification gate (required in CI and local validation before merge):
+1. `packages/workflow-api-types` typecheck/build succeeds.
+2. `workflow-server` typecheck/tests succeed with shared contract imports.
+3. `apps/workflow-web` and `apps/workflow-cli` typecheck succeeds with shared contract imports.
+4. Contract lock table in Section 6.9.1 and web spec endpoint matrix (`apps/workflow-web/docs/workflow-web-spec.md` Section 6.2) match exactly on method, path, and contract names.
+
 ---
 
 ## 7) Server Architecture (`workflow-server`)
@@ -618,8 +718,32 @@ Connection config (server):
 
 Base path: `/api/v1`
 
+Path convention decision (locked):
+- Endpoint paths in this section are absolute and include the `/api/v1` prefix for consistency.
+
+All request/response/query/SSE payload contracts in this section are defined by `packages/workflow-api-types` and consumed directly by server + clients.
+
+Endpoint-to-contract mapping (normative):
+
+| Endpoint | Request/Query Contract | Response/Event Contract |
+| --- | --- | --- |
+| `POST /api/v1/workflows/start` | `StartWorkflowRequest` | `StartWorkflowResponse` |
+| `GET /api/v1/workflows/runs?lifecycle=...&workflowType=...` | query params per shared contract | `ListRunsResponse` |
+| `GET /api/v1/workflows/runs/{runId}` | path params | `RunSummaryResponse` |
+| `GET /api/v1/workflows/runs/{runId}/tree` | path/query params | `RunTreeResponse` |
+| `GET /api/v1/workflows/runs/{runId}/events` | query params per shared contract | `RunEventsResponse` |
+| `GET /api/v1/workflows/runs/{runId}/logs` | `GetRunLogsQuery` | `RunLogsResponse` |
+| `GET /api/v1/workflows/definitions/{workflowType}` | path params | `WorkflowDefinitionResponse` |
+| `POST /api/v1/workflows/runs/{runId}/cancel` | path params | `CancelRunResponse` |
+| `GET /api/v1/workflows/runs/{runId}/stream` (SSE) | query params per shared contract | `WorkflowStreamFrame` |
+| `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond` | `SubmitHumanFeedbackResponseRequest` | `SubmitHumanFeedbackResponseResponse` |
+| `GET /api/v1/human-feedback/requests/{feedbackRunId}` | path params | `HumanFeedbackRequestStatusResponse` |
+| `GET /api/v1/workflows/runs/{runId}/feedback-requests` | `ListRunFeedbackRequestsQuery` | `ListRunFeedbackRequestsResponse` |
+
+For endpoints where path/query primitives are used, their serialized field names and value semantics are governed by `workflow-api-types`.
+
 ## 8.1 Start Workflow
-`POST /workflows/start`
+`POST /api/v1/workflows/start`
 
 Request:
 ```json
@@ -643,12 +767,12 @@ Response:
 ```
 
 Start semantics:
-- accepting `POST /workflows/start` means execution begins immediately;
+- accepting `POST /api/v1/workflows/start` means execution begins immediately;
 - there is no operational pending queue lifecycle between acceptance and execution;
 - `workflow.started` is emitted at execution-start checkpoint.
 
 ## 8.2 Get Run Summary (Current Insight)
-`GET /workflows/runs/{runId}`
+`GET /api/v1/workflows/runs/{runId}`
 
 Returns:
 - lifecycle/status,
@@ -660,7 +784,7 @@ Returns:
 - timestamps.
 
 ## 8.3 Get Run Tree (Root + Children)
-`GET /workflows/runs/{runId}/tree`
+`GET /api/v1/workflows/runs/{runId}/tree`
 
 Returns recursive tree with for each node:
 - run identity,
@@ -675,7 +799,7 @@ Supports query options:
 - `includeCompletedChildren` (default true).
 
 ## 8.4 Get Linear Event History
-`GET /workflows/runs/{runId}/events`
+`GET /api/v1/workflows/runs/{runId}/events`
 
 Query:
 - `cursor`, `limit`,
@@ -685,17 +809,29 @@ Query:
 Returns ordered append-only events with sequence numbers.
 
 ## 8.5 Get Logs
-`GET /workflows/runs/{runId}/logs`
+`GET /api/v1/workflows/runs/{runId}/logs`
+
+Query contract: `GetRunLogsQuery` from `workflow-api-types` with:
+- `severity?` (`debug | info | warn | error`),
+- `since?` (ISO 8601 timestamp, inclusive lower bound),
+- `until?` (ISO 8601 timestamp, exclusive upper bound),
+- `correlationId?`,
+- `eventId?`.
+
+Query semantics:
+- Omitted fields are unconstrained.
+- Multiple provided filters are AND-combined.
+- Query parameter keys must match the `GetRunLogsQuery` contract exactly.
 
 Returns structured log entries linked to event IDs and transitions.
 
 ## 8.6 List Active Runs
-`GET /workflows/runs?lifecycle=running&workflowType=...`
+`GET /api/v1/workflows/runs?lifecycle=running&workflowType=...`
 
 Provides operational insight into what is currently running.
 
 ## 8.7 Cancel Run
-`POST /workflows/runs/{runId}/cancel`
+`POST /api/v1/workflows/runs/{runId}/cancel`
 
 Default semantics:
 - Cooperative cancellation: run is marked `cancelling`; workflow checks cancellation token between steps/transitions and exits cleanly.
@@ -703,7 +839,7 @@ Default semantics:
 - Final state is `workflow.cancelled` when cancellation completes.
 
 ## 8.8 Definition/Graph Metadata for UI
-`GET /workflows/definitions/{workflowType}`
+`GET /api/v1/workflows/definitions/{workflowType}`
 
 Returns static metadata to render flowchart:
 - states,
@@ -712,14 +848,14 @@ Returns static metadata to render flowchart:
 - display metadata.
 
 ## 8.9 Live Event Stream
-- `GET /workflows/runs/{runId}/stream` via SSE.
+- `GET /api/v1/workflows/runs/{runId}/stream` via SSE.
 - Query:
   - `cursor?` (opaque base64url cursor matching events pagination cursor format),
   - `eventType?` (optional filter).
 - SSE frame contract:
   - `event: workflow-event`
   - `id: <cursor>`
-  - `data: <WorkflowEvent JSON>`
+  - `data: <WorkflowStreamFrame JSON>`
 - Reconnect semantics:
   - Client reconnects with `cursor=<lastSeenCursor>`.
   - Server resumes with events whose `sequence` is strictly greater than cursor boundary (`no-loss`, ordered delivery).
@@ -727,7 +863,7 @@ Returns static metadata to render flowchart:
 Used by future UI for near-real-time visualization.
 
 ## 8.10 Submit Human Feedback Response
-`POST /human-feedback/requests/{feedbackRunId}/respond`
+`POST /api/v1/human-feedback/requests/{feedbackRunId}/respond`
 
 Request:
 ```json
@@ -763,13 +899,48 @@ Behavior:
 - `409` response must include current feedback status and terminal timestamp metadata (`respondedAt` or `cancelledAt`).
 
 ## 8.11 Get Human Feedback Request Status
-`GET /human-feedback/requests/{feedbackRunId}`
+`GET /api/v1/human-feedback/requests/{feedbackRunId}`
 
 Response includes:
 - feedback request lifecycle/status,
 - prompt/options metadata,
 - response payload (if present),
 - parent run linkage fields.
+
+## 8.12 List Human Feedback Requests for a Run
+`GET /api/v1/workflows/runs/{runId}/feedback-requests`
+
+Purpose:
+- deterministic feedback discovery for run dashboards without prior `feedbackRunId` knowledge,
+- support pending and recently terminalized feedback rendering in `apps/workflow-web`.
+
+Query:
+- `status` (optional CSV of `awaiting_response|responded|cancelled`; default `awaiting_response,responded`),
+- `limit` (optional, default `50`, max `200`),
+- `cursor` (optional pagination cursor).
+
+Response contract (`ListRunFeedbackRequestsResponse`) includes:
+- `items: RunFeedbackRequestSummary[]`,
+- `nextCursor?: string`.
+
+Each `RunFeedbackRequestSummary` includes:
+- `feedbackRunId`,
+- `parentRunId`,
+- `questionId`,
+- `status`,
+- `requestedAt`,
+- `respondedAt?`,
+- `cancelledAt?`,
+- `respondedBy?`,
+- `prompt`,
+- `options`,
+- `constraints`.
+
+Behavior:
+- Source is the `human_feedback_requests` projection keyed by `parent_run_id`.
+- Results are sorted by `requested_at DESC`, tie-break by `feedback_run_id ASC`.
+- Endpoint must not require event-stream replay on read path.
+- Pagination must be stable across reconnect/retry so clients can avoid duplicates.
 
 ---
 
@@ -978,8 +1149,11 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
    - package loading,
    - API correctness,
    - persistence and event ordering,
-  - observability hooks,
-  - human feedback request/response API and run linkage behavior.
+   - observability hooks,
+   - human feedback request/response API and run linkage behavior,
+   - run-scoped feedback discovery endpoint (`GET /api/v1/workflows/runs/{runId}/feedback-requests`) pagination/filter behavior,
+   - endpoint handler type conformance against `workflow-api-types` exports for all Section 8 routes,
+   - contract lock drift test for Section 6.9.1 table vs web spec Section 6.2 table (method/path/contract equality).
 4. Workflow-invoked command execution tests:
   - run command behavior from workflow state handlers,
   - timeout/non-zero exit handling,
@@ -1007,6 +1181,7 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
 ### Phase 1 (MVP)
 - Monorepo scaffold.
 - `workflow-lib` core contracts + runtime + child launch + events.
+- `workflow-api-types` baseline API contract package with server/client-shared DTOs.
 - `workflow-server` start run + get run + get events + list active + run tree + definition metadata.
 - Local Postgres via Docker compose + initial migration set.
 - Required parent/child lineage relation (`workflow_run_children`) in persistence model.
@@ -1017,6 +1192,7 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
 ### Phase 2
 - SSE live stream.
 - Initial `apps/workflow-cli` commands (run/list/inspect/events).
+- Initial `apps/workflow-web` visualization experience (run list, run details, graph + tree, live updates).
 
 ### Phase 3
 - Snapshots/replay optimizations.
@@ -1038,6 +1214,14 @@ Security and multi-tenancy are not goals of this project and are out of scope fo
 10. Runs can be paused, resumed, and recovered after crash/shutdown using the defined lifecycle transitions and recovery endpoints.
 11. Pause/resume/recovery transitions emit matching lifecycle events as required observable checkpoints.
 12. Human feedback collection is available as a server-owned default workflow contract and is consumable by workflow packages without transport coupling.
+13. Server, CLI, and web clients consume shared transport DTO/event contracts from `packages/workflow-api-types` (no duplicated endpoint models for covered APIs).
+14. API endpoints in this spec are documented with consistent absolute `/api/v1` path prefixes for REST and SSE routes.
+15. API contract updates are versioned via `workflow-api-types`; incompatible changes are semver-major and are reflected in server/client compile-time checks.
+16. `GET /api/v1/workflows/runs/{runId}/feedback-requests` returns deterministic, paginated feedback request discovery data for run dashboards without requiring prior `feedbackRunId` knowledge.
+17. Every endpoint in Section 8 has a matching shared transport contract in `packages/workflow-api-types`, and server/web/CLI consume those shared types without local duplicate DTOs for covered APIs.
+18. Endpoints and shared contracts in Section 6.9.1 are an exact match to `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2 (path + contract names).
+19. CI fails if any Section 8 covered endpoint transport contract diverges from `packages/workflow-api-types` exports or if Section 6.9.1 and web spec Section 6.2 tables drift.
+20. `GET /api/v1/workflows/runs/{runId}/feedback-requests` enforces run-scoped filtering semantics and does not expose unrelated feedback requests.
 
 ---
 
