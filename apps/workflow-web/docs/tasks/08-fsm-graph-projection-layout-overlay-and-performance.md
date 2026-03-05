@@ -17,12 +17,12 @@ Implement deterministic FSM graph rendering from workflow definitions with stabl
 - Graph ID formats and overlay mapping semantics from web spec Sections 8.5 and 6.6.
 
 ## Implementation Tasks
-- [ ] Project definitions into deterministic node/edge arrays with required role semantics.
-- [ ] Implement dagre layout keying, viewport preservation, and retryable layout-failure state.
-- [ ] Implement runtime overlay mapping for `state.entered`, `transition.completed`, `transition.failed`.
-- [ ] Implement mismatch/invariant violation indicators with diagnostics.
-- [ ] Implement child-launch annotations, legend, selection details, and time-decayed highlights.
-- [ ] Implement large-graph performance mode thresholds and required features.
+- [x] Project definitions into deterministic node/edge arrays with required role semantics.
+- [x] Implement dagre layout keying, viewport preservation, and retryable layout-failure state.
+- [x] Implement runtime overlay mapping for `state.entered`, `transition.completed`, `transition.failed`.
+- [x] Implement mismatch/invariant violation indicators with diagnostics.
+- [x] Implement child-launch annotations, legend, selection details, and time-decayed highlights.
+- [x] Implement large-graph performance mode thresholds and required features.
 
 ## Required Artifacts
 - `apps/workflow-web/src/routes/run-detail/graph/projectDefinitionToGraph.ts`

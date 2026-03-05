@@ -7,6 +7,7 @@ import type {
   RunLogsResponse,
   RunSummaryResponse,
   WorkflowLifecycle,
+  WorkflowStreamFrame,
 } from '@composable-workflow/workflow-api-types';
 
 import { EventsTimelinePanel } from './components/EventsTimelinePanel';
@@ -78,6 +79,7 @@ export const RunDetailPage = (): ReactElement => {
   const [streamHealthState, setStreamHealthState] = useState<StreamHealthState>('reconnecting');
   const [streamRequestError, setStreamRequestError] = useState<string | null>(null);
   const [streamUpdatedAt, setStreamUpdatedAt] = useState<string | null>(dashboard.lastUpdatedAt);
+  const [graphStreamFrames, setGraphStreamFrames] = useState<WorkflowStreamFrame[]>([]);
 
   // Track previous lifecycle for announcement diffing
   const prevLifecycleRef = useRef<string | null>(null);
@@ -92,6 +94,7 @@ export const RunDetailPage = (): ReactElement => {
       }),
     );
     setStreamUpdatedAt(dashboard.lastUpdatedAt);
+    setGraphStreamFrames([]);
   }, [
     dashboard.lastUpdatedAt,
     dashboard.panels.events.data,
@@ -132,6 +135,7 @@ export const RunDetailPage = (): ReactElement => {
 
         if (accepted) {
           setStreamUpdatedAt(new Date().toISOString());
+          setGraphStreamFrames((prev) => [...prev, frame]);
         }
 
         return accepted;
@@ -299,6 +303,9 @@ export const RunDetailPage = (): ReactElement => {
       fsmGraph={
         <FsmGraphPanel
           definition={dashboard.panels.definition.data}
+          summary={summary}
+          events={events}
+          streamFrames={graphStreamFrames}
           isLoading={dashboard.panels.definition.isLoading}
           errorMessage={dashboard.panels.definition.errorMessage}
           onRetry={() => dashboard.retryPanel('definition')}
