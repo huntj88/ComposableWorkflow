@@ -17,11 +17,11 @@ Implement required `/runs/:runId` information architecture across breakpoints, s
 - Accessibility behavior: polite/assertive announcements + deterministic focus targets.
 
 ## Implementation Tasks
-- [ ] Implement responsive 3-zone architecture and narrow-width stack ordering.
-- [ ] Centralize lifecycle/health/error tokens and ensure parity across surfaces.
-- [ ] Implement keyboard-only interaction paths and visible focus indicators.
-- [ ] Implement aria-live levels and post-action focus-return management.
-- [ ] Implement dark-default theme with light parity and panel-scoped loading/empty states.
+- [x] Implement responsive 3-zone architecture and narrow-width stack ordering.
+- [x] Centralize lifecycle/health/error tokens and ensure parity across surfaces.
+- [x] Implement keyboard-only interaction paths and visible focus indicators.
+- [x] Implement aria-live levels and post-action focus-return management.
+- [x] Implement dark-default theme with light parity and panel-scoped loading/empty states.
 
 ## Required Artifacts
 - `apps/workflow-web/src/theme/tokens.ts`

@@ -5,13 +5,15 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { Box, ThemeProvider, createTheme } from '@mui/material';
+import { Box, CssBaseline, ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactFlowProvider } from 'reactflow';
 import { Line, LineChart } from 'recharts';
 import { create } from 'zustand';
 
 import type { ErrorEnvelope, WorkflowStreamFrame } from '@composable-workflow/workflow-api-types';
+
+import { darkTheme } from '../theme/theme';
 
 type RuntimeStore = {
   connected: boolean;
@@ -23,7 +25,6 @@ const useRuntimeStore = create<RuntimeStore>((set) => ({
   setConnected: (connected) => set({ connected }),
 }));
 
-const runtimeTheme = createTheme();
 const queryClient = new QueryClient();
 const RuntimeStoreContext = createContext<typeof useRuntimeStore | null>(null);
 
@@ -69,7 +70,8 @@ export const useAppRuntimeStore = (): typeof useRuntimeStore => {
 };
 
 export const AppProviders = ({ children }: PropsWithChildren): ReactElement => (
-  <ThemeProvider theme={runtimeTheme}>
+  <ThemeProvider theme={darkTheme}>
+    <CssBaseline />
     <QueryClientProvider client={queryClient}>
       <RuntimeStoreContext.Provider value={useRuntimeStore}>
         <ReactFlowProvider>

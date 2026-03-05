@@ -1,11 +1,12 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 
 import type {
   RunEventsResponse,
   RunLogsResponse,
   RunSummaryResponse,
+  WorkflowLifecycle,
 } from '@composable-workflow/workflow-api-types';
 
 import { EventsTimelinePanel } from './components/EventsTimelinePanel';
@@ -14,6 +15,7 @@ import { FsmGraphPanel } from './components/FsmGraphPanel';
 import { HumanFeedbackPanel } from './components/HumanFeedbackPanel';
 import { LogsPanel } from './components/LogsPanel';
 import { RunSummaryPanel } from './components/RunSummaryPanel';
+import { RunDashboardLayout } from './layout/RunDashboardLayout';
 import { useRunDashboardQueries } from './useRunDashboardQueries';
 import {
   applyStreamFrame,
@@ -22,32 +24,15 @@ import {
 } from '../../stream/applyStreamFrame';
 import { openRunStream } from '../../stream/openRunStream';
 import type { StreamHealthState } from '../../stream/reconnectPolicy';
+import {
+  announceLifecycleChange,
+  announceStreamHealthChange,
+  FocusTargets,
+  moveFocusTo,
+} from '../../a11y/liveAnnouncements';
+import { resolveStreamHealthToken } from '../../theme/tokens';
 
 const TERMINAL_LIFECYCLES = new Set(['completed', 'failed', 'cancelled']);
-
-const toStreamStatusLabel = (
-  streamOpenTriggered: boolean,
-  healthState: StreamHealthState,
-  requestError: string | null,
-): string => {
-  if (requestError) {
-    return 'request error';
-  }
-
-  if (!streamOpenTriggered) {
-    return 'waiting for snapshots';
-  }
-
-  if (healthState === 'connected') {
-    return 'connected';
-  }
-
-  if (healthState === 'stale') {
-    return 'stale';
-  }
-
-  return 'reconnecting';
-};
 
 const toInitialStreamDashboardState = (params: {
   summary: RunSummaryResponse | null;
@@ -93,6 +78,10 @@ export const RunDetailPage = (): ReactElement => {
   const [streamHealthState, setStreamHealthState] = useState<StreamHealthState>('reconnecting');
   const [streamRequestError, setStreamRequestError] = useState<string | null>(null);
   const [streamUpdatedAt, setStreamUpdatedAt] = useState<string | null>(dashboard.lastUpdatedAt);
+
+  // Track previous lifecycle for announcement diffing
+  const prevLifecycleRef = useRef<string | null>(null);
+  const prevHealthRef = useRef<StreamHealthState>('reconnecting');
 
   useEffect(() => {
     setStreamState(
@@ -159,12 +148,6 @@ export const RunDetailPage = (): ReactElement => {
     runId,
   ]);
 
-  const streamStatusLabel = toStreamStatusLabel(
-    dashboard.streamOpenTriggered,
-    streamHealthState,
-    streamRequestError,
-  );
-
   const summary = streamState.summary ?? dashboard.panels.summary.data;
   const events = streamState.events ?? dashboard.panels.events.data;
   const logs = streamState.logs ?? dashboard.panels.logs.data;
@@ -179,7 +162,28 @@ export const RunDetailPage = (): ReactElement => {
       lifecycle === 'recovering'
     : false;
 
+  // B-WEB-048/B-WEB-055: Announce lifecycle changes accessibly
+  useEffect(() => {
+    if (lifecycle && lifecycle !== prevLifecycleRef.current) {
+      prevLifecycleRef.current = lifecycle;
+      announceLifecycleChange(lifecycle as WorkflowLifecycle);
+    }
+  }, [lifecycle]);
+
+  // B-WEB-048: Announce stream health changes accessibly
+  useEffect(() => {
+    if (streamHealthState !== prevHealthRef.current) {
+      prevHealthRef.current = streamHealthState;
+      announceStreamHealthChange(streamHealthState);
+    }
+  }, [streamHealthState]);
+
+  const streamHealthToken = resolveStreamHealthToken(streamHealthState);
+
   if (dashboard.isNotFound) {
+    // B-WEB-055: Focus returns to /runs heading on not-found navigation
+    void Promise.resolve().then(() => moveFocusTo(FocusTargets.RUNS_HEADING));
+
     return (
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={1.5}>
@@ -203,8 +207,8 @@ export const RunDetailPage = (): ReactElement => {
     );
   }
 
-  return (
-    <Stack spacing={2}>
+  const headerContent = (
+    <>
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={1}
@@ -212,12 +216,25 @@ export const RunDetailPage = (): ReactElement => {
         justifyContent="space-between"
       >
         <Box>
-          <Typography component="h1" variant="h4">
+          <Typography
+            component="h1"
+            variant="h4"
+            data-focus-target="run-dashboard-heading"
+            tabIndex={-1}
+          >
             Run Dashboard
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Run: {runId} · Stream: {streamStatusLabel}
-          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              Run: {runId} · Stream:
+            </Typography>
+            <Chip
+              size="small"
+              label={streamHealthToken.label}
+              color={streamHealthToken.color}
+              aria-label={`Stream health: ${streamHealthToken.label}`}
+            />
+          </Stack>
         </Box>
         <Stack direction="row" spacing={1}>
           <Button
@@ -255,47 +272,55 @@ export const RunDetailPage = (): ReactElement => {
       {!streamRequestError && streamHealthState === 'stale' ? (
         <Alert severity="warning">Live stream is stale. Waiting for fresh events.</Alert>
       ) : null}
+    </>
+  );
 
-      <RunSummaryPanel
-        runId={runId}
-        summary={summary}
-        isLoading={dashboard.panels.summary.isLoading}
-        errorMessage={dashboard.panels.summary.errorMessage}
-        lastUpdatedAt={streamUpdatedAt}
-        onRetry={() => dashboard.retryPanel('summary')}
-      />
-
-      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2} alignItems="stretch">
-        <Stack spacing={2} sx={{ flex: 2 }}>
-          <ExecutionTreePanel
-            tree={dashboard.panels.tree.data}
-            isLoading={dashboard.panels.tree.isLoading}
-            errorMessage={dashboard.panels.tree.errorMessage}
-            onRetry={() => dashboard.retryPanel('tree')}
-          />
-          <FsmGraphPanel
-            definition={dashboard.panels.definition.data}
-            isLoading={dashboard.panels.definition.isLoading}
-            errorMessage={dashboard.panels.definition.errorMessage}
-            onRetry={() => dashboard.retryPanel('definition')}
-          />
-        </Stack>
-        <Stack spacing={2} sx={{ flex: 3 }}>
-          <EventsTimelinePanel
-            events={events}
-            isLoading={dashboard.panels.events.isLoading}
-            errorMessage={dashboard.panels.events.errorMessage}
-            onRetry={() => dashboard.retryPanel('events')}
-          />
-          <LogsPanel
-            logs={logs}
-            isLoading={dashboard.panels.logs.isLoading}
-            errorMessage={dashboard.panels.logs.errorMessage}
-            onRetry={() => dashboard.retryPanel('logs')}
-          />
-          <HumanFeedbackPanel runId={runId} />
-        </Stack>
-      </Stack>
-    </Stack>
+  return (
+    <RunDashboardLayout
+      header={headerContent}
+      summaryStrip={
+        <RunSummaryPanel
+          runId={runId}
+          summary={summary}
+          isLoading={dashboard.panels.summary.isLoading}
+          errorMessage={dashboard.panels.summary.errorMessage}
+          lastUpdatedAt={streamUpdatedAt}
+          onRetry={() => dashboard.retryPanel('summary')}
+        />
+      }
+      executionTree={
+        <ExecutionTreePanel
+          tree={dashboard.panels.tree.data}
+          isLoading={dashboard.panels.tree.isLoading}
+          errorMessage={dashboard.panels.tree.errorMessage}
+          onRetry={() => dashboard.retryPanel('tree')}
+        />
+      }
+      fsmGraph={
+        <FsmGraphPanel
+          definition={dashboard.panels.definition.data}
+          isLoading={dashboard.panels.definition.isLoading}
+          errorMessage={dashboard.panels.definition.errorMessage}
+          onRetry={() => dashboard.retryPanel('definition')}
+        />
+      }
+      eventsTimeline={
+        <EventsTimelinePanel
+          events={events}
+          isLoading={dashboard.panels.events.isLoading}
+          errorMessage={dashboard.panels.events.errorMessage}
+          onRetry={() => dashboard.retryPanel('events')}
+        />
+      }
+      logs={
+        <LogsPanel
+          logs={logs}
+          isLoading={dashboard.panels.logs.isLoading}
+          errorMessage={dashboard.panels.logs.errorMessage}
+          onRetry={() => dashboard.retryPanel('logs')}
+        />
+      }
+      feedback={<HumanFeedbackPanel runId={runId} />}
+    />
   );
 };
