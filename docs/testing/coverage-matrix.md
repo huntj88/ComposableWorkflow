@@ -191,6 +191,134 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | SD-E2E-005-CopilotFailurePropagation | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-005-copilot-failure-propagation.spec.ts | TSD11 | implemented | required |
 | SD-E2E-006-FeedbackCancellationLifecycle | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/spec-doc-feedback-cancellation.spec.ts | TSD11 | implemented | required |
 
+## Web SPA Behavior Coverage (`B-WEB-*`)
+
+| RequirementID | Suite | PlannedTestFile | OwnerTask | Status | FeatureGate |
+|---|---|---|---|---|---|
+| B-WEB-001 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-001.spec.ts | TWEB09 | implemented | required |
+| B-WEB-002 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-001.spec.ts | TWEB09 | implemented | required |
+| B-WEB-003 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-001.spec.ts | TWEB09 | implemented | required |
+| B-WEB-004 | e2e | apps/workflow-web/test/e2e/web-runs-dashboard-happy-path.spec.ts | TWEB12 | implemented | required |
+| B-WEB-005 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-002.spec.ts | TWEB09 | implemented | required |
+| B-WEB-006 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-002.spec.ts | TWEB09 | implemented | required |
+| B-WEB-007 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-004.spec.ts | TWEB10 | implemented | required |
+| B-WEB-008 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-003.spec.ts | TWEB10 | implemented | required |
+| B-WEB-009 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-009.spec.ts | TWEB09 | implemented | required |
+| B-WEB-010 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-010.spec.ts | TWEB09 | implemented | required |
+| B-WEB-011 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-009.spec.ts | TWEB09 | implemented | required |
+| B-WEB-012 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-010.spec.ts | TWEB09 | implemented | required |
+| B-WEB-013 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-011.spec.ts | TWEB10 | implemented | required |
+| B-WEB-014 | integration | apps/workflow-web/test/integration/spec-lock/itx.web.spec-lock.ITX-WEB-023.spec.ts | TWEB11 | implemented | required |
+| B-WEB-015 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-036.spec.ts | TWEB10 | implemented | required |
+| B-WEB-016 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-005.spec.ts | TWEB09 | implemented | required |
+| B-WEB-017 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-006.spec.ts | TWEB09 | implemented | required |
+| B-WEB-018 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-007.spec.ts | TWEB10 | implemented | required |
+| B-WEB-019 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-008.spec.ts | TWEB10 | implemented | required |
+| B-WEB-020 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-011.spec.ts | TWEB10 | implemented | required |
+| B-WEB-021 | e2e | apps/workflow-web/test/e2e/web-feedback-happy-path.spec.ts | TWEB12 | implemented | required |
+| B-WEB-021 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-012.spec.ts | TWEB10 | implemented | required |
+| B-WEB-022 | e2e | apps/workflow-web/test/e2e/web-feedback-happy-path.spec.ts | TWEB12 | implemented | required |
+| B-WEB-022 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-012.spec.ts | TWEB10 | implemented | required |
+| B-WEB-023 | e2e | apps/workflow-web/test/e2e/web-feedback-happy-path.spec.ts | TWEB12 | implemented | required |
+| B-WEB-023 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-012.spec.ts | TWEB10 | implemented | required |
+| B-WEB-024 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-013.spec.ts | TWEB10 | implemented | required |
+| B-WEB-025 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-013.spec.ts | TWEB10 | implemented | required |
+| B-WEB-026 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-013.spec.ts | TWEB10 | implemented | required |
+| B-WEB-027 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-014.spec.ts | TWEB10 | implemented | required |
+| B-WEB-028 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-015.spec.ts | TWEB10 | implemented | required |
+| B-WEB-029 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-016.spec.ts | TWEB10 | implemented | required |
+| B-WEB-030 | e2e | apps/workflow-web/test/e2e/web-runs-dashboard-happy-path.spec.ts | TWEB12 | implemented | required |
+| B-WEB-030 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-017.spec.ts | TWEB10 | implemented | required |
+| B-WEB-031 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-018.spec.ts | TWEB10 | implemented | required |
+| B-WEB-032 | e2e | apps/workflow-web/test/e2e/web-runs-dashboard-happy-path.spec.ts | TWEB12 | implemented | required |
+| B-WEB-032 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-019.spec.ts | TWEB10 | implemented | required |
+| B-WEB-033 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-019.spec.ts | TWEB10 | implemented | required |
+| B-WEB-033 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-022.spec.ts | TWEB10 | implemented | required |
+| B-WEB-034 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-020.spec.ts | TWEB10 | implemented | required |
+| B-WEB-035 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-021.spec.ts | TWEB10 | implemented | required |
+| B-WEB-036 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-024.spec.ts | TWEB10 | implemented | required |
+| B-WEB-037 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-025.spec.ts | TWEB10 | implemented | required |
+| B-WEB-038 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-026.spec.ts | TWEB10 | implemented | required |
+| B-WEB-039 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-027.spec.ts | TWEB10 | implemented | required |
+| B-WEB-040 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-028.spec.ts | TWEB10 | implemented | required |
+| B-WEB-041 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-029.spec.ts | TWEB10 | implemented | required |
+| B-WEB-042 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-030.spec.ts | TWEB10 | implemented | required |
+| B-WEB-043 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-031.spec.ts | TWEB10 | implemented | required |
+| B-WEB-044 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-032.spec.ts | TWEB10 | implemented | required |
+| B-WEB-045 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-033.spec.ts | TWEB10 | implemented | required |
+| B-WEB-046 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-034.spec.ts | TWEB10 | implemented | required |
+| B-WEB-047 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-034.spec.ts | TWEB10 | implemented | required |
+| B-WEB-048 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-035.spec.ts | TWEB10 | implemented | required |
+| B-WEB-049 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-036.spec.ts | TWEB10 | implemented | required |
+| B-WEB-050 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-037.spec.ts | TWEB10 | implemented | required |
+| B-WEB-051 | e2e | apps/workflow-web/test/e2e/web-feedback-happy-path.spec.ts | TWEB12 | implemented | required |
+| B-WEB-051 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-038.spec.ts | TWEB10 | implemented | required |
+| B-WEB-052 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-039.spec.ts | TWEB10 | implemented | required |
+| B-WEB-053 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-040.spec.ts | TWEB10 | implemented | required |
+| B-WEB-054 | e2e | apps/workflow-web/test/e2e/web-feedback-happy-path.spec.ts | TWEB12 | implemented | required |
+| B-WEB-054 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-041.spec.ts | TWEB10 | implemented | required |
+| B-WEB-055 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-042.spec.ts | TWEB10 | implemented | required |
+| B-WEB-056 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-043.spec.ts | TWEB10 | implemented | required |
+
+## Web SPA Integration Coverage (`ITX-WEB-*`)
+
+| RequirementID | Suite | PlannedTestFile | OwnerTask | Status | FeatureGate |
+|---|---|---|---|---|---|
+| ITX-WEB-001 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-001.spec.ts | TWEB09 | implemented | required |
+| ITX-WEB-002 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-002.spec.ts | TWEB09 | implemented | required |
+| ITX-WEB-003 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-003.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-004 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-004.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-005 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-005.spec.ts | TWEB09 | implemented | required |
+| ITX-WEB-006 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-006.spec.ts | TWEB09 | implemented | required |
+| ITX-WEB-007 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-007.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-008 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-008.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-009 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-009.spec.ts | TWEB09 | implemented | required |
+| ITX-WEB-010 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-010.spec.ts | TWEB09 | implemented | required |
+| ITX-WEB-011 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-011.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-012 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-012.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-013 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-013.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-014 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-014.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-015 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-015.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-016 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-016.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-017 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-017.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-018 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-018.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-019 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-019.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-020 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-020.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-021 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-021.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-022 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-022.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-023 | integration | apps/workflow-web/test/integration/spec-lock/itx.web.spec-lock.ITX-WEB-023.spec.ts | TWEB11 | implemented | required |
+| ITX-WEB-024 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-024.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-025 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-025.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-026 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-026.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-027 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-027.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-028 | integration | apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-028.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-029 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-029.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-030 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-030.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-031 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-031.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-032 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-032.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-033 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-033.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-034 | integration | apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-034.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-035 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-035.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-036 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-036.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-037 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-037.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-038 | integration | apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-038.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-039 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-039.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-040 | integration | apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-040.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-041 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-041.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-042 | integration | apps/workflow-web/test/integration/accessibility/itx.web.a11y.ITX-WEB-042.spec.ts | TWEB10 | implemented | required |
+| ITX-WEB-043 | integration | apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-043.spec.ts | TWEB10 | implemented | required |
+
+### Web SPA supplemental integration gates
+
+| RequirementID | Suite | PlannedTestFile | OwnerTask | Status | FeatureGate |
+|---|---|---|---|---|---|
+| TWEB12-definitions-route | integration | apps/workflow-web/test/integration/routes/itx.web.routes.definitions-view.spec.ts | TWEB11 | implemented | required |
+| TWEB12-unsupported-eventType | integration | apps/workflow-web/test/integration/stream/itx.web.stream.unsupported-eventType-filter.spec.ts | TWEB11 | implemented | required |
+| TWEB12-api-types-exports | spec-lock | apps/workflow-web/test/integration/spec-lock/itx.web.spec-lock.api-types-exports.spec.ts | TWEB11 | implemented | required |
+| TWEB12-contract-evolution-order | spec-lock | apps/workflow-web/test/integration/spec-lock/itx.web.spec-lock.contract-evolution-order.spec.ts | TWEB11 | implemented | required |
+| TWEB12-defaults-ordering | integration | apps/workflow-web/test/integration/transport/itx.web.transport.defaults-and-ordering.spec.ts | TWEB11 | implemented | required |
+| TWEB12-event-text-filter | integration | apps/workflow-web/test/integration/transport/itx.web.transport.event-text-filter-semantics.spec.ts | TWEB11 | implemented | required |
+
 ## Update Rules
 - Update `Status` to `implemented` when file exists with active test cases.
 - Update `Status` to `passing` only after CI passes on the owning suite.

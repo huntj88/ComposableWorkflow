@@ -342,3 +342,176 @@ jobs:
           name: ci-sse-artifacts
           path: .artifacts/sse-stream
           if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # Workflow Web SPA gates (TWEB12)
+  # ---------------------------------------------------------------------------
+
+  web-typecheck-build:
+    name: web-typecheck-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck workflow-web
+        run: pnpm --filter @composable-workflow/workflow-web run typecheck
+
+      - name: Build workflow-web
+        run: pnpm --filter @composable-workflow/workflow-web run build
+
+  web-integration:
+    name: web-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - web-typecheck-build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare artifacts directory
+        run: mkdir -p .artifacts/web-integration
+
+      - name: Run web integration suite
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration 2>&1 | tee .artifacts/web-integration/console.log
+
+      - name: Run definitions-route integration gate (TWEB12-GATE-002)
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/routes/itx.web.routes.definitions-view.spec.ts
+
+      - name: Run unsupported-eventType stream gate (TWEB12-GATE-002)
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/stream/itx.web.stream.unsupported-eventType-filter.spec.ts
+
+      - name: Run free-text/filter-link semantics gate (TWEB12-GATE-004)
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/transport/itx.web.transport.event-text-filter-semantics.spec.ts
+
+      - name: Run defaults/max ordering semantics gate (TWEB12-GATE-004)
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/transport/itx.web.transport.defaults-and-ordering.spec.ts
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-web-integration-artifacts
+          path: .artifacts/web-integration
+          if-no-files-found: warn
+
+  web-spec-lock:
+    name: web-spec-lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - web-typecheck-build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run API-types export-set spec-lock (TWEB12-GATE-003)
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/spec-lock/itx.web.spec-lock.api-types-exports.spec.ts
+
+      - name: Run contract evolution-order spec-lock (TWEB12-GATE-003)
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/spec-lock/itx.web.spec-lock.contract-evolution-order.spec.ts
+
+  web-e2e:
+    name: web-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - web-integration
+      - web-spec-lock
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare artifacts directory
+        run: mkdir -p .artifacts/web-e2e
+
+      - name: Run web E2E happy-path suites (TWEB12-GATE-005, TWEB12-GATE-006)
+        run: |
+          set -eo pipefail
+          pnpm --filter @composable-workflow/workflow-web run test:e2e 2>&1 | tee .artifacts/web-e2e/console.log
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-web-e2e-artifacts
+          path: .artifacts/web-e2e
+          if-no-files-found: warn
