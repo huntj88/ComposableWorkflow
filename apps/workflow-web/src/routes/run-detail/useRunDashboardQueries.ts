@@ -4,8 +4,6 @@ import {
   cancelRunResponseSchema,
   errorEnvelopeSchema,
   listRunFeedbackRequestsResponseSchema,
-  runEventsResponseSchema,
-  runLogsResponseSchema,
   runSummaryResponseSchema,
   runTreeResponseSchema,
   workflowDefinitionResponseSchema,
@@ -17,6 +15,13 @@ import {
   type RunTreeResponse,
   type WorkflowDefinitionResponse,
 } from '@composable-workflow/workflow-api-types';
+
+import { workflowApiClient } from '../../transport/workflowApiClient';
+import {
+  toEventsTransportQuery,
+  toLogsTransportQuery,
+  useRunDetailFilterStore,
+} from './state/filterStore';
 
 type DashboardPanelKey = 'summary' | 'tree' | 'events' | 'logs' | 'definition' | 'feedback';
 
@@ -117,11 +122,15 @@ const getSummary = (runId: string): Promise<RunSummaryResponse> =>
 const getTree = (runId: string): Promise<RunTreeResponse> =>
   getJson(`/api/v1/workflows/runs/${runId}/tree`, runTreeResponseSchema);
 
-const getEvents = (runId: string): Promise<RunEventsResponse> =>
-  getJson(`/api/v1/workflows/runs/${runId}/events?limit=100`, runEventsResponseSchema);
+const getEvents = async (runId: string): Promise<RunEventsResponse> => {
+  const filters = useRunDetailFilterStore.getState().events;
+  return workflowApiClient.getRunEvents(runId, toEventsTransportQuery(filters));
+};
 
-const getLogs = (runId: string): Promise<RunLogsResponse> =>
-  getJson(`/api/v1/workflows/runs/${runId}/logs`, runLogsResponseSchema);
+const getLogs = async (runId: string): Promise<RunLogsResponse> => {
+  const filters = useRunDetailFilterStore.getState().logs;
+  return workflowApiClient.getRunLogs(runId, toLogsTransportQuery(filters));
+};
 
 const getDefinition = (workflowType: string): Promise<WorkflowDefinitionResponse> =>
   getJson(

@@ -20,13 +20,13 @@ Implement event timeline and logs panel filtering semantics, explicit link-mode 
 - Pagination/ordering semantics: events and logs default `limit=100`, max `500`; events append by `sequence ASC`; logs ordered `timestamp ASC` then `eventId ASC` tie-break.
 
 ## Implementation Tasks
-- [ ] Implement events panel filters and chronological append rendering.
-- [ ] Implement logs panel filters with exact shared query key serialization.
-- [ ] Implement explicit link-filters mode and limited synchronization behavior.
-- [ ] Implement event free-text matching domain exactly per Section 9.3 semantics.
-- [ ] Enforce event/log default and max limit semantics in transport-bound UI requests.
-- [ ] Enforce deterministic logs ordering assertions (`timestamp ASC`, tie-break `eventId ASC`).
-- [ ] Implement auto-follow, scroll preservation, and jump-to-latest interactions.
+- [x] Implement events panel filters and chronological append rendering.
+- [x] Implement logs panel filters with exact shared query key serialization.
+- [x] Implement explicit link-filters mode and limited synchronization behavior.
+- [x] Implement event free-text matching domain exactly per Section 9.3 semantics.
+- [x] Enforce event/log default and max limit semantics in transport-bound UI requests.
+- [x] Enforce deterministic logs ordering assertions (`timestamp ASC`, tie-break `eventId ASC`).
+- [x] Implement auto-follow, scroll preservation, and jump-to-latest interactions.
 
 ## Required Artifacts
 - `apps/workflow-web/src/routes/run-detail/components/EventsTimelinePanel.tsx`
