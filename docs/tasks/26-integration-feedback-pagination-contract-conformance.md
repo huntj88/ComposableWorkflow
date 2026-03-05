@@ -18,16 +18,16 @@ Implement integration tests for run-scoped feedback discovery pagination/filter 
 - ITX-031 verifies that all Section 8 endpoint handler/service boundaries import and type-conform to `@composable-workflow/workflow-api-types` exports.
 
 ## Implementation Tasks
-- [ ] Implement ITX-030: Run-scoped feedback discovery pagination and filter behavior.
+- [x] Implement ITX-030: Run-scoped feedback discovery pagination and filter behavior.
   - Create parent workflow with multiple feedback child runs in mixed statuses (`awaiting_response`, `responded`, `cancelled`).
   - Page through endpoint with varying `status`, `limit`, and `cursor` parameters.
   - Create feedback requests under a different parent run to verify scoping.
   - Assert: only run-lineage feedback requests returned; status filter works; sort order correct; cursor stable; no cross-run leakage.
-- [ ] Implement ITX-031: Endpoint handler type conformance against `workflow-api-types`.
+- [x] Implement ITX-031: Endpoint handler type conformance against `workflow-api-types`.
   - For each Section 8 endpoint, verify server route handler/service boundaries import and type-conform to transport contracts from `@composable-workflow/workflow-api-types`.
   - Check that `apps/workflow-cli` and `apps/workflow-web` consume shared contracts without local DTO redefinition.
   - Assert: all endpoints have matching shared contracts; build/typecheck fails on drift; SSE frames align to `WorkflowStreamFrame`.
-- [ ] Update coverage matrix with new entries.
+- [x] Update coverage matrix with new entries.
 
 ## Required Artifacts
 - `packages/workflow-server/test/integration/human-feedback/run-scoped-pagination.spec.ts`
