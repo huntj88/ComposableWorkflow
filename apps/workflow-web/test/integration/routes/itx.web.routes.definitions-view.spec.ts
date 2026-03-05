@@ -8,6 +8,9 @@
  * workflowType is handled gracefully.
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -16,6 +19,11 @@ import {
 } from '@composable-workflow/workflow-api-types';
 
 import { DefinitionsPage } from '../../../src/routes/definitions/DefinitionsPage';
+
+const definitionsPageSource = readFileSync(
+  resolve(import.meta.dirname, '../../../src/routes/definitions/DefinitionsPage.tsx'),
+  'utf8',
+);
 
 /* ── Fixtures ─────────────────────────────────────────────────────── */
 
@@ -175,33 +183,24 @@ describe('integration.routes.definitions-view / field coverage', () => {
 /* ── Graph Shell Region Attributes ───────────────────────────────── */
 
 describe('integration.routes.definitions-view / graph shell attributes', () => {
-  it('graph shell uses region role with aria-label', () => {
-    // Verified from DefinitionsPage source: role="region" aria-label="definition-graph-shell"
-    const expectedRole = 'region';
-    const expectedAriaLabel = 'definition-graph-shell';
-    expect(expectedRole).toBe('region');
-    expect(expectedAriaLabel).toBe('definition-graph-shell');
+  it('graph shell uses region role with aria-label in source JSX', () => {
+    expect(definitionsPageSource).toMatch(/role=["']region["']/);
+    expect(definitionsPageSource).toMatch(/aria-label=["']definition-graph-shell["']/);
   });
 
-  it('graph shell carries data-workflow-type matching the response', () => {
-    // Verified from DefinitionsPage source: data-workflow-type={query.data.workflowType}
-    const dataAttributeValue = validDefinition.workflowType;
-    expect(dataAttributeValue).toBe('reference.success.v1');
+  it('graph shell binds data-workflow-type to the response workflowType', () => {
+    expect(definitionsPageSource).toMatch(/data-workflow-type=\{.*workflowType\}/);
   });
 });
 
 /* ── Error Behavior ──────────────────────────────────────────────── */
 
 describe('integration.routes.definitions-view / error handling', () => {
-  it('non-ok response throws with status', () => {
-    const status = 404;
-    const message = `Failed to load definition (${status})`;
-    expect(message).toBe('Failed to load definition (404)');
+  it('source uses status-interpolated error message on non-ok response', () => {
+    expect(definitionsPageSource).toMatch(/Failed to load definition.*\$\{response\.status\}/);
   });
 
-  it('non-ok response for 500 includes status code in message', () => {
-    const status = 500;
-    const message = `Failed to load definition (${status})`;
-    expect(message).toContain('500');
+  it('non-ok response guard checks response.ok before parsing', () => {
+    expect(definitionsPageSource).toMatch(/if\s*\(\s*!response\.ok\s*\)/);
   });
 });
