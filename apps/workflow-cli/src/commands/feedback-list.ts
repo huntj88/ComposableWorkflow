@@ -46,14 +46,22 @@ export const registerFeedbackListCommand = (program: Command, deps: CliDependenc
   feedback
     .command('list')
     .description('List human feedback requests')
+    .option(
+      '--run-id <runId>',
+      'Run-scoped filter; calls /workflows/runs/{runId}/feedback-requests',
+    )
     .option('--status <status>', 'Status filter (awaiting_response, responded, cancelled)')
     .option('--json', 'Render machine-readable JSON output')
     .action(
       async (options: {
+        runId?: string;
         status?: 'awaiting_response' | 'responded' | 'cancelled';
         json?: boolean;
       }) => {
-        const items = await deps.client.listFeedbackRequests({ status: options.status });
+        const items = await deps.client.listFeedbackRequests({
+          runId: options.runId,
+          status: options.status,
+        });
 
         if (options.json) {
           deps.io.writeStdout(JSON.stringify({ items }));

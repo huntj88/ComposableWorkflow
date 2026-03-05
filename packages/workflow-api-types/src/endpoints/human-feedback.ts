@@ -8,6 +8,28 @@ export const runFeedbackRequestStatusSchema = z.enum([
   'cancelled',
 ]);
 
+const parseStatusCsv = (value: string): string[] =>
+  value
+    .split(',')
+    .map((status) => status.trim())
+    .filter((status) => status.length > 0);
+
+const statusCsvSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => {
+    const statuses = parseStatusCsv(value);
+    if (statuses.length === 0) {
+      return false;
+    }
+
+    const parsedStatuses = statuses.map((status) =>
+      runFeedbackRequestStatusSchema.safeParse(status),
+    );
+    return parsedStatuses.every((parsedStatus) => parsedStatus.success);
+  }, 'status must be a CSV of awaiting_response|responded|cancelled');
+
 export const submitHumanFeedbackResponsePayloadSchema = z
   .object({
     questionId: z.string().trim().min(1),
@@ -39,10 +61,12 @@ export const submitHumanFeedbackResponseConflictSchema = z.object({
 export const runFeedbackRequestSummarySchema = z.object({
   feedbackRunId: z.string(),
   parentRunId: z.string(),
-  parentWorkflowType: z.string(),
-  parentState: z.string(),
   questionId: z.string(),
-  requestEventId: z.string(),
+  status: runFeedbackRequestStatusSchema,
+  requestedAt: isoDateTime,
+  respondedAt: isoDateTime.nullable(),
+  cancelledAt: isoDateTime.nullable(),
+  respondedBy: z.string().nullable(),
   prompt: z.string(),
   options: z
     .array(
@@ -54,23 +78,25 @@ export const runFeedbackRequestSummarySchema = z.object({
     )
     .nullable(),
   constraints: z.array(z.string()).nullable(),
-  correlationId: z.string().nullable(),
-  status: runFeedbackRequestStatusSchema,
-  requestedAt: isoDateTime,
-  respondedAt: isoDateTime.nullable(),
-  cancelledAt: isoDateTime.nullable(),
-  response: submitHumanFeedbackResponsePayloadSchema.nullable(),
-  respondedBy: z.string().nullable(),
 });
 
-export const humanFeedbackRequestStatusResponseSchema = runFeedbackRequestSummarySchema;
+export const humanFeedbackRequestStatusResponseSchema = runFeedbackRequestSummarySchema.extend({
+  parentWorkflowType: z.string(),
+  parentState: z.string(),
+  requestEventId: z.string(),
+  correlationId: z.string().nullable(),
+  response: submitHumanFeedbackResponsePayloadSchema.nullable(),
+});
 
 export const listRunFeedbackRequestsQuerySchema = z.object({
-  status: runFeedbackRequestStatusSchema.optional(),
+  status: statusCsvSchema.default('awaiting_response,responded'),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  cursor: z.string().trim().min(1).optional(),
 });
 
 export const listRunFeedbackRequestsResponseSchema = z.object({
   items: z.array(runFeedbackRequestSummarySchema),
+  nextCursor: z.string().optional(),
 });
 
 export type SubmitHumanFeedbackResponsePayload = z.infer<

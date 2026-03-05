@@ -52,6 +52,11 @@ export interface HumanFeedbackProjectionRow {
   respondedBy: string | null;
 }
 
+export interface HumanFeedbackProjectionCursor {
+  requestedAt: string;
+  feedbackRunId: string;
+}
+
 interface HumanFeedbackProjectionRowResult {
   feedback_run_id: string;
   parent_run_id: string;
@@ -107,6 +112,15 @@ export interface HumanFeedbackProjectionRepository {
     client: DbClient,
     feedbackRunId: string,
   ) => Promise<HumanFeedbackProjectionRow | null>;
+  listByParentRunId: (
+    client: DbClient,
+    input: {
+      parentRunId: string;
+      statuses: Array<'awaiting_response' | 'responded' | 'cancelled'>;
+      limit: number;
+      cursor?: HumanFeedbackProjectionCursor;
+    },
+  ) => Promise<HumanFeedbackProjectionRow[]>;
 }
 
 export const createHumanFeedbackProjectionRepository = (): HumanFeedbackProjectionRepository => ({
@@ -222,5 +236,48 @@ WHERE feedback_run_id = $1
     }
 
     return mapProjectionRow(result.rows[0]);
+  },
+  listByParentRunId: async (client, input) => {
+    const queryLimit = input.limit + 1;
+    const result = await client.query<HumanFeedbackProjectionRowResult>(
+      `
+SELECT
+  feedback_run_id,
+  parent_run_id,
+  parent_workflow_type,
+  parent_state,
+  question_id,
+  request_event_id,
+  prompt,
+  options_json,
+  constraints_json,
+  correlation_id,
+  status,
+  requested_at,
+  responded_at,
+  cancelled_at,
+  response_json,
+  responded_by
+FROM human_feedback_requests
+WHERE parent_run_id = $1
+  AND status = ANY($2::text[])
+  AND (
+    $3::timestamptz IS NULL
+    OR requested_at < $3
+    OR (requested_at = $3 AND feedback_run_id > $4)
+  )
+ORDER BY requested_at DESC, feedback_run_id ASC
+LIMIT $5
+`,
+      [
+        input.parentRunId,
+        input.statuses,
+        input.cursor?.requestedAt ?? null,
+        input.cursor?.feedbackRunId ?? null,
+        queryLimit,
+      ],
+    );
+
+    return result.rows.map(mapProjectionRow);
   },
 });

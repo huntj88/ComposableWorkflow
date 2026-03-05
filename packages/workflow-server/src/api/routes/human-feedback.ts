@@ -6,6 +6,7 @@ import {
   humanFeedbackRequestStatusResponseSchema,
   listRunFeedbackRequestsQuerySchema,
   listRunFeedbackRequestsResponseSchema,
+  runFeedbackRequestSummarySchema,
   submitHumanFeedbackResponseConflictSchema,
   submitHumanFeedbackResponseRequestSchema,
   submitHumanFeedbackResponseResponseSchema,
@@ -244,13 +245,20 @@ export const registerHumanFeedbackRoutes = async (
     },
     async (request) => {
       const query = listRunFeedbackRequestsQuerySchema.parse(request.query);
+      const statuses = query.status
+        .split(',')
+        .map((status) => status.trim())
+        .filter((status): status is 'awaiting_response' | 'responded' | 'cancelled' =>
+          ['awaiting_response', 'responded', 'cancelled'].includes(status),
+        );
+      const limit = query.limit;
       const values: unknown[] = [];
       const where: string[] = [];
 
-      if (query.status) {
-        values.push(query.status);
-        where.push(`status = $${values.length}`);
-      }
+      values.push(statuses);
+      where.push(`status = ANY($${values.length}::text[])`);
+
+      values.push(limit);
 
       const sql = `
 SELECT
@@ -272,8 +280,8 @@ SELECT
   responded_by
 FROM human_feedback_requests
 ${where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''}
-ORDER BY requested_at DESC
-LIMIT 200
+ORDER BY requested_at DESC, feedback_run_id ASC
+LIMIT $${values.length}
 `;
 
       const rows = await deps.pool.query<{
@@ -297,23 +305,18 @@ LIMIT 200
 
       return {
         items: rows.rows.map((row) =>
-          mapStatusRow({
+          runFeedbackRequestSummarySchema.parse({
             feedbackRunId: row.feedback_run_id,
             parentRunId: row.parent_run_id,
-            parentWorkflowType: row.parent_workflow_type,
-            parentState: row.parent_state,
             questionId: row.question_id,
-            requestEventId: row.request_event_id,
-            prompt: row.prompt,
-            options: row.options_json,
-            constraints: row.constraints_json,
-            correlationId: row.correlation_id,
             status: row.status,
             requestedAt: row.requested_at.toISOString(),
             respondedAt: row.responded_at?.toISOString() ?? null,
             cancelledAt: row.cancelled_at?.toISOString() ?? null,
-            response: row.response_json,
             respondedBy: row.responded_by,
+            prompt: row.prompt,
+            options: row.options_json,
+            constraints: row.constraints_json,
           }),
         ),
       };

@@ -4,6 +4,7 @@ import {
   type ListRunFeedbackRequestsQuery,
   type ListRunFeedbackRequestsResponse,
   type ListRunsResponse,
+  type RunFeedbackRequestSummary,
   type RunEventsResponse,
   type RunSummaryResponse,
   type RunTreeNode as SharedRunTreeNode,
@@ -39,6 +40,7 @@ export type RunTreeNode = SharedRunTreeNode;
 export type WorkflowDefinition = WorkflowDefinitionResponse;
 export type HumanFeedbackResponsePayload = SubmitHumanFeedbackResponsePayload;
 export type HumanFeedbackRequestStatus = HumanFeedbackRequestStatusResponse;
+export type HumanFeedbackRequestSummary = RunFeedbackRequestSummary;
 export type HumanFeedbackRespondAccepted = SubmitHumanFeedbackResponseResponse;
 export type HumanFeedbackRespondConflict = SubmitHumanFeedbackResponseConflict;
 
@@ -108,8 +110,11 @@ export interface WorkflowApiClient {
   }) => Promise<RunTreeResponse>;
   inspectDefinition: (workflowType: string) => Promise<WorkflowDefinition>;
   listFeedbackRequests: (request?: {
+    runId?: string;
     status?: ListRunFeedbackRequestsQuery['status'];
-  }) => Promise<HumanFeedbackRequestStatus[]>;
+    limit?: ListRunFeedbackRequestsQuery['limit'];
+    cursor?: ListRunFeedbackRequestsQuery['cursor'];
+  }) => Promise<HumanFeedbackRequestSummary[]>;
   getFeedbackRequestStatus: (feedbackRunId: string) => Promise<HumanFeedbackRequestStatus>;
   respondFeedbackRequest: (request: {
     feedbackRunId: string;
@@ -478,18 +483,32 @@ export const createWorkflowApiClient = (
   };
 
   const listFeedbackRequests = async (request?: {
+    runId?: string;
     status?: ListRunFeedbackRequestsQuery['status'];
-  }): Promise<HumanFeedbackRequestStatus[]> => {
+    limit?: ListRunFeedbackRequestsQuery['limit'];
+    cursor?: ListRunFeedbackRequestsQuery['cursor'];
+  }): Promise<HumanFeedbackRequestSummary[]> => {
     const query = new URLSearchParams();
 
     if (request?.status) {
       query.set('status', request.status);
     }
 
+    if (typeof request?.limit === 'number') {
+      query.set('limit', `${request.limit}`);
+    }
+
+    if (request?.cursor) {
+      query.set('cursor', request.cursor);
+    }
+
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
-    const response = await requestJson<ListRunFeedbackRequestsResponse>(
-      `/api/v1/human-feedback/requests${suffix}`,
-    );
+
+    const path = request?.runId
+      ? `/api/v1/workflows/runs/${encodeURIComponent(request.runId)}/feedback-requests${suffix}`
+      : `/api/v1/human-feedback/requests${suffix}`;
+
+    const response = await requestJson<ListRunFeedbackRequestsResponse>(path);
     return response.items;
   };
 

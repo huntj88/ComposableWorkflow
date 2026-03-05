@@ -101,4 +101,19 @@ describe('contract: workflow feedback list', () => {
       ],
     });
   });
+
+  it('passes runId when run-scoped listing is requested', async () => {
+    const { deps, listFeedbackRequests } = createMockDeps();
+
+    const exitCode = await executeCli(
+      ['node', 'workflow', 'feedback', 'list', '--run-id', 'wr_parent_1', '--json'],
+      deps,
+    );
+
+    expect(exitCode).toBe(EXIT_CODE_SUCCESS);
+    expect(listFeedbackRequests).toHaveBeenCalledWith({
+      runId: 'wr_parent_1',
+      status: undefined,
+    });
+  });
 });

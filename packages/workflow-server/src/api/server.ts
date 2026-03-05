@@ -17,6 +17,7 @@ import { registerDefinitionRoutes } from './routes/definitions.js';
 import { registerDiagnosticsRoutes } from './routes/diagnostics.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerHumanFeedbackRoutes } from './routes/human-feedback.js';
+import { registerRunFeedbackRequestRoutes } from './routes/run-feedback-requests.js';
 import { registerRunRoutes } from './routes/runs.js';
 import { registerWorkflowRoutes } from './routes/workflows.js';
 
@@ -133,6 +134,7 @@ export const createApiServer = async (deps: ApiServerDependencies): Promise<Fast
 
   await registerWorkflowRoutes(server, deps);
   await registerRunRoutes(server, deps);
+  await registerRunFeedbackRequestRoutes(server, deps);
   await registerEventRoutes(server, deps);
   await registerDefinitionRoutes(server, deps);
   await registerHumanFeedbackRoutes(server, deps);

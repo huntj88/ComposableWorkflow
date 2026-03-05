@@ -29,17 +29,17 @@ Implement `GET /api/v1/workflows/runs/{runId}/feedback-requests` as a run-scoped
 - `RunFeedbackRequestSummary` fields (per spec Section 8.12): `feedbackRunId`, `parentRunId`, `questionId`, `status`, `requestedAt`, `respondedAt?`, `cancelledAt?`, `respondedBy?`, `prompt`, `options`, `constraints`.
 
 ## Implementation Tasks
-- [ ] Use shared transport contracts from `@composable-workflow/workflow-api-types` for query/response typing in route handler/service boundaries; avoid local DTO declarations for covered endpoint contracts.
-- [ ] If runtime validation schemas are required for this endpoint, source/re-export canonical schemas from `workflow-api-types` rather than defining divergent server-local transport schemas.
-- [ ] Implement route handler in `packages/workflow-server/src/api/routes/run-feedback-requests.ts`.
-- [ ] Add run-scoped query to persistence layer: `SELECT ... FROM human_feedback_requests WHERE parent_run_id = $1` with status filter, sort, limit, and cursor pagination.
-- [ ] Register route in `packages/workflow-server/src/api/server.ts`.
-- [ ] Add E2E behavior test `B-API-009` in `packages/workflow-server/test/e2e/behaviors/api-feedback-requests.spec.ts`.
-- [ ] Add black-box parity test in `packages/workflow-server/test/e2e-blackbox/human-feedback/run-feedback-requests.spec.ts`.
-- [ ] Add CLI command `workflow feedback list --run-id <runId>` variant that calls the run-scoped endpoint.
-- [ ] Verify run-scoping: unrelated feedback requests from other runs are never returned.
-- [ ] Verify default status filter excludes `cancelled` unless explicitly requested.
-- [ ] Update coverage matrix.
+- [x] Use shared transport contracts from `@composable-workflow/workflow-api-types` for query/response typing in route handler/service boundaries; avoid local DTO declarations for covered endpoint contracts.
+- [x] If runtime validation schemas are required for this endpoint, source/re-export canonical schemas from `workflow-api-types` rather than defining divergent server-local transport schemas.
+- [x] Implement route handler in `packages/workflow-server/src/api/routes/run-feedback-requests.ts`.
+- [x] Add run-scoped query to persistence layer: `SELECT ... FROM human_feedback_requests WHERE parent_run_id = $1` with status filter, sort, limit, and cursor pagination.
+- [x] Register route in `packages/workflow-server/src/api/server.ts`.
+- [x] Add E2E behavior test `B-API-009` in `packages/workflow-server/test/e2e/behaviors/api-feedback-requests.spec.ts`.
+- [x] Add black-box parity test in `packages/workflow-server/test/e2e-blackbox/human-feedback/run-feedback-requests.spec.ts`.
+- [x] Add CLI command `workflow feedback list --run-id <runId>` variant that calls the run-scoped endpoint.
+- [x] Verify run-scoping: unrelated feedback requests from other runs are never returned.
+- [x] Verify default status filter excludes `cancelled` unless explicitly requested.
+- [x] Update coverage matrix.
 
 ## Required Artifacts
 - `packages/workflow-server/src/api/routes/run-feedback-requests.ts`

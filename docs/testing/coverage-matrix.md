@@ -87,8 +87,8 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | GS-005 | e2e | packages/workflow-server/test/e2e/golden/GS-005.spec.ts | T16 | implemented | required |
 | GS-006 | e2e | packages/workflow-server/test/e2e/golden/GS-006.spec.ts | T28 | planned | required |
 | GS-007 | e2e | packages/workflow-server/test/e2e/golden/GS-007.spec.ts | T28 | planned | required |
-| B-API-009 | e2e | packages/workflow-server/test/e2e/behaviors/api-feedback-requests.spec.ts | T25 | planned | required |
-| B-API-009 | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/human-feedback/run-feedback-requests.spec.ts | T25 | planned | required |
+| B-API-009 | e2e | packages/workflow-server/test/e2e/behaviors/api-feedback-requests.spec.ts | T25 | implemented | required |
+| B-API-009 | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/human-feedback/run-feedback-requests.spec.ts | T25 | implemented | required |
 | B-CONTRACT-001 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | planned | required |
 | B-CONTRACT-002 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | planned | required |
 | B-CONTRACT-003 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | planned | required |
