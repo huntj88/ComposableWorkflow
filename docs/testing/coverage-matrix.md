@@ -92,7 +92,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | B-CONTRACT-001 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | implemented | required |
 | B-CONTRACT-002 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | implemented | required |
 | B-CONTRACT-003 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T24 | implemented | required |
-| B-CONTRACT-004 | integration | packages/workflow-server/test/integration/contract/contract-lock-drift.spec.ts | T27 | planned | required |
+| B-CONTRACT-004 | integration | packages/workflow-server/test/integration/contract/contract-lock-drift.spec.ts | T27 | implemented | required |
 | B-CONTRACT-005 | integration | packages/workflow-api-types/package.json | T24 | planned | required |
 | B-CONTRACT-006 | integration | packages/workflow-api-types/package.json | T24 | planned | required |
 
@@ -144,7 +144,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | B-DATA-004 | integration | packages/workflow-server/test/integration/human-feedback/projection-transactionality.spec.ts | T22 | implemented | required |
 | ITX-030 | integration | packages/workflow-server/test/integration/human-feedback/run-scoped-pagination.spec.ts | T26 | implemented | required |
 | ITX-031 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | T26 | implemented | required |
-| ITX-032 | integration | packages/workflow-server/test/integration/contract/contract-lock-drift.spec.ts | T27 | planned | required |
+| ITX-032 | integration | packages/workflow-server/test/integration/contract/contract-lock-drift.spec.ts | T27 | implemented | required |
 | LifecycleStart-001-NoPendingQueue | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
 | LifecycleStart-002-ImmediateStepHandoff | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |
 | LifecycleStart-004-ExecutionStartCheckpoint | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | T20 | implemented | required |

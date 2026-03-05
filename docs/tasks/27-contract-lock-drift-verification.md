@@ -20,11 +20,11 @@ Implement automated CI-verifiable contract lock drift tests between the endpoint
 - Comparison is structural (method + path + contracts), not cosmetic (capability label differences are tolerated).
 
 ## Implementation Tasks
-- [ ] Implement contract lock drift test that parses spec Section 6.9.1 and web spec Section 6.2 tables.
-- [ ] Assert exact match on method, path, and shared contract names between the two tables.
-- [ ] Ensure test fails on any drift (added/removed/modified entries).
-- [ ] Add test to CI pipeline as part of standard test suite.
-- [ ] Update coverage matrix with new entries.
+- [x] Implement contract lock drift test that parses spec Section 6.9.1 and web spec Section 6.2 tables.
+- [x] Assert exact match on method, path, and shared contract names between the two tables.
+- [x] Ensure test fails on any drift (added/removed/modified entries).
+- [x] Add test to CI pipeline as part of standard test suite.
+- [x] Update coverage matrix with new entries.
 
 ## Required Artifacts
 - `packages/workflow-server/test/integration/contract/contract-lock-drift.spec.ts`
