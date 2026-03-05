@@ -16,9 +16,9 @@ Establish the Workflow Web SPA foundation in `apps/workflow-web` with the requir
 - Required stack libraries: `react-router-dom`, `@tanstack/react-query`, `zustand`, `@mui/material`, `reactflow`, `recharts`.
 
 ## Implementation Tasks
-- [ ] Confirm package dependencies and strict TS config satisfy baseline spec constraints.
-- [ ] Establish app-shell providers and shared app bootstrap boundaries.
-- [ ] Add shared typing utilities and lint/type gates for transport contract usage.
+- [x] Confirm package dependencies and strict TS config satisfy baseline spec constraints.
+- [x] Establish app-shell providers and shared app bootstrap boundaries.
+- [x] Add shared typing utilities and lint/type gates for transport contract usage.
 
 ## Required Artifacts
 - `apps/workflow-web/package.json`
