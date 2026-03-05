@@ -23,13 +23,13 @@ Implement deterministic integration coverage for route semantics, dashboard boot
 - Route semantics from `workflow-web-spec.md` Sections 4 and 5.
 
 ## Implementation Tasks
-- [ ] Add integration tests for route canonical behavior and dashboard boot wiring.
-- [ ] Add panel failure isolation/not-found/action/metadata tests.
-- [ ] Add feedback discovery/submit/detail tests and filter independence tests.
-- [ ] Add layout/token/keyboard/accessibility announcement/focus tests.
-- [ ] Add causal navigation and auto-follow/jump-to-latest behavior tests.
-- [ ] Add definitions-route integration test validating deep-link render and metadata panel behavior.
-- [ ] Execute targeted test files individually (one command per exact spec file) for deterministic triage.
+- [x] Add integration tests for route canonical behavior and dashboard boot wiring.
+- [x] Add panel failure isolation/not-found/action/metadata tests.
+- [x] Add feedback discovery/submit/detail tests and filter independence tests.
+- [x] Add layout/token/keyboard/accessibility announcement/focus tests.
+- [x] Add causal navigation and auto-follow/jump-to-latest behavior tests.
+- [x] Add definitions-route integration test validating deep-link render and metadata panel behavior.
+- [x] Execute targeted test files individually (one command per exact spec file) for deterministic triage.
 
 ## Required Artifacts
 - `apps/workflow-web/test/integration/routes/*.spec.ts`
