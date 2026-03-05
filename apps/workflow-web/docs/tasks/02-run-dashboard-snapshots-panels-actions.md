@@ -16,11 +16,11 @@ Implement `/runs/:runId` dashboard snapshot boot sequencing, six required panels
 - `RunSummaryResponse`, `RunTreeResponse`, `RunEventsResponse`, `RunLogsResponse`, `WorkflowDefinitionResponse`, `ListRunFeedbackRequestsResponse`, `CancelRunResponse`.
 
 ## Implementation Tasks
-- [ ] Implement `/runs/:runId` route composition with six required panels.
-- [ ] Wire initial snapshot call sequence and post-snapshot stream-open trigger.
-- [ ] Implement panel-scoped loading/empty/error/retry isolation.
-- [ ] Implement refresh and cancel action semantics by lifecycle state.
-- [ ] Render summary and timeline required metadata fields.
+- [x] Implement `/runs/:runId` route composition with six required panels.
+- [x] Wire initial snapshot call sequence and post-snapshot stream-open trigger.
+- [x] Implement panel-scoped loading/empty/error/retry isolation.
+- [x] Implement refresh and cancel action semantics by lifecycle state.
+- [x] Render summary and timeline required metadata fields.
 
 ## Required Artifacts
 - `apps/workflow-web/src/routes/run-detail/RunDetailPage.tsx`
