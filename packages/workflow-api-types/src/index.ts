@@ -47,6 +47,8 @@ export {
 
 export { cancelRunResponseSchema, type CancelRunResponse } from './endpoints/lifecycle.js';
 
+export { errorEnvelopeSchema, type ErrorEnvelope } from './endpoints/errors.js';
+
 export {
   runFeedbackRequestStatusSchema,
   submitHumanFeedbackResponsePayloadSchema,

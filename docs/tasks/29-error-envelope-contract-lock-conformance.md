@@ -26,12 +26,12 @@ Implement CI-verifiable conformance for shared transport error contracts introdu
   - server/web/shared contract artifacts remain synchronized on error envelope semantics.
 
 ## Implementation Tasks
-- [ ] Add error-contract lock drift test for server spec Sections 8.0/8.10 vs web spec Section 6.8.
-- [ ] Extend lock drift test to assert three-way alignment across server spec, web spec, and `@composable-workflow/workflow-api-types` error contract exports.
-- [ ] Add integration test coverage for covered `400`/`404` failures asserting `ErrorEnvelope` required fields.
-- [ ] Add integration test coverage for feedback submit `409` asserting `SubmitHumanFeedbackResponseConflict` shape and terminal metadata fields.
-- [ ] Add negative-path coverage for malformed/missing required error-contract fields and assert explicit contract violation handling.
-- [ ] Update coverage ledger ownership to map requirement IDs to this task.
+- [x] Add error-contract lock drift test for server spec Sections 8.0/8.10 vs web spec Section 6.8.
+- [x] Extend lock drift test to assert three-way alignment across server spec, web spec, and `@composable-workflow/workflow-api-types` error contract exports.
+- [x] Add integration test coverage for covered `400`/`404` failures asserting `ErrorEnvelope` required fields.
+- [x] Add integration test coverage for feedback submit `409` asserting `SubmitHumanFeedbackResponseConflict` shape and terminal metadata fields.
+- [x] Add negative-path coverage for malformed/missing required error-contract fields and assert explicit contract violation handling.
+- [x] Update coverage ledger ownership to map requirement IDs to this task.
 
 ## Required Artifacts
 - `packages/workflow-server/test/integration/contract/error-envelope-contract-lock-drift.spec.ts`

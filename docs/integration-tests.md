@@ -535,6 +535,7 @@ A behavior is integration-primary when one or more is true:
 **Setup**
 - Parse and compare error-contract sections across `docs/typescript-server-workflow-spec.md` Sections 8.0/8.10 and `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8, and compare error-contract exports from `@composable-workflow/workflow-api-types`.
 - Validate covered endpoint failure responses for `400`/`404` envelope handling and feedback submit `409` conflict payload semantics.
+- Implementation artifacts: `packages/workflow-server/test/integration/contract/error-envelope-contract-lock-drift.spec.ts`, `packages/workflow-server/test/integration/api/error-envelope-conformance.spec.ts`.
 
 **Assertions**
 - Error contract semantics (`ErrorEnvelope` required fields and conflict-contract usage rules) match across server spec, web spec, and shared contract exports.

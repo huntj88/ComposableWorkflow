@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  errorEnvelopeSchema,
   listRunsResponseSchema,
   runEventsResponseSchema,
   runLogsResponseSchema,
@@ -11,9 +12,12 @@ import {
   workflowDefinitionResponseSchema,
   workflowEventDtoSchema,
   workflowLifecycleSchema,
+  type ErrorEnvelope,
 } from '@composable-workflow/workflow-api-types';
 
 const isoDateTime = z.string().datetime({ offset: true });
+
+export { errorEnvelopeSchema };
 
 const commaSeparatedTextList = z.preprocess(
   (value) => {
@@ -28,13 +32,6 @@ const commaSeparatedTextList = z.preprocess(
   },
   z.array(z.string().min(1)),
 );
-
-export const errorEnvelopeSchema = z.object({
-  code: z.string().min(1),
-  message: z.string().min(1),
-  details: z.record(z.unknown()).optional(),
-  requestId: z.string().min(1),
-});
 
 export const startWorkflowBodySchema = startWorkflowRequestSchema;
 
@@ -107,4 +104,4 @@ export const runTreeQuerySchema = z.object({
   includeCompletedChildren: z.coerce.boolean().default(true),
 });
 
-export type ErrorEnvelope = z.infer<typeof errorEnvelopeSchema>;
+export type { ErrorEnvelope };

@@ -406,6 +406,7 @@ Endpoint: `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond`
 - Missing `questionId` returns `400`.
 - Invalid `selectedOptionIds` (not matching offered options) returns `400` without terminalizing feedback.
 - For completion-confirmation numbered questions, `selectedOptionIds` must contain exactly one option or return `400` without terminalizing feedback.
+- Covered `400`/`404` failures for this endpoint use `ErrorEnvelope` with required `code`, `message`, and `requestId` fields.
 - No protocol-level `response.text` maximum is enforced in MVP; implementation-specific limits may return `400` with validation details.
 - First accepted response returns success; subsequent submissions return `409` with current status and terminal timestamps.
 - On acceptance, feedback child run completes and parent may resume at next safe point.
