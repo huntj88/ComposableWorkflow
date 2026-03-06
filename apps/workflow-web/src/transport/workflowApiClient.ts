@@ -1,5 +1,6 @@
 import {
   cancelRunResponseSchema,
+  listDefinitionsResponseSchema,
   humanFeedbackRequestStatusResponseSchema,
   listRunFeedbackRequestsResponseSchema,
   listRunsResponseSchema,
@@ -7,12 +8,16 @@ import {
   runLogsResponseSchema,
   runSummaryResponseSchema,
   runTreeResponseSchema,
+  startWorkflowRequestSchema,
+  startWorkflowResponseSchema,
   submitHumanFeedbackResponseRequestSchema,
   submitHumanFeedbackResponseResponseSchema,
   workflowDefinitionResponseSchema,
   type CancelRunResponse,
+  type DefinitionSummary,
   type GetRunLogsQuery,
   type HumanFeedbackRequestStatusResponse,
+  type ListDefinitionsResponse,
   type ListRunFeedbackRequestsQuery,
   type ListRunFeedbackRequestsResponse,
   type ListRunsResponse,
@@ -20,6 +25,8 @@ import {
   type RunLogsResponse,
   type RunSummaryResponse,
   type RunTreeResponse,
+  type StartWorkflowRequest,
+  type StartWorkflowResponse,
   type SubmitHumanFeedbackResponseRequest,
   type SubmitHumanFeedbackResponseResponse,
   type WorkflowDefinitionResponse,
@@ -64,6 +71,8 @@ export type OpenRunStreamOptions = {
   cursor?: string;
   eventType?: string;
 };
+
+export type StartWorkflowOptions = StartWorkflowRequest;
 
 type RequestJsonOptions = {
   method?: 'GET' | 'POST';
@@ -183,14 +192,14 @@ const resolveEventSourceFactory = (factory?: EventSourceFactory): EventSourceFac
 export type WorkflowApiClient = ReturnType<typeof createWorkflowApiClient>;
 
 export const createWorkflowApiClient = (options: CreateWorkflowApiClientOptions = {}) => {
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = options.fetchImpl;
 
   const requestJson = async <T>(
     path: string,
     schema: { parse: (value: unknown) => T },
     requestOptions: RequestJsonOptions,
   ): Promise<T> => {
-    const response = await fetchImpl(path, {
+    const response = await (fetchImpl ?? fetch)(path, {
       method: requestOptions.method ?? 'GET',
       headers: requestOptions.body ? { 'Content-Type': 'application/json' } : undefined,
       body: requestOptions.body,
@@ -208,10 +217,24 @@ export const createWorkflowApiClient = (options: CreateWorkflowApiClientOptions 
   };
 
   return {
+    listDefinitions: async (): Promise<ListDefinitionsResponse> =>
+      requestJson(`${API_BASE}/workflows/definitions`, listDefinitionsResponseSchema, {
+        panel: 'definitions-catalog',
+      }),
+
     listRuns: async (query: ListRunsQuery = {}): Promise<ListRunsResponse> => {
       const queryString = serializeListRunsQuery(query);
       const path = withQuery(`${API_BASE}/workflows/runs`, queryString);
       return requestJson(path, listRunsResponseSchema, { panel: 'runs' });
+    },
+
+    startWorkflow: async (body: StartWorkflowOptions): Promise<StartWorkflowResponse> => {
+      const requestBody = startWorkflowRequestSchema.parse(body);
+      return requestJson(`${API_BASE}/workflows/start`, startWorkflowResponseSchema, {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        panel: 'start-workflow',
+      });
     },
 
     getRunSummary: async (runId: string): Promise<RunSummaryResponse> =>
@@ -304,3 +327,10 @@ export const createWorkflowApiClient = (options: CreateWorkflowApiClientOptions 
 };
 
 export const workflowApiClient = createWorkflowApiClient();
+
+export type {
+  DefinitionSummary,
+  ListDefinitionsResponse,
+  StartWorkflowRequest,
+  StartWorkflowResponse,
+};

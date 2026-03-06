@@ -8,13 +8,16 @@
 
 import type {
   CancelRunResponse,
+  DefinitionSummary,
   HumanFeedbackRequestStatusResponse,
+  ListDefinitionsResponse,
   ListRunFeedbackRequestsResponse,
   ListRunsResponse,
   RunEventsResponse,
   RunLogsResponse,
   RunSummaryResponse,
   RunTreeResponse,
+  StartWorkflowResponse,
   SubmitHumanFeedbackResponseResponse,
   WorkflowDefinitionResponse,
   WorkflowEventDto,
@@ -209,6 +212,36 @@ export function buildDefinitionResponse(
     ],
     childLaunchAnnotations: [],
     metadata: {},
+    ...overrides,
+  };
+}
+
+export function buildDefinitionSummary(
+  overrides: Partial<DefinitionSummary> = {},
+): DefinitionSummary {
+  return {
+    workflowType: DEFAULT_WORKFLOW_TYPE,
+    workflowVersion: DEFAULT_WORKFLOW_VERSION,
+    metadata: {},
+    ...overrides,
+  };
+}
+
+export function buildListDefinitionsResponse(items?: DefinitionSummary[]): ListDefinitionsResponse {
+  return {
+    items: items ?? [buildDefinitionSummary()],
+  };
+}
+
+export function buildStartWorkflowResponse(
+  overrides: Partial<StartWorkflowResponse> = {},
+): StartWorkflowResponse {
+  return {
+    runId: DEFAULT_RUN_ID,
+    workflowType: DEFAULT_WORKFLOW_TYPE,
+    workflowVersion: DEFAULT_WORKFLOW_VERSION,
+    lifecycle: 'running',
+    startedAt: BASE_TIMESTAMP,
     ...overrides,
   };
 }

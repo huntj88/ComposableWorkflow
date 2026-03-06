@@ -1,8 +1,9 @@
-import type { KeyboardEvent, ReactElement } from 'react';
+import { useState, type KeyboardEvent, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
+  Button,
   Chip,
   FormControl,
   InputLabel,
@@ -21,13 +22,14 @@ import {
 } from '@mui/material';
 
 import {
-  listRunsResponseSchema,
   type ListRunsResponse,
   type RunSummaryResponse,
   type WorkflowLifecycle,
 } from '@composable-workflow/workflow-api-types';
 
+import { StartWorkflowDialog } from './components/StartWorkflowDialog';
 import { useRunsFilters } from './useRunsFilters';
+import { workflowApiClient } from '../../transport/workflowApiClient';
 
 const WORKFLOW_LIFECYCLE_OPTIONS: WorkflowLifecycle[] = [
   'running',
@@ -40,20 +42,6 @@ const WORKFLOW_LIFECYCLE_OPTIONS: WorkflowLifecycle[] = [
   'failed',
   'cancelled',
 ];
-
-const listRuns = async (queryString: string): Promise<ListRunsResponse> => {
-  const endpoint =
-    queryString.length > 0 ? `/api/v1/workflows/runs?${queryString}` : '/api/v1/workflows/runs';
-  const response = await fetch(endpoint);
-
-  if (!response.ok) {
-    throw new Error(`Failed to load runs (${response.status})`);
-  }
-
-  const payload = (await response.json()) as unknown;
-
-  return listRunsResponseSchema.parse(payload);
-};
 
 const formatDateTime = (value: string): string => new Date(value).toLocaleString();
 
@@ -134,10 +122,16 @@ const RunsTable = ({ items }: { items: RunSummaryResponse[] }): ReactElement => 
 
 export const RunsPage = (): ReactElement => {
   const { filters, setLifecycle, setWorkflowType, queryString } = useRunsFilters();
+  const [isStartDialogOpen, setIsStartDialogOpen] = useState(false);
 
   const query = useQuery({
     queryKey: ['runs', queryString],
-    queryFn: () => listRuns(queryString),
+    queryFn: (): Promise<ListRunsResponse> =>
+      workflowApiClient.listRuns({
+        lifecycle: filters.lifecycle,
+        workflowType:
+          filters.workflowType.trim().length > 0 ? [filters.workflowType.trim()] : undefined,
+      }),
   });
 
   const handleLifecycleChange = (event: SelectChangeEvent<WorkflowLifecycle[]>): void => {
@@ -148,9 +142,20 @@ export const RunsPage = (): ReactElement => {
 
   return (
     <Stack spacing={2}>
-      <Typography component="h1" variant="h4">
-        Runs
-      </Typography>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        gap={2}
+        flexWrap="wrap"
+      >
+        <Typography component="h1" variant="h4" data-focus-target="runs-heading" tabIndex={-1}>
+          Runs
+        </Typography>
+        <Button variant="contained" onClick={() => setIsStartDialogOpen(true)}>
+          Start workflow
+        </Button>
+      </Box>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <FormControl sx={{ minWidth: 260 }} size="small">
           <InputLabel id="runs-lifecycle-filter-label">Lifecycle</InputLabel>
@@ -190,6 +195,7 @@ export const RunsPage = (): ReactElement => {
         </Paper>
       ) : null}
       {query.data ? <RunsTable items={query.data.items} /> : null}
+      <StartWorkflowDialog open={isStartDialogOpen} onClose={() => setIsStartDialogOpen(false)} />
     </Stack>
   );
 };

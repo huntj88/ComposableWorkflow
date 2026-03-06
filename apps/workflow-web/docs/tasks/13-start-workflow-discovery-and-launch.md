@@ -19,12 +19,12 @@ Implement the `/runs` start-workflow experience: reachable entry action, definit
 - `ErrorEnvelope`
 
 ## Implementation Tasks
-- [ ] Add definitions-list query support and start-workflow mutation support to the web transport-bound UI layer.
-- [ ] Render a start-workflow trigger on `/runs` and a start surface with workflow type, JSON input, optional `idempotencyKey`, and optional `metadata`.
-- [ ] Enforce syntactic JSON validity and required-field gating before submit.
-- [ ] Submit using shared DTO field names only and navigate to `#/runs/:runId` on both `201` and idempotent `200` success responses.
-- [ ] Render `404` (`WORKFLOW_TYPE_NOT_FOUND`), `400`, and transport failures inside the start surface while preserving user-entered values.
-- [ ] Preserve keyboard-only completion and visible focus semantics throughout open, field entry, error handling, and submit.
+- [x] Add definitions-list query support and start-workflow mutation support to the web transport-bound UI layer.
+- [x] Render a start-workflow trigger on `/runs` and a start surface with workflow type, JSON input, optional `idempotencyKey`, and optional `metadata`.
+- [x] Enforce syntactic JSON validity and required-field gating before submit.
+- [x] Submit using shared DTO field names only and navigate to `#/runs/:runId` on both `201` and idempotent `200` success responses.
+- [x] Render `404` (`WORKFLOW_TYPE_NOT_FOUND`), `400`, and transport failures inside the start surface while preserving user-entered values.
+- [x] Preserve keyboard-only completion and visible focus semantics throughout open, field entry, error handling, and submit.
 
 ## Required Artifacts
 - `apps/workflow-web/src/routes/runs/RunsPage.tsx`

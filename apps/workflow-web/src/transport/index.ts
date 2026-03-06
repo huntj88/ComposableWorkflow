@@ -11,6 +11,7 @@ export {
   type GetRunEventsQuery,
   type ListRunsQuery,
   type OpenRunStreamOptions,
+  type StartWorkflowOptions,
   type WebGetRunLogsQuery,
   type WorkflowApiClient,
 } from './workflowApiClient';

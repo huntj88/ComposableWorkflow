@@ -6,7 +6,9 @@ import {
 } from '@composable-workflow/workflow-api-types';
 
 export type PanelScope =
+  | 'definitions-catalog'
   | 'runs'
+  | 'start-workflow'
   | 'summary'
   | 'tree'
   | 'events'

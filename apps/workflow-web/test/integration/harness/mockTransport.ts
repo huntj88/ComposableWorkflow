@@ -12,6 +12,7 @@
 
 import type {
   CancelRunResponse,
+  ListDefinitionsResponse,
   HumanFeedbackRequestStatusResponse,
   ListRunFeedbackRequestsResponse,
   ListRunsResponse,
@@ -19,6 +20,7 @@ import type {
   RunLogsResponse,
   RunSummaryResponse,
   RunTreeResponse,
+  StartWorkflowResponse,
   SubmitHumanFeedbackResponseResponse,
   WorkflowDefinitionResponse,
 } from '@composable-workflow/workflow-api-types';
@@ -136,7 +138,9 @@ export type MockTransport = {
   stub: (matcher: UrlMatcher, method: string, response: JsonResponseInit, times?: number) => void;
 
   /** Convenience stubs for every transport surface. */
+  stubDefinitionsList: (body: ListDefinitionsResponse, status?: number) => void;
   stubListRuns: (body: ListRunsResponse, status?: number) => void;
+  stubStartWorkflow: (body: StartWorkflowResponse, status?: number) => void;
   stubRunSummary: (runId: string, body: RunSummaryResponse, status?: number) => void;
   stubRunTree: (runId: string, body: RunTreeResponse, status?: number) => void;
   stubRunEvents: (runId: string, body: RunEventsResponse, status?: number) => void;
@@ -271,6 +275,19 @@ export function createMockTransport(): MockTransport {
 
     stub: stubMethod,
 
+    stubDefinitionsList: (body, status) =>
+      stubMethod(
+        (url) => {
+          const path = url.split('?')[0]!;
+          return (
+            path.endsWith('/api/v1/workflows/definitions') ||
+            path.endsWith('/api/v1/workflows/definitions/')
+          );
+        },
+        'GET',
+        { status, body },
+      ),
+
     stubListRuns: (body, status) =>
       stubMethod(
         (url) => {
@@ -282,6 +299,9 @@ export function createMockTransport(): MockTransport {
         'GET',
         { status, body },
       ),
+
+    stubStartWorkflow: (body, status) =>
+      stubMethod((url) => url.includes('/api/v1/workflows/start'), 'POST', { status, body }),
 
     stubRunSummary: (runId, body, status) =>
       stubMethod(
