@@ -90,6 +90,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | GS-007 | e2e | packages/workflow-server/test/e2e/golden/GS-007.spec.ts | WS-22 | implemented | required |
 | B-API-009 | e2e | packages/workflow-server/test/e2e/behaviors/api-feedback-requests.spec.ts | WS-19 | implemented | required |
 | B-API-009 | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/human-feedback/run-feedback-requests.spec.ts | WS-19 | implemented | required |
+| B-API-011 | integration | packages/workflow-server/test/integration/api/definitions-list-conformance.spec.ts | WS-25 | planned | required |
 | B-API-010 | integration | packages/workflow-server/test/integration/api/graph-overlay-reference-conformance.spec.ts | WS-24 | passing | required |
 | B-CONTRACT-001 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | API-00 | implemented | required |
 | B-CONTRACT-002 | integration | packages/workflow-server/test/integration/contract/type-conformance.spec.ts | API-00 | implemented | required |
@@ -151,6 +152,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | ITX-032 | integration | packages/workflow-server/test/integration/contract/contract-lock-drift.spec.ts | WS-21 | implemented | required |
 | ITX-033 | integration | packages/workflow-server/test/integration/contract/graph-contract-lock-drift.spec.ts | WS-24 | passing | required |
 | ITX-034 | integration | packages/workflow-server/test/integration/contract/error-envelope-contract-lock-drift.spec.ts | WS-23 | implemented | required |
+| ITX-035 | integration | packages/workflow-server/test/integration/api/definitions-list-conformance.spec.ts | WS-25 | planned | required |
 | LifecycleStart-001-NoPendingQueue | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | WS-15 | implemented | required |
 | LifecycleStart-002-ImmediateStepHandoff | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | WS-15 | implemented | required |
 | LifecycleStart-004-ExecutionStartCheckpoint | integration | packages/workflow-server/test/integration/orchestrator/start-immediate-execution.spec.ts | WS-15 | implemented | required |

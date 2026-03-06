@@ -6,7 +6,7 @@
 - `WS-21`
 
 ## Objective
-Implement CI-verifiable conformance for shared transport error contracts introduced/clarified in `workflow-api-types-spec.md` §4 and server spec Section 4.10, including cross-spec lock checks against `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8 and runtime contract assertions for `ErrorEnvelope` and `SubmitHumanFeedbackResponseConflict` handling.
+Implement CI-verifiable conformance for shared transport error contracts introduced/clarified in `workflow-api-types-spec.md` §4 and server spec Section 4.11, including cross-spec lock checks against `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8 and runtime contract assertions for `ErrorEnvelope` and `SubmitHumanFeedbackResponseConflict` handling.
 
 ## Fixed Implementation Decisions
 - Error contract drift validation is implemented as static integration tests that compare server spec error-contract sections and web spec error-contract sections.
@@ -16,7 +16,7 @@ Implement CI-verifiable conformance for shared transport error contracts introdu
 - Unknown/malformed error-envelope payloads in covered scenarios are explicit contract violations and must fail tests (never silently tolerated).
 
 ## Interface/Schema Contracts
-- Server spec error contract source: `workflow-api-types-spec.md` §4 and `docs/typescript-server-workflow-spec.md` Section 4.10.
+- Server spec error contract source: `workflow-api-types-spec.md` §4 and `docs/typescript-server-workflow-spec.md` Section 4.11.
 - Web spec error contract source: `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8.
 - Shared error contracts: `ErrorEnvelope`, `SubmitHumanFeedbackResponseConflict` from `@composable-workflow/workflow-api-types`.
 - Contract assertions:
@@ -26,7 +26,7 @@ Implement CI-verifiable conformance for shared transport error contracts introdu
   - server/web/shared contract artifacts remain synchronized on error envelope semantics.
 
 ## Implementation Tasks
-- [x] Add error-contract lock drift test for `workflow-api-types-spec.md` §4 + server spec Section 4.10 vs web spec Section 6.8.
+- [x] Add error-contract lock drift test for `workflow-api-types-spec.md` §4 + server spec Section 4.11 vs web spec Section 6.8.
 - [x] Extend lock drift test to assert three-way alignment across server spec, web spec, and `@composable-workflow/workflow-api-types` error contract exports.
 - [x] Add integration test coverage for covered `400`/`404` failures asserting `ErrorEnvelope` required fields.
 - [x] Add integration test coverage for feedback submit `409` asserting `SubmitHumanFeedbackResponseConflict` shape and terminal metadata fields.

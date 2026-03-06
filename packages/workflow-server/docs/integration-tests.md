@@ -122,7 +122,8 @@ A behavior is integration-primary when one or more is true:
 
 **Assertions**
 - Exactly one logical run created.
-- Others return same run identity or documented idempotent response.
+- First accepted create returns `201` with `StartWorkflowResponse`.
+- Idempotent duplicate submissions return `200` with the same `StartWorkflowResponse` shape and run identity.
 - No duplicate `workflow.started` for same dedupe key.
 
 **Related behaviors:** `B-START-003`.
@@ -533,7 +534,7 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** error-contract lock and payload-shape assertions require deterministic static cross-spec comparison plus controlled covered-failure fixtures.
 
 **Setup**
-- Parse and compare error-contract sections across `packages/workflow-api-types/docs/workflow-api-types-spec.md` §4 + `packages/workflow-server/docs/typescript-server-workflow-spec.md` Section 4.10 and `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8, and compare error-contract exports from `@composable-workflow/workflow-api-types`.
+- Parse and compare error-contract sections across `packages/workflow-api-types/docs/workflow-api-types-spec.md` §4 + `packages/workflow-server/docs/typescript-server-workflow-spec.md` Section 4.11 and `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8, and compare error-contract exports from `@composable-workflow/workflow-api-types`.
 - Validate covered endpoint failure responses for `400`/`404` envelope handling and feedback submit `409` conflict payload semantics.
 - Implementation artifacts: `packages/workflow-server/test/integration/contract/error-envelope-contract-lock-drift.spec.ts`, `packages/workflow-server/test/integration/api/error-envelope-conformance.spec.ts`.
 
@@ -545,10 +546,26 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-API-007`, `B-CONTRACT-006`.
 
+## ITX-035: List definitions endpoint ordering and shared-contract conformance
+**Why not E2E-only:** deterministic ordering and contract-lock parity are best validated with static/shared-contract assertions plus controlled fixture registration.
+
+**Setup**
+- Register multiple workflow definitions with intentionally unsorted `workflowType` values.
+- Validate endpoint response from `GET /api/v1/workflows/definitions` against `ListDefinitionsResponse` / `DefinitionSummary` from `@composable-workflow/workflow-api-types`.
+- Include registry-loaded and persisted definitions where applicable.
+
+**Assertions**
+- Response conforms to `ListDefinitionsResponse` with `items: DefinitionSummary[]`.
+- Results are ordered by `workflowType ASC`.
+- Each summary item includes required minimum fields (`workflowType`, `workflowVersion`).
+- Endpoint parity remains aligned with server spec Section 4.1 and web/api-types endpoint lock tables.
+
+**Related behaviors:** `B-API-011`, `B-CONTRACT-001`, `B-CONTRACT-004`.
+
 ## 5) Integration vs E2E Ownership Matrix
 
 ## 5.1 Integration-Primary
-- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019, 020, 021, 024, 027, 028, 029, 031, 032, 033, 034.
+- ITX-001, 002, 003, 004, 005, 006, 007, 010, 011, 013, 014, 016, 017, 018, 019, 020, 021, 024, 027, 028, 029, 031, 032, 033, 034, 035.
 
 ## 5.2 Shared Coverage (Integration + E2E)
 - ITX-008, 009, 012, 015, 022, 023, 025, 026, 030.
@@ -593,7 +610,8 @@ Integration suite is complete when:
 5. Endpoint handler type conformance against `workflow-api-types` is verified for all Section 4 routes.
 6. Contract lock drift test confirms workflow-api-types-spec.md §2 and web spec Section 6.2 tables match exactly.
 7. Graph contract lock and runtime overlay reference conformance are verified for workflow-api-types-spec.md §5 and web spec Sections 6.6/8.5.
-8. Error-envelope and feedback-conflict contract conformance are verified for workflow-api-types-spec.md §4 + server spec Section 4.10 and web spec Section 6.8.
+8. Error-envelope and feedback-conflict contract conformance are verified for workflow-api-types-spec.md §4 + server spec Section 4.11 and web spec Section 6.8.
+9. List-definitions endpoint ordering and transport-contract conformance are verified for server spec Section 4.1 and workflow-api-types exports.
 
 ---
 

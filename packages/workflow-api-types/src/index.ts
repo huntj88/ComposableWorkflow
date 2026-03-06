@@ -41,7 +41,11 @@ export {
 } from './endpoints/tree.js';
 
 export {
+  definitionSummarySchema,
+  listDefinitionsResponseSchema,
   workflowDefinitionResponseSchema,
+  type DefinitionSummary,
+  type ListDefinitionsResponse,
   type WorkflowDefinitionResponse,
 } from './endpoints/definitions.js';
 

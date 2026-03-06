@@ -215,6 +215,7 @@ Endpoint-to-contract mapping (normative):
 
 | Endpoint | Request/Query Contract | Response/Event Contract |
 | --- | --- | --- |
+| `GET /api/v1/workflows/definitions` | none | `ListDefinitionsResponse` |
 | `POST /api/v1/workflows/start` | `StartWorkflowRequest` | `StartWorkflowResponse` |
 | `GET /api/v1/workflows/runs?lifecycle=...&workflowType=...` | query params per shared contract | `ListRunsResponse` |
 | `GET /api/v1/workflows/runs/{runId}` | path params | `RunSummaryResponse` |
@@ -232,7 +233,23 @@ For endpoints where path/query primitives are used, their serialized field names
 
 Error envelope contract: see [workflow-api-types-spec.md §4](../../workflow-api-types/docs/workflow-api-types-spec.md#4-error-envelope-contract-normative).
 
-### 4.1 Start Workflow
+### 4.1 List Registered Definitions
+`GET /api/v1/workflows/definitions`
+
+Purpose:
+- enumerate all server-registered workflow definitions for start-flow selection and definition discovery.
+
+Query:
+- none.
+
+Response contract:
+- `ListDefinitionsResponse` from `workflow-api-types` containing `items: DefinitionSummary[]`.
+
+Behavior:
+- results are ordered by `workflowType ASC`.
+- each summary includes at minimum `workflowType` and `workflowVersion`.
+
+### 4.2 Start Workflow
 `POST /api/v1/workflows/start`
 
 Request:
@@ -261,7 +278,15 @@ Start semantics:
 - there is no operational pending queue lifecycle between acceptance and execution;
 - `workflow.started` is emitted at execution-start checkpoint.
 
-### 4.2 Get Run Summary (Current Insight)
+Request/response semantics:
+- `workflowType` is required and must resolve to a registered definition.
+- `input` is required and accepts any valid JSON value (`unknown` at transport layer).
+- `idempotencyKey` is optional; when a matching key already exists, the server returns `200` with the existing `StartWorkflowResponse`.
+- create-success returns `201` with `StartWorkflowResponse`.
+- unknown `workflowType` returns `404` with shared `ErrorEnvelope` and code `WORKFLOW_TYPE_NOT_FOUND`.
+- validation failures return `400` with shared `ErrorEnvelope`.
+
+### 4.3 Get Run Summary (Current Insight)
 `GET /api/v1/workflows/runs/{runId}`
 
 Returns:
@@ -273,7 +298,7 @@ Returns:
 - progress counters,
 - timestamps.
 
-### 4.3 Get Run Tree (Root + Children)
+### 4.4 Get Run Tree (Root + Children)
 `GET /api/v1/workflows/runs/{runId}/tree`
 
 Returns recursive tree with for each node:
@@ -288,7 +313,7 @@ Supports query options:
 - `depth` (default full),
 - `includeCompletedChildren` (default true).
 
-### 4.4 Get Linear Event History
+### 4.5 Get Linear Event History
 `GET /api/v1/workflows/runs/{runId}/events`
 
 Query:
@@ -298,7 +323,7 @@ Query:
 
 Returns ordered append-only events with sequence numbers.
 
-### 4.5 Get Logs
+### 4.6 Get Logs
 `GET /api/v1/workflows/runs/{runId}/logs`
 
 Query contract: `GetRunLogsQuery` from `workflow-api-types` with:
@@ -315,12 +340,12 @@ Query semantics:
 
 Returns structured log entries linked to event IDs and transitions.
 
-### 4.6 List Active Runs
+### 4.7 List Active Runs
 `GET /api/v1/workflows/runs?lifecycle=running&workflowType=...`
 
 Provides operational insight into what is currently running.
 
-### 4.7 Cancel Run
+### 4.8 Cancel Run
 `POST /api/v1/workflows/runs/{runId}/cancel`
 
 Default semantics:
@@ -328,7 +353,7 @@ Default semantics:
 - Parent-propagated cancellation: cancelling a parent also requests cancellation for active child workflows.
 - Final state is `workflow.cancelled` when cancellation completes.
 
-### 4.8 Definition/Graph Metadata for UI
+### 4.9 Definition/Graph Metadata for UI
 `GET /api/v1/workflows/definitions/{workflowType}`
 
 Returns static metadata to render flowchart:
@@ -339,7 +364,7 @@ Returns static metadata to render flowchart:
 
 Graph contracts: see [workflow-api-types-spec.md §5](../../workflow-api-types/docs/workflow-api-types-spec.md#5-data-contracts-for-flowchart-rendering).
 
-### 4.9 Live Event Stream
+### 4.10 Live Event Stream
 - `GET /api/v1/workflows/runs/{runId}/stream` via SSE.
 - Query:
   - `cursor?` (opaque base64url cursor matching events pagination cursor format),
@@ -354,7 +379,7 @@ Graph contracts: see [workflow-api-types-spec.md §5](../../workflow-api-types/d
 
 Used by future UI for near-real-time visualization.
 
-### 4.10 Submit Human Feedback Response
+### 4.11 Submit Human Feedback Response
 `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond`
 
 Request:
@@ -391,7 +416,7 @@ Behavior:
 - `409` response must use shared `SubmitHumanFeedbackResponseConflict` and include current feedback status plus terminal timestamp metadata (`respondedAt` or `cancelledAt`).
 - `400` validation failures and `404` not-found failures for this endpoint return shared `ErrorEnvelope`.
 
-### 4.11 Get Human Feedback Request Status
+### 4.12 Get Human Feedback Request Status
 `GET /api/v1/human-feedback/requests/{feedbackRunId}`
 
 Response includes:
@@ -400,7 +425,7 @@ Response includes:
 - response payload (if present),
 - parent run linkage fields.
 
-### 4.12 List Human Feedback Requests for a Run
+### 4.13 List Human Feedback Requests for a Run
 `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 
 Purpose:

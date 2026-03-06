@@ -72,10 +72,10 @@ Endpoint: `GET /api/v1/workflows/runs`
 6. `GET /api/v1/workflows/runs/{runId}/feedback-requests?...`
 7. `GET /api/v1/workflows/runs/{runId}/stream` (SSE open)
 
-## B-WEB-006: Run dashboard renders six required panels
+## B-WEB-006: Run dashboard renders seven required panels
 **Given** summary load succeeds
 **When** dashboard UI renders
-**Then** panel set includes: Run Summary, Execution Tree, FSM Graph, Events Timeline, Logs, Human Feedback
+**Then** panel set includes: Run Summary, Execution Tree, FSM Graph, Events Timeline, Transition History, Logs, Human Feedback
 
 ## B-WEB-007: Run summary not-found state for 404
 **Given** `GET /api/v1/workflows/runs/{runId}` returns `404`
@@ -178,7 +178,7 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/stream`
 ## B-WEB-021: Feedback form validity and submit behavior
 **Given** selected feedback request is actionable
 **When** response form is edited
-**Then** submit stays disabled until required fields are valid (at minimum `questionId`)
+**Then** submit stays disabled until required fields are valid (at minimum `questionId`, and exactly one option when options are present)
 **And** successful submit transitions item to terminal/responded without full reload
 **And** controls become read-only after success
 
@@ -225,7 +225,7 @@ At desktop width (`>=1280px`):
 3. Operational details area (events/logs/feedback)
 
 At narrow width (`<1280px`):
-- Panels stack by required priority order: summary -> tree/graph -> events/logs -> feedback.
+- Panels stack by required priority order: summary -> tree/graph -> transition history -> events/logs -> feedback.
 
 ## B-WEB-028: Lifecycle and stream health visual tokens are consistent
 **Given** lifecycle or stream health is rendered in multiple panels
@@ -398,6 +398,74 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 - Timestamp/cursor/enum serialization semantics are sourced from shared contracts.
 - Covered transport mapping does not introduce local DTO duplication or ad-hoc request/response field remapping.
 
+## B-WEB-057: `/runs` exposes start workflow entry and definitions-backed type selection
+- A start workflow action is reachable from `/runs` without requiring prior workflow type knowledge.
+- Opening the start workflow surface fetches `GET /api/v1/workflows/definitions` and presents server-backed choices from `ListDefinitionsResponse` / `DefinitionSummary`.
+- Manual free-text workflow type entry is not the only path to submit the flow.
+- Shared DTO usage for `ListDefinitionsResponse` and `DefinitionSummary` is enforced for this surface.
+
+## B-WEB-058: Start workflow validation, shared-contract submit, and success navigation
+- Submit remains disabled until a workflow type is selected and the input editor contains syntactically valid JSON.
+- `POST /api/v1/workflows/start` uses `StartWorkflowRequest` and `StartWorkflowResponse` from shared contracts with no local DTO duplication.
+- Optional `idempotencyKey` and `metadata` fields preserve shared field names and JSON-object semantics.
+- Successful `201` or `200` responses navigate to `#/runs/:runId` using `StartWorkflowResponse.runId`.
+
+## B-WEB-059: Start workflow errors are scoped and preserve form state
+- `404` (`WORKFLOW_TYPE_NOT_FOUND`) renders the server error message in the start workflow surface and preserves all form field values.
+- `400` validation failures render `ErrorEnvelope` details and preserve all form field values.
+- Network/transport failures render a scoped retryable error and preserve form state.
+- Start workflow transport and error handling follow the Sections 6.7 and 6.8 request/error semantics.
+
+## B-WEB-060: Keyboard-only users can complete the start workflow flow
+- Keyboard users can open the start workflow surface, select a workflow type, edit input/idempotency/metadata fields, and submit successfully.
+- Visible focus indicators remain present throughout the flow.
+
+## B-WEB-061: Child FSM drill-down resolves runtime/static targets with breadcrumb history
+- Activating a child-launch affordance navigates to `#/runs/:childRunId` when `RunTreeResponse` resolves a matching child run, or to `#/definitions/:childWorkflowType` when no child run exists.
+- Child-run resolution uses `RunTreeResponse` children matched from definition-level `childWorkflowType` annotations; manual child run ID entry is not required.
+- When drill-down reaches a child run, a breadcrumb bar above the FSM graph shows the ancestor path with clickable links back to each parent dashboard.
+- Drill-down pushes browser history entries so browser back/forward restores the parent graph context.
+
+## B-WEB-062: FSM graph relationship rendering follows structural semantics
+- All definition transitions render as directed edges with arrowheads, and edge count equals transition count.
+- Orphan states are visually distinguished with dashed styling and grouped separately; unreachable states use muted/warning styling.
+- Parallel transitions between the same `from`/`to` pair remain visually distinct rather than collapsing into one edge.
+- Selecting a state highlights directly connected inbound/outbound nodes and edges while dimming unrelated graph elements.
+- A graph-level summary indicator displays total state count, total transition count, unreachable state count, and terminal state count.
+
+## B-WEB-063: Child FSM drill-down is keyboard-accessible and iteration-aware
+- Child-launch affordances are keyboard-accessible and expose visible focus indicators.
+- When a child-launch state has multiple visits, the drill-down flow presents an iteration selector ordered by matching `child.started` events in `sequence ASC`.
+- Iteration selector entries display iteration number, child run ID, lifecycle status, and timestamp.
+- Single-iteration launches skip the selector, and missing/failed child-run entries fall back to static definition drill-down.
+
+## B-WEB-064: Transition History renders ordered linear execution with iteration cues
+- The Transition History panel renders a linear chronological list of transition-relevant events (`state.entered`, `transition.requested`, `transition.completed`, `transition.failed`, `child.started`, `child.completed`, `child.failed`) ordered by `sequence ASC`.
+- Transition history entries display sequence, event type, state/transition details, timestamp, and visit counters for repeated state visits.
+- Loop/cycle entries and active in-progress transitions use the required visual indicators for repeated and pending execution states.
+
+## B-WEB-065: Transition History nests child histories inline and preserves expansion state
+- Child state machine transitions render inline as collapsible sections whose collapsed state shows child workflow type, run ID, lifecycle, and transition count.
+- Expanded child sections show the full child transition history indented beneath the parent row, and nested child state machines recurse with increasing indentation depth.
+- Collapse/expand state is local UI state and is preserved across live stream updates.
+- First expansion fetches child transition data on demand; subsequent expansions reuse cached data updated by live events when available.
+
+## B-WEB-066: Transition History coordinates with graph, timeline, and link filters
+- Selecting a transition history entry highlights the corresponding FSM graph node/edge and scrolls the events timeline to the matching event.
+- Child-run transition entries provide a navigation action to the child run dashboard.
+- The Transition History panel respects `since`/`until` time-range filters only when explicit link-filters mode is enabled.
+
+## B-WEB-067: Human feedback option controls enforce single-select semantics
+- Feedback options render as single-select radio controls, not multi-select controls.
+- The UI never allows more than one option to be selected simultaneously and never sends `selectedOptionIds` with more than one element.
+- When options are present, submit remains disabled until exactly one option is selected.
+
+## B-WEB-068: Logs panel uses windowed scrolling, incremental append, and filter reset semantics
+- The Logs panel renders a limited initial window of entries (default `100` from `GetRunLogsQuery.limit`) and loads additional entries incrementally instead of rendering the full corpus at once.
+- Logs scrolling is independent from other panels in the dashboard layout.
+- When the user is away from the latest log entries, a non-blocking "new logs" indicator with jump-to-latest action is shown; auto-follow scrolls new log events into view when the user is already at the bottom.
+- Applying or clearing log filters re-fetches with the updated `GetRunLogsQuery` and resets both the pagination window and scroll position.
+
 ---
 
 ## 11) Coverage Matrix (Web Spec Acceptance Criteria -> Behaviors)
@@ -407,7 +475,7 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 3. Shared DTO ownership/no duplicate local DTOs -> `B-WEB-009`.
 4. Absolute `/api/v1` endpoint usage -> `B-WEB-010`.
 5. `/runs` server data + lifecycle/type filters -> `B-WEB-004`.
-6. `/runs/:runId` six required panels -> `B-WEB-006`.
+6. `/runs/:runId` seven required panels -> `B-WEB-006`.
 7. SSE incremental ordered updates -> `B-WEB-016`.
 8. Cursor resume + dedup -> `B-WEB-017`.
 9. Panel-scoped failure isolation -> `B-WEB-008`.
@@ -447,12 +515,48 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 43. Shared error contracts for covered panel errors (`ErrorEnvelope`, feedback conflict contract) -> `B-WEB-054`.
 44. Accessibility live-region levels and deterministic post-action focus targets -> `B-WEB-055`.
 45. Field-level DTO semantics sourced from shared API types with no local transport-shape duplication/remapping -> `B-WEB-056`.
+46. Start workflow action is accessible from `/runs` -> `B-WEB-057`, `B-WEB-060`.
+47. Start workflow type selection is populated from `GET /api/v1/workflows/definitions` -> `B-WEB-057`.
+48. Start workflow JSON validity gates submission -> `B-WEB-058`.
+49. Start workflow POST uses shared start DTOs with no local duplication -> `B-WEB-058`, `B-WEB-009`.
+50. Successful start navigates to `#/runs/:runId` -> `B-WEB-058`.
+51. Start workflow `404` preserves form state and shows server message -> `B-WEB-059`.
+52. Start workflow `400` preserves form state and shows `ErrorEnvelope` details -> `B-WEB-059`.
+53. Start workflow transport/error handling follows shared contract semantics -> `B-WEB-059`.
+54. Shared API-types exports include definitions/start DTOs -> `B-WEB-057`, `B-WEB-058`.
+55. Keyboard-only users can complete the start workflow flow -> `B-WEB-060`.
+56. Child-launch affordances navigate to runtime child run or static definition -> `B-WEB-061`.
+57. Child drill-down breadcrumb is visible above the FSM graph -> `B-WEB-061`.
+58. Drill-down navigation pushes browser history entries -> `B-WEB-061`.
+59. Child-run drill-down resolution uses `RunTreeResponse` lineage data -> `B-WEB-061`.
+60. All workflow transitions render as directed edges with arrowheads -> `B-WEB-062`, `B-WEB-030`.
+61. Orphan states are visually distinguished and grouped separately -> `B-WEB-062`.
+62. Unreachable states use muted warning styling -> `B-WEB-062`.
+63. Parallel transitions remain visually distinct -> `B-WEB-062`.
+64. Selecting a node highlights its neighborhood and dims unrelated graph elements -> `B-WEB-062`.
+65. Graph-level summary indicator exposes state/transition counts -> `B-WEB-062`.
+66. Keyboard-only users can activate child-launch drill-down affordances -> `B-WEB-063`.
+67. Looping child-launch states present iteration selector entries -> `B-WEB-063`.
+68. Iteration resolution uses `child.started` events ordered by `sequence ASC` -> `B-WEB-063`.
+69. Transition History renders transition-relevant events in `sequence ASC` order -> `B-WEB-064`.
+70. Transition History repeated visits show iteration counters -> `B-WEB-064`.
+71. Child transitions render inline as collapsible sections -> `B-WEB-065`.
+72. Nested child state machines recurse with increasing indentation -> `B-WEB-065`.
+73. Child transition collapse state survives live updates -> `B-WEB-065`.
+74. Transition History selection coordinates with FSM graph and events timeline -> `B-WEB-066`.
+75. Transition History respects link-filter time ranges when enabled -> `B-WEB-066`.
+76. Feedback option controls enforce single-select radio semantics -> `B-WEB-067`.
+77. Logs panel uses limited initial window and incremental loading -> `B-WEB-068`.
+78. Logs panel scrolling is independently bounded -> `B-WEB-068`.
+79. Logs panel surfaces non-blocking new-logs indicator when user is away from latest -> `B-WEB-068`.
+80. Live `log` stream updates append incrementally and auto-follow when appropriate -> `B-WEB-068`.
+81. Log filter changes re-fetch and reset pagination window plus scroll position -> `B-WEB-068`.
 
 ---
 
 ## 12) Exit Criteria
 
 Web behavior coverage is complete when:
-- behaviors `B-WEB-001` through `B-WEB-056` have automated test ownership,
+- behaviors `B-WEB-001` through `B-WEB-068` have automated test ownership,
 - all acceptance criteria mappings in Section 11 are covered by passing tests,
 - no unresolved drift exists between web spec and server spec endpoint/contract tables.

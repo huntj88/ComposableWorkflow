@@ -111,7 +111,7 @@ describe('integration.contract.error-envelope-contract-lock-drift', () => {
     });
     const server410 = extractSection({
       markdownPath: serverSpecPath,
-      sectionHeadingPrefix: '### 4.10 Submit Human Feedback Response',
+      sectionHeadingPrefix: '### 4.11 Submit Human Feedback Response',
     });
     const web68 = extractSection({
       markdownPath: webSpecPath,

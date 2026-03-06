@@ -18,6 +18,7 @@ Baseline package requirements:
 - Build/typecheck pipelines for those three consumers must fail on missing or drifted shared contract exports.
 
 Minimum export set:
+- `ListDefinitionsResponse`, `DefinitionSummary`
 - `StartWorkflowRequest`, `StartWorkflowResponse`
 - `ListRunsResponse`
 - `RunSummaryResponse`
@@ -59,6 +60,8 @@ The following web-visible endpoints are normative and must remain aligned with `
 
 | Capability | Method + Path | Shared Contract(s) |
 | --- | --- | --- |
+| List registered definitions | `GET /api/v1/workflows/definitions` | `ListDefinitionsResponse` |
+| Start workflow | `POST /api/v1/workflows/start` | `StartWorkflowRequest`, `StartWorkflowResponse` |
 | List runs | `GET /api/v1/workflows/runs?lifecycle=running&workflowType=...` | `ListRunsResponse` |
 | Run summary | `GET /api/v1/workflows/runs/{runId}` | `RunSummaryResponse` |
 | Run tree | `GET /api/v1/workflows/runs/{runId}/tree` | `RunTreeResponse` |

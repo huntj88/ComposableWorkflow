@@ -46,6 +46,7 @@ Integration tests: [integration-tests.md](../integration-tests.md)
 - `WS-22` -> `REF-00`↗, `WS-17`, `WS-18`, `WS-19`
 - `WS-23` -> `WS-18`, `API-00`↗, `WS-21`
 - `WS-24` -> `API-00`↗, `WS-21`
+- `WS-25` -> `API-00`↗, `WS-15`, `WS-21`
 
 ## Server Task Index
 
@@ -76,6 +77,7 @@ Tasks owned by `workflow-server`:
 - `WS-22` [22-golden-scenarios-human-feedback.md](22-golden-scenarios-human-feedback.md)
 - `WS-23` [23-error-envelope-contract-lock-conformance.md](23-error-envelope-contract-lock-conformance.md)
 - `WS-24` [24-graph-contract-lock-overlay-conformance.md](24-graph-contract-lock-overlay-conformance.md)
+- `WS-25` [25-definitions-list-and-start-contract-conformance.md](25-definitions-list-and-start-contract-conformance.md)
 
 ## Tasks in Other Packages
 
@@ -102,7 +104,8 @@ Tasks owned by `workflow-server`:
 | Phase 10 (contract verification and golden scenarios) | `WS-20`, `WS-21`, `WS-22` | Integration suite for feedback pagination/contract conformance, contract lock drift verification, and golden scenarios for human feedback E2E. |
 | Phase 11 (error envelope contract lock alignment) | `WS-23` | Error-envelope and conflict-contract lock verification with runtime conformance checks. |
 | Phase 12 (graph contract lock alignment) | `WS-24` | Graph identity/overlay contract lock verification and deterministic overlay reference conformance tests. |
-| Phase 13 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
+| Phase 13 (definitions/start contract conformance) | `WS-25` | Implement list-definitions endpoint conformance and strict start response/error semantics aligned across specs/contracts. |
+| Phase 14 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
 | Cross-phase verification/gates | `WS-09`-`TC-01`↗ | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
 
 ## Coverage Expectations

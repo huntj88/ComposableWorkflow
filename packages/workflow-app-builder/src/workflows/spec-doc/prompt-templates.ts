@@ -120,7 +120,7 @@ Input context:
 
 Classification policy:
 - intent = clarifying-question when the custom text is primarily asking for clarification, disambiguation, or additional information before deciding.
-- intent = custom-answer when the custom text primarily provides an answer, preference, constraint, or detail to be integrated.
+- intent = custom-answer when the custom text primarily provides an answer, preference, constraint, or detail to be integrated. An actionable item may sometimes be phrased as a question.
 - Choose exactly one intent.`;
 
 // -- 7.2.4 ExpandQuestionWithClarification ----------------------------------

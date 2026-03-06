@@ -12,7 +12,10 @@ Use this with:
 ## 1) Purpose
 
 Web E2E flows validate user-visible outcomes, but integration tests are needed for:
+- start workflow transport/validation/error-state handling,
 - deterministic stream ordering/reconnect windows,
+- transition-history composition and cross-panel coordination,
+- logs windowing, scroll-state, and incremental append behavior,
 - transport serialization/type conformance,
 - graph projection and overlay determinism,
 - contract mismatch/error surfacing,
@@ -63,7 +66,7 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 
 **Assertions**
 - Snapshot endpoints are called for summary/tree/events/logs/definition/feedback.
-- Six required panels render from those sources.
+- Seven required panels render from those sources, including Transition History.
 - SSE stream open call occurs after snapshot initialization.
 
 **Related behaviors:** `B-WEB-005`, `B-WEB-006`.
@@ -594,15 +597,145 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 
 **Related behaviors:** `B-WEB-056`, `B-WEB-009`, `B-WEB-011`.
 
+## ITX-WEB-044: Start workflow happy-path transport and validation contract
+**Why not E2E-only:** typed payload construction, JSON validation gating, and `200`/`201` success handling are easier to assert with mocked transport boundaries.
+
+**Setup**
+- Mount `#/runs` with mocked definitions and start-workflow transport adapters.
+
+**Assertions**
+- A start workflow action is reachable from `/runs`.
+- Workflow type choices are populated from `GET /api/v1/workflows/definitions`.
+- Submit remains disabled until a workflow type is selected and JSON input is syntactically valid.
+- Start submission uses `StartWorkflowRequest` / `StartWorkflowResponse` contract fields, including optional `idempotencyKey` and `metadata`.
+- Successful `201` and idempotent `200` responses both navigate to `#/runs/:runId`.
+
+**Related behaviors:** `B-WEB-057`, `B-WEB-058`, `B-WEB-009`.
+
+## ITX-WEB-045: Start workflow error handling and keyboard-only completion
+**Why not E2E-only:** preserving local form state across `404`/`400`/network failures and deterministic focus handling is easier in integration harness.
+
+**Setup**
+- Drive the start workflow surface through keyboard-only interactions while forcing `404`, `400`, and transport-failure responses.
+
+**Assertions**
+- `404` (`WORKFLOW_TYPE_NOT_FOUND`) renders the server message and preserves all entered form values.
+- `400` renders `ErrorEnvelope` details and preserves all entered form values.
+- Network/transport failures show a scoped retryable error without clearing form state.
+- Keyboard-only users can open the flow, select a workflow type, enter JSON, and submit with visible focus indicators.
+
+**Related behaviors:** `B-WEB-059`, `B-WEB-060`.
+
+## ITX-WEB-046: Child drill-down resolution, breadcrumb, and history behavior
+**Why not E2E-only:** runtime/static target resolution and breadcrumb/history state are easier to validate with direct graph and route fixture control.
+
+**Setup**
+- Render graph fixtures with child-launch annotations and provide `RunTreeResponse` variants both with and without matching child runs.
+
+**Assertions**
+- Activating the drill-down affordance routes to `#/runs/:childRunId` when a matching child run exists, otherwise to `#/definitions/:childWorkflowType`.
+- Child-run lookup is derived from `RunTreeResponse` lineage data rather than manual identifiers.
+- Child drill-down renders breadcrumb links for ancestor contexts.
+- Navigation pushes browser history so back/forward restores the parent graph context.
+
+**Related behaviors:** `B-WEB-061`.
+
+## ITX-WEB-047: FSM graph relationship rendering and neighborhood highlighting
+**Why not E2E-only:** orphan/unreachable/parallel-edge permutations and neighborhood highlighting are deterministic fixture-driven assertions.
+
+**Setup**
+- Load definition fixtures that include orphan states, unreachable states, and parallel transitions.
+
+**Assertions**
+- Every transition renders as a directed edge with arrowheads and exact edge-count parity.
+- Orphan states are grouped/styled distinctly and unreachable states use muted warning styling.
+- Parallel transitions remain visually distinct.
+- Selecting a state highlights only its directly connected neighborhood and dims unrelated elements.
+- Graph summary indicators report total states, transitions, unreachable states, and terminal states.
+
+**Related behaviors:** `B-WEB-062`.
+
+## ITX-WEB-048: Iteration-aware child drill-down selector
+**Why not E2E-only:** repeated `child.started` event resolution and selector ordering require deterministic event-history fixtures.
+
+**Setup**
+- Provide parent event histories where the same child-launch state is visited multiple times, including a mix of live child runs and missing child runs.
+
+**Assertions**
+- Iteration selector appears only when more than one launch iteration exists.
+- Selector entries are ordered by matching `child.started` events in `sequence ASC`.
+- Each selector entry shows iteration number, child run ID, lifecycle status, and timestamp.
+- Choosing an iteration resolves to the runtime child run when present or falls back to the static definition when absent.
+
+**Related behaviors:** `B-WEB-063`.
+
+## ITX-WEB-049: Transition History ordering and nested child-section behavior
+**Why not E2E-only:** inline child-history composition and collapse-state persistence are best validated with direct event fixtures and stream injection.
+
+**Setup**
+- Seed parent and child run events, including nested child runs and live stream updates that append transition-relevant events.
+
+**Assertions**
+- Transition History renders only the transition-relevant event set in strict `sequence ASC` order.
+- Repeated state visits show iteration counters.
+- Child histories render inline as collapsible sections with summary rows and indented expanded details.
+- Nested child state machines recurse with deeper indentation.
+- Collapse/expand state survives live updates.
+
+**Related behaviors:** `B-WEB-064`, `B-WEB-065`.
+
+## ITX-WEB-050: Transition History cross-panel coordination and link-filter semantics
+**Why not E2E-only:** cross-panel synchronization between history, graph, timeline, and filter state is easier to assert with shared store visibility.
+
+**Setup**
+- Select transition history entries while toggling explicit link-filters mode and using child-run history entries.
+
+**Assertions**
+- Selecting a history entry highlights the corresponding graph node/edge and scrolls the events timeline to the matching event.
+- Child-run history entries expose navigation to the child dashboard.
+- `since`/`until` synchronization applies only when link-filters mode is enabled.
+
+**Related behaviors:** `B-WEB-066`.
+
+## ITX-WEB-051: Human feedback single-select option enforcement
+**Why not E2E-only:** ensuring the UI never emits invalid `selectedOptionIds` arrays is a transport/UI integration concern.
+
+**Setup**
+- Render actionable feedback requests with options and force validation failures after attempted submissions.
+
+**Assertions**
+- Feedback options render as radio-button controls.
+- No more than one option can be selected at a time.
+- Submit stays disabled until exactly one required option is chosen.
+- Submitted payloads never include `selectedOptionIds` with more than one element.
+- Validation failures preserve pending status and draft input.
+
+**Related behaviors:** `B-WEB-067`, `B-WEB-021`, `B-WEB-022`.
+
+## ITX-WEB-052: Logs windowing, scroll-state, and filter-reset behavior
+**Why not E2E-only:** bounded rendering, independent scroll state, and live append semantics are more reliable with integration-level scroll and stream control.
+
+**Setup**
+- Render logs fixtures beyond the default window size, move the user between auto-follow and scrolled-away states, inject `log` stream events, and change log filters.
+
+**Assertions**
+- Initial log rendering is bounded by the default `GetRunLogsQuery.limit` window and additional entries load incrementally.
+- Logs scrolling is independent from other dashboard panels.
+- When the user is away from the latest entries, a non-blocking "new logs" indicator appears and jump-to-latest restores the latest view.
+- When the user is already at the bottom, new `log` stream events auto-follow into view.
+- Applying or clearing log filters re-fetches with updated `GetRunLogsQuery` values and resets pagination window plus scroll position.
+
+**Related behaviors:** `B-WEB-068`, `B-WEB-025`, `B-WEB-045`.
+
 ---
 
 ## 4) Integration vs E2E Ownership Matrix
 
 ## 4.1 Integration-Primary
-- `ITX-WEB-005`, `ITX-WEB-006`, `ITX-WEB-008`, `ITX-WEB-009`, `ITX-WEB-010`, `ITX-WEB-017`, `ITX-WEB-018`, `ITX-WEB-019`, `ITX-WEB-021`, `ITX-WEB-022`, `ITX-WEB-023`, `ITX-WEB-027`, `ITX-WEB-029`, `ITX-WEB-031`, `ITX-WEB-034`, `ITX-WEB-036`, `ITX-WEB-037`, `ITX-WEB-038`, `ITX-WEB-039`, `ITX-WEB-040`, `ITX-WEB-041`, `ITX-WEB-043`.
+- `ITX-WEB-005`, `ITX-WEB-006`, `ITX-WEB-008`, `ITX-WEB-009`, `ITX-WEB-010`, `ITX-WEB-017`, `ITX-WEB-018`, `ITX-WEB-019`, `ITX-WEB-021`, `ITX-WEB-022`, `ITX-WEB-023`, `ITX-WEB-027`, `ITX-WEB-029`, `ITX-WEB-031`, `ITX-WEB-034`, `ITX-WEB-036`, `ITX-WEB-037`, `ITX-WEB-038`, `ITX-WEB-039`, `ITX-WEB-040`, `ITX-WEB-041`, `ITX-WEB-043`, `ITX-WEB-044`, `ITX-WEB-047`, `ITX-WEB-048`, `ITX-WEB-049`, `ITX-WEB-050`, `ITX-WEB-051`, `ITX-WEB-052`.
 
 ## 4.2 Shared Coverage (Integration + E2E)
-- `ITX-WEB-001`, `ITX-WEB-002`, `ITX-WEB-003`, `ITX-WEB-004`, `ITX-WEB-007`, `ITX-WEB-011`, `ITX-WEB-012`, `ITX-WEB-013`, `ITX-WEB-014`, `ITX-WEB-015`, `ITX-WEB-016`, `ITX-WEB-020`, `ITX-WEB-024`, `ITX-WEB-025`, `ITX-WEB-026`, `ITX-WEB-028`, `ITX-WEB-030`, `ITX-WEB-032`, `ITX-WEB-033`, `ITX-WEB-035`, `ITX-WEB-042`.
+- `ITX-WEB-001`, `ITX-WEB-002`, `ITX-WEB-003`, `ITX-WEB-004`, `ITX-WEB-007`, `ITX-WEB-011`, `ITX-WEB-012`, `ITX-WEB-013`, `ITX-WEB-014`, `ITX-WEB-015`, `ITX-WEB-016`, `ITX-WEB-020`, `ITX-WEB-024`, `ITX-WEB-025`, `ITX-WEB-026`, `ITX-WEB-028`, `ITX-WEB-030`, `ITX-WEB-032`, `ITX-WEB-033`, `ITX-WEB-035`, `ITX-WEB-042`, `ITX-WEB-045`, `ITX-WEB-046`.
 
 Guideline:
 - Keep one representative happy-path proof in browser E2E.
@@ -613,9 +746,12 @@ Guideline:
 ## 5) Recommended Test Structure
 
 - `apps/workflow-web/test/integration/routes/...`
+- `apps/workflow-web/test/integration/start/...`
 - `apps/workflow-web/test/integration/transport/...`
 - `apps/workflow-web/test/integration/stream/...`
 - `apps/workflow-web/test/integration/graph/...`
+- `apps/workflow-web/test/integration/history/...`
+- `apps/workflow-web/test/integration/logs/...`
 - `apps/workflow-web/test/integration/feedback/...`
 - `apps/workflow-web/test/integration/accessibility/...`
 - `apps/workflow-web/test/integration/spec-lock/...`

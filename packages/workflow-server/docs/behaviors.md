@@ -99,7 +99,7 @@ For parent/child relationships:
 ## B-START-001: Start workflow returns running run metadata
 **Given** a valid `workflowType` and valid input payload
 **When** `POST /api/v1/workflows/start` is called
-**Then** response contains `runId`, `workflowType`, `workflowVersion`, lifecycle `running`, and `startedAt`
+**Then** create-success response is `201` and contains `runId`, `workflowType`, `workflowVersion`, lifecycle `running`, and `startedAt`
 **And** acceptance implies execution has started immediately (no operational pending queue state)
 **And** `workflow.started` appears in events for that run as the execution-start checkpoint
 **And** `workflow_runs` contains corresponding row
@@ -107,15 +107,16 @@ For parent/child relationships:
 ## B-START-002: Unknown workflow type is rejected
 **Given** `workflowType` does not exist in registry
 **When** start API is called
-**Then** request fails with client error (4xx)
+**Then** request fails with `404` using shared `ErrorEnvelope`
+**And** `ErrorEnvelope.code` is `WORKFLOW_TYPE_NOT_FOUND`
 **And** no run row is created
 **And** no run events are emitted
 
 ## B-START-003: Idempotent start returns same logical run
 **Given** same `workflowType`, same semantic input, and same `idempotencyKey`
 **When** start API is called repeatedly within idempotency window/policy
-**Then** server does not create duplicate execution
-**And** repeated calls resolve to same run identity or idempotent equivalent response
+**Then** first accepted create returns `201` and server does not create duplicate execution
+**And** subsequent idempotent matches return `200` with the same `StartWorkflowResponse` shape and run identity
 **And** event stream does not duplicate `workflow.started` for same idempotent request
 
 ## B-START-004: Different idempotency key creates distinct run
@@ -390,6 +391,13 @@ Endpoint: `GET /api/v1/workflows/runs?...`
 Endpoint: `GET /api/v1/workflows/definitions/{workflowType}`
 - Returns states (nodes), transitions (edges), child-launch annotations, and display metadata.
 - Sufficient to render static flowchart graph without runtime execution.
+
+## B-API-011: List definitions endpoint returns sorted registered summaries
+Endpoint: `GET /api/v1/workflows/definitions`
+- Response contract is `ListDefinitionsResponse` with `items: DefinitionSummary[]`.
+- Results are ordered by `workflowType ASC`.
+- Each item includes at least `workflowType` and `workflowVersion`.
+- Endpoint serves start-flow discovery without requiring prior workflowType knowledge.
 
 ## B-API-006: Live stream delivers near-real-time ordered events via WorkflowStreamFrame
 Endpoint: `GET /api/v1/workflows/runs/{runId}/stream` (SSE)
@@ -666,7 +674,7 @@ Must assert:
 2. Dynamic loading + start by type → `B-LOAD-001`, `B-START-001`.
 3. Parent launches child and awaits typed result → `B-CHILD-001`.
 4. API exposes current state, children, linear events → `B-API-001`, `B-API-002`, `B-CHILD-003`.
-5. API exposes definition + runtime data satisfying workflow-api-types-spec.md §5 invariants → `B-API-005`, `B-API-010`, dynamic endpoints (`B-API-001..003`, `B-API-006`).
+5. API exposes definition list + definition runtime data satisfying workflow-api-types-spec.md §5 invariants → `B-API-005`, `B-API-010`, `B-API-011`, dynamic endpoints (`B-API-001..003`, `B-API-006`).
 6. Logging/telemetry hooks for major operations → `B-OBS-001..003`.
 7. Workflow command execution + policy + observability → `B-CMD-001..004`.
 8. User CLI independent of workflow step commands → `B-CLI-001..004`.
