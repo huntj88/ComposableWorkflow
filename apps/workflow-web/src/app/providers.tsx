@@ -7,7 +7,6 @@ import {
 } from 'react';
 import { Box, CssBaseline, ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactFlowProvider } from 'reactflow';
 import { Line, LineChart } from 'recharts';
 import { create } from 'zustand';
 
@@ -74,10 +73,8 @@ export const AppProviders = ({ children }: PropsWithChildren): ReactElement => (
     <CssBaseline />
     <QueryClientProvider client={queryClient}>
       <RuntimeStoreContext.Provider value={useRuntimeStore}>
-        <ReactFlowProvider>
-          <RuntimeAnchors />
-          {children}
-        </ReactFlowProvider>
+        <RuntimeAnchors />
+        {children}
       </RuntimeStoreContext.Provider>
     </QueryClientProvider>
   </ThemeProvider>

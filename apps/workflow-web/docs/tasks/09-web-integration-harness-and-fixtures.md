@@ -7,7 +7,6 @@
 - `WEB-05`
 - `WEB-06`
 - `WEB-07`
-- `WEB-08`
 
 ## Objective
 Create deterministic integration harness capabilities for route rendering, typed transport mocking, stream frame injection with cursor control, fake-timer-driven reconnect/stale transitions, and reusable fixture factories for covered transport payloads.
@@ -15,7 +14,7 @@ Create deterministic integration harness capabilities for route rendering, typed
 ## Fixed Implementation Decisions
 - Integration runtime mounts route-level app with `HashRouter`.
 - Stream injection supports ordered replay and reconnect overlap windows.
-- Assertions are semantic (not snapshots) for graph and overlay behavior.
+- Assertions are semantic (not snapshots) for transport, stream, and panel behavior.
 
 ## Interface/Schema Contracts
 - Fixture contracts sourced from `@composable-workflow/workflow-api-types`.
@@ -27,9 +26,8 @@ Create deterministic integration harness capabilities for route rendering, typed
 - [x] Implement stream replay injector with sequence/cursor controls.
 - [x] Implement fake-timer controls for reconnect backoff and stale transitions.
 - [x] Add fixture factories for summary/tree/events/logs/definition/feedback/stream payloads.
-- [x] Add deterministic viewport/resize controls for layout and graph direction assertions.
+- [x] Add deterministic viewport/resize controls for layout assertions.
 - [x] Add panel-local state probes for filter-store and query-cache transition assertions.
-- [x] Add fixture helpers for malformed graph definitions and unknown runtime overlay references.
 
 ## Required Artifacts
 - `apps/workflow-web/test/integration/harness/renderWebApp.tsx`
@@ -37,7 +35,6 @@ Create deterministic integration harness capabilities for route rendering, typed
 - `apps/workflow-web/test/integration/harness/streamReplay.ts`
 - `apps/workflow-web/test/integration/fixtures/*.ts`
 - `apps/workflow-web/test/integration/harness/fakeViewport.ts`
-- `apps/workflow-web/test/integration/fixtures/graphInvariantFixtures.ts`
 
 ## File Plan (Exact)
 ### Create
@@ -46,13 +43,12 @@ Create deterministic integration harness capabilities for route rendering, typed
 - `apps/workflow-web/test/integration/harness/streamReplay.ts`
 - `apps/workflow-web/test/integration/fixtures/workflowFixtures.ts`
 - `apps/workflow-web/test/integration/harness/fakeViewport.ts`
-- `apps/workflow-web/test/integration/fixtures/graphInvariantFixtures.ts`
 
 ## Acceptance Criteria
 - Harness supports deterministic route, transport, and stream behavior assertions.
 - Fake-timer controls enable precise reconnect/stale-time tests.
 - Shared-contract fixture factories cover all dashboard transport surfaces.
-- Harness supports deterministic viewport permutation and graph invariant violation fixture injection.
+- Harness supports deterministic viewport permutation and reusable panel-state fixture injection.
 
 ## Verification
 - `pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/harness`

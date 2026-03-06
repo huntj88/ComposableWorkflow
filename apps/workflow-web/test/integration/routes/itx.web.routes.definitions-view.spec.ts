@@ -4,7 +4,7 @@
  *
  * Verification: DefinitionsPage component is importable, endpoint URL is
  * canonical with encodeURIComponent, WorkflowDefinitionResponse schema is
- * validated, graph shell region attributes match spec, and missing
+ * validated, transition inventory metadata is rendered from shared fields, and missing
  * workflowType is handled gracefully.
  */
 
@@ -180,16 +180,17 @@ describe('integration.routes.definitions-view / field coverage', () => {
   });
 });
 
-/* ── Graph Shell Region Attributes ───────────────────────────────── */
+/* ── Metadata Rendering Attributes ──────────────────────────────── */
 
-describe('integration.routes.definitions-view / graph shell attributes', () => {
-  it('graph shell uses region role with aria-label in source JSX', () => {
-    expect(definitionsPageSource).toMatch(/role=["']region["']/);
-    expect(definitionsPageSource).toMatch(/aria-label=["']definition-graph-shell["']/);
+describe('integration.routes.definitions-view / metadata rendering', () => {
+  it('transition inventory renders as an accessible list in source JSX', () => {
+    expect(definitionsPageSource).toMatch(/aria-label=["']definition-transition-list["']/);
+    expect(definitionsPageSource).toMatch(/query\.data\.transitions\.map/);
   });
 
-  it('graph shell binds data-workflow-type to the response workflowType', () => {
-    expect(definitionsPageSource).toMatch(/data-workflow-type=\{.*workflowType\}/);
+  it('transition rows preserve shared from/to fields', () => {
+    expect(definitionsPageSource).toMatch(/transition\.from/);
+    expect(definitionsPageSource).toMatch(/transition\.to/);
   });
 });
 

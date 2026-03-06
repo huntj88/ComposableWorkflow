@@ -36,7 +36,7 @@ Each behavior should validate all relevant dimensions:
 **Given** the web package at `apps/workflow-web`
 **When** dependencies and build configuration are validated
 **Then** the app uses Vite + React + TypeScript strict mode
-**And** required stack libraries are declared and used: `react-router-dom`, `@tanstack/react-query`, `zustand`, `@mui/material`, `reactflow`, `recharts`
+**And** required stack libraries are declared and used: `react-router-dom`, `@tanstack/react-query`, `zustand`, `@mui/material`, `recharts`
 
 ## B-WEB-002: Routing uses HashRouter canonical routes
 **Given** the SPA router is initialized
@@ -72,10 +72,10 @@ Endpoint: `GET /api/v1/workflows/runs`
 6. `GET /api/v1/workflows/runs/{runId}/feedback-requests?...`
 7. `GET /api/v1/workflows/runs/{runId}/stream` (SSE open)
 
-## B-WEB-006: Run dashboard renders seven required panels
+## B-WEB-006: Run dashboard renders six required panels
 **Given** summary load succeeds
 **When** dashboard UI renders
-**Then** panel set includes: Run Summary, Execution Tree, FSM Graph, Events Timeline, Transition History, Logs, Human Feedback
+**Then** panel set includes: Run Summary, Execution Tree, Events Timeline, Transition History, Logs, Human Feedback
 
 ## B-WEB-007: Run summary not-found state for 404
 **Given** `GET /api/v1/workflows/runs/{runId}` returns `404`
@@ -142,7 +142,7 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/stream`
 ## B-WEB-016: Incremental updates are ordered and no full reload is required
 **Given** live stream frames are received
 **When** UI applies updates
-**Then** updates are applied incrementally to summary/tree/graph/timeline/feedback
+**Then** updates are applied incrementally to summary/tree/timeline/transition-history/logs/feedback
 **And** sequence ordering is preserved
 **And** full page reload is not required
 
@@ -221,11 +221,11 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/stream`
 ## B-WEB-027: `/runs/:runId` uses required 3-zone information architecture
 At desktop width (`>=1280px`):
 1. Top summary strip (always visible)
-2. Primary analysis area (tree + graph)
+2. Primary analysis area (execution tree)
 3. Operational details area (events/logs/feedback)
 
 At narrow width (`<1280px`):
-- Panels stack by required priority order: summary -> tree/graph -> transition history -> events/logs -> feedback.
+- Panels stack by required priority order: summary -> tree -> transition history -> events/logs -> feedback.
 
 ## B-WEB-028: Lifecycle and stream health visual tokens are consistent
 **Given** lifecycle or stream health is rendered in multiple panels
@@ -239,61 +239,6 @@ Keyboard users can complete:
 - execution tree traversal and run navigation,
 - feedback option selection and response submission,
 with visible focus indicators.
-
----
-
-## 9) FSM Graph Behaviors
-
-## B-WEB-030: Deterministic definition projection to React Flow nodes and edges
-**Given** `WorkflowDefinitionResponse`
-**When** graph is projected
-**Then** node count equals definition state count
-**And** edge count equals definition transition count
-**And** deterministic IDs follow formats:
-- Node: `{workflowType}::state::{stateId}`
-- Edge: `{workflowType}::edge::{fromState}::{toState}::{transitionOrdinal}`
-
-## B-WEB-031: Graph layout determinism and relayout rules
-**Given** graph render with dagre layout
-**When** viewport width changes or stream updates arrive
-**Then** direction is `LR` at `>=1280px` and `TB` below `1280px`
-**And** stream overlay updates do not trigger full relayout
-**And** pan/zoom viewport state is preserved
-
-## B-WEB-032: Runtime overlay mapping follows event contract
-Overlay merge order:
-1. `RunSummaryResponse.currentState`
-2. `RunEventsResponse.events`
-3. `WorkflowStreamFrame` increments
-
-Required mappings:
-- `state.entered` -> active node update
-- `transition.completed` -> traversed edge metadata update
-- `transition.failed` -> failed edge metadata + tooltip
-
-## B-WEB-033: Graph panel surfaces contract mismatches and invariant violations
-**Given** runtime references unknown state/edge or definition invariant violations
-**When** graph validation executes
-**Then** visible contract-mismatch indicator is shown
-**And** diagnostics are logged in development/test builds
-**And** mismatch indicators are not silently suppressed in production builds
-
-## B-WEB-034: Child-launch annotations are preserved and rendered
-**Given** child workflow launch metadata in definition
-**When** graph node/edge data is mapped
-**Then** child-launch annotation metadata is preserved in mapped data
-**And** corresponding visual affordance is rendered
-
-## B-WEB-035: Large graph performance mode is enforced at threshold
-Threshold: `>120` nodes or `>200` edges.
-
-At/above threshold:
-- non-essential animations are disabled,
-- edge labels are hidden below zoom `0.85`,
-- minimap remains enabled,
-- state search/filter is available,
-- active-path focus toggle scopes to active node and two-hop neighbors,
-- incoming overlay updates patch affected nodes/edges without full graph rebuild.
 
 ---
 
@@ -317,25 +262,8 @@ At/above threshold:
 - Reconnect state remains visible and does not block navigation or in-progress form edits.
 
 ## B-WEB-040: Causal navigation chain remains observable
-- Navigation priority remains summary -> execution tree -> active graph state/transition -> correlated event/log records.
-- Selecting tree node updates run context, graph focus, and run-scoped event/log correlation.
-
-## B-WEB-041: Graph panel layout failures surface retryable error state
-- If `dagre` layout computation fails, graph panel renders visible error state.
-- Graph panel exposes explicit retry action; no silent fallback to arbitrary/manual coordinates.
-
-## B-WEB-042: Graph visual encoding includes required legend and node/edge semantics
-- Graph legend is always available and explains node/edge semantics.
-- Node shape semantics match role rules (initial/decision/terminal/standard).
-- Edge style semantics match state (default/traversed/failed/child-launch).
-
-## B-WEB-043: Runtime overlay transition highlighting is time-decayed and deterministic
-- Recently traversed transitions use time-decayed emphasis with newest strongest.
-- Overlay updates patch affected graph entities deterministically from ordered runtime events.
-
-## B-WEB-044: Graph selection reveals state metadata and linked transitions
-- Selecting a graph node reveals state metadata panel/details.
-- Linked inbound/outbound transitions for selected state are surfaced.
+- Navigation priority remains summary -> execution tree -> transition history -> correlated event/log records.
+- Selecting tree node updates run context and run-scoped event/log correlation.
 
 ## B-WEB-045: Realtime timeline append honors scroll mode and auto-follow preference
 - New records append chronologically.
@@ -420,25 +348,6 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 - Keyboard users can open the start workflow surface, select a workflow type, edit input/idempotency/metadata fields, and submit successfully.
 - Visible focus indicators remain present throughout the flow.
 
-## B-WEB-061: Child FSM drill-down resolves runtime/static targets with breadcrumb history
-- Activating a child-launch affordance navigates to `#/runs/:childRunId` when `RunTreeResponse` resolves a matching child run, or to `#/definitions/:childWorkflowType` when no child run exists.
-- Child-run resolution uses `RunTreeResponse` children matched from definition-level `childWorkflowType` annotations; manual child run ID entry is not required.
-- When drill-down reaches a child run, a breadcrumb bar above the FSM graph shows the ancestor path with clickable links back to each parent dashboard.
-- Drill-down pushes browser history entries so browser back/forward restores the parent graph context.
-
-## B-WEB-062: FSM graph relationship rendering follows structural semantics
-- All definition transitions render as directed edges with arrowheads, and edge count equals transition count.
-- Orphan states are visually distinguished with dashed styling and grouped separately; unreachable states use muted/warning styling.
-- Parallel transitions between the same `from`/`to` pair remain visually distinct rather than collapsing into one edge.
-- Selecting a state highlights directly connected inbound/outbound nodes and edges while dimming unrelated graph elements.
-- A graph-level summary indicator displays total state count, total transition count, unreachable state count, and terminal state count.
-
-## B-WEB-063: Child FSM drill-down is keyboard-accessible and iteration-aware
-- Child-launch affordances are keyboard-accessible and expose visible focus indicators.
-- When a child-launch state has multiple visits, the drill-down flow presents an iteration selector ordered by matching `child.started` events in `sequence ASC`.
-- Iteration selector entries display iteration number, child run ID, lifecycle status, and timestamp.
-- Single-iteration launches skip the selector, and missing/failed child-run entries fall back to static definition drill-down.
-
 ## B-WEB-064: Transition History renders ordered linear execution with iteration cues
 - The Transition History panel renders a linear chronological list of transition-relevant events (`state.entered`, `transition.requested`, `transition.completed`, `transition.failed`, `child.started`, `child.completed`, `child.failed`) ordered by `sequence ASC`.
 - Transition history entries display sequence, event type, state/transition details, timestamp, and visit counters for repeated state visits.
@@ -450,8 +359,8 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 - Collapse/expand state is local UI state and is preserved across live stream updates.
 - First expansion fetches child transition data on demand; subsequent expansions reuse cached data updated by live events when available.
 
-## B-WEB-066: Transition History coordinates with graph, timeline, and link filters
-- Selecting a transition history entry highlights the corresponding FSM graph node/edge and scrolls the events timeline to the matching event.
+## B-WEB-066: Transition History coordinates with timeline and link filters
+- Selecting a transition history entry scrolls the events timeline to the matching event.
 - Child-run transition entries provide a navigation action to the child run dashboard.
 - The Transition History panel respects `since`/`until` time-range filters only when explicit link-filters mode is enabled.
 
@@ -475,7 +384,7 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 3. Shared DTO ownership/no duplicate local DTOs -> `B-WEB-009`.
 4. Absolute `/api/v1` endpoint usage -> `B-WEB-010`.
 5. `/runs` server data + lifecycle/type filters -> `B-WEB-004`.
-6. `/runs/:runId` seven required panels -> `B-WEB-006`.
+6. `/runs/:runId` six required panels -> `B-WEB-006`.
 7. SSE incremental ordered updates -> `B-WEB-016`.
 8. Cursor resume + dedup -> `B-WEB-017`.
 9. Panel-scoped failure isolation -> `B-WEB-008`.
@@ -494,15 +403,9 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 22. Event/log filters + independent panel filtering + exact log keys -> `B-WEB-024`, `B-WEB-025`, `B-WEB-026`, `B-WEB-012`.
 23. Consistent lifecycle + stream-health tokens -> `B-WEB-028`, `B-WEB-018`.
 24. Keyboard-only required interactions + visible focus -> `B-WEB-029`.
-25. Deterministic graph projection and ID format -> `B-WEB-030`.
-26. Dagre LR/TB rule + no stream-triggered relayout -> `B-WEB-031`.
-27. Overlay event mapping behavior -> `B-WEB-032`.
-28. Child-launch metadata visually represented -> `B-WEB-034`.
-29. Performance mode threshold and required features -> `B-WEB-035`.
-30. Unknown runtime references produce visible mismatch indicator -> `B-WEB-033`.
 31. Shared API-types package provides required exports -> `B-WEB-009`, `B-WEB-011`.
 32. Run-scoped feedback endpoint consumed/enforced -> `B-WEB-013`.
-33. FSM invariants and runtime reference integrity -> `B-WEB-033`.
+33. Definition metadata handling preserves shared-contract semantics and visible error surfacing -> `B-WEB-014`, `B-WEB-054`.
 34. SSE wire semantics and cursor persistence from accepted frame IDs -> `B-WEB-015`, `B-WEB-049`.
 35. Strict greater-than resume boundary + duplicate/out-of-order non-regression -> `B-WEB-017`, `B-WEB-050`.
 36. Run-feedback discovery pagination defaults/limits and stable ordering -> `B-WEB-051`.
@@ -525,25 +428,12 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 53. Start workflow transport/error handling follows shared contract semantics -> `B-WEB-059`.
 54. Shared API-types exports include definitions/start DTOs -> `B-WEB-057`, `B-WEB-058`.
 55. Keyboard-only users can complete the start workflow flow -> `B-WEB-060`.
-56. Child-launch affordances navigate to runtime child run or static definition -> `B-WEB-061`.
-57. Child drill-down breadcrumb is visible above the FSM graph -> `B-WEB-061`.
-58. Drill-down navigation pushes browser history entries -> `B-WEB-061`.
-59. Child-run drill-down resolution uses `RunTreeResponse` lineage data -> `B-WEB-061`.
-60. All workflow transitions render as directed edges with arrowheads -> `B-WEB-062`, `B-WEB-030`.
-61. Orphan states are visually distinguished and grouped separately -> `B-WEB-062`.
-62. Unreachable states use muted warning styling -> `B-WEB-062`.
-63. Parallel transitions remain visually distinct -> `B-WEB-062`.
-64. Selecting a node highlights its neighborhood and dims unrelated graph elements -> `B-WEB-062`.
-65. Graph-level summary indicator exposes state/transition counts -> `B-WEB-062`.
-66. Keyboard-only users can activate child-launch drill-down affordances -> `B-WEB-063`.
-67. Looping child-launch states present iteration selector entries -> `B-WEB-063`.
-68. Iteration resolution uses `child.started` events ordered by `sequence ASC` -> `B-WEB-063`.
 69. Transition History renders transition-relevant events in `sequence ASC` order -> `B-WEB-064`.
 70. Transition History repeated visits show iteration counters -> `B-WEB-064`.
 71. Child transitions render inline as collapsible sections -> `B-WEB-065`.
 72. Nested child state machines recurse with increasing indentation -> `B-WEB-065`.
 73. Child transition collapse state survives live updates -> `B-WEB-065`.
-74. Transition History selection coordinates with FSM graph and events timeline -> `B-WEB-066`.
+74. Transition History selection coordinates with the events timeline -> `B-WEB-066`.
 75. Transition History respects link-filter time ranges when enabled -> `B-WEB-066`.
 76. Feedback option controls enforce single-select radio semantics -> `B-WEB-067`.
 77. Logs panel uses limited initial window and incremental loading -> `B-WEB-068`.
@@ -557,6 +447,6 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 ## 12) Exit Criteria
 
 Web behavior coverage is complete when:
-- behaviors `B-WEB-001` through `B-WEB-068` have automated test ownership,
+- retained behaviors in this document have automated test ownership,
 - all acceptance criteria mappings in Section 11 are covered by passing tests,
 - no unresolved drift exists between web spec and server spec endpoint/contract tables.

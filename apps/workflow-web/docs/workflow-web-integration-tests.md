@@ -17,8 +17,6 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 - transition-history composition and cross-panel coordination,
 - logs windowing, scroll-state, and incremental append behavior,
 - transport serialization/type conformance,
-- graph projection and overlay determinism,
-- contract mismatch/error surfacing,
 - panel isolation and filter-state invariants.
 
 ---
@@ -39,7 +37,7 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 ## 2.3 Validation Strategy
 - Compile-time contract conformance checks for transport signatures/imports.
 - Runtime UI assertions for panel-specific loading/error/empty states.
-- Snapshot-free semantic assertions for graph node/edge identity and overlay deltas.
+- Snapshot-free semantic assertions for route, transport, and panel-state invariants.
 
 ---
 
@@ -65,8 +63,8 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 - Open `#/runs/:runId` with mocked transport functions and call tracing.
 
 **Assertions**
-- Snapshot endpoints are called for summary/tree/events/logs/definition/feedback.
-- Seven required panels render from those sources, including Transition History.
+- Snapshot endpoints are called for summary/tree/events/logs/feedback.
+- Six required panels render from those sources, including Transition History.
 - SSE stream open call occurs after snapshot initialization.
 
 **Related behaviors:** `B-WEB-005`, `B-WEB-006`.
@@ -103,7 +101,7 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 - Seed snapshots and replay ordered `WorkflowStreamFrame` fixtures.
 
 **Assertions**
-- Summary/tree/graph/timeline/feedback update incrementally.
+- Summary/tree/timeline/feedback update incrementally.
 - Event ordering is preserved by `sequence`.
 - No full-page reset occurs while applying frames.
 
@@ -254,83 +252,6 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 
 **Related behaviors:** `B-WEB-029`.
 
-## ITX-WEB-017: Graph definition projection determinism
-**Why not E2E-only:** node/edge ID and count assertions need direct graph model inspection.
-
-**Setup**
-- Load workflow definition fixtures with deterministic state/transition ordering.
-
-**Assertions**
-- Node/edge counts match definition counts exactly.
-- IDs follow deterministic node/edge formats.
-- Role classification and label precedence rules are honored.
-
-**Related behaviors:** `B-WEB-030`.
-
-## ITX-WEB-018: Graph layout determinism and viewport preservation
-**Why not E2E-only:** relayout/no-relayout assertions under stream updates require direct layout invocation checks.
-
-**Setup**
-- Render graph at desktop/mobile widths; apply stream updates while preserving viewport state.
-
-**Assertions**
-- Dagre direction is `LR` at desktop and `TB` at narrow width.
-- Stream updates do not trigger full relayout.
-- Pan/zoom viewport is preserved across overlays.
-
-**Related behaviors:** `B-WEB-031`.
-
-## ITX-WEB-019: Overlay mapping and mismatch indicator behavior
-**Why not E2E-only:** missing-state/edge mismatch permutations are deterministic integration cases.
-
-**Setup**
-- Apply summary/events/stream overlays including valid and invalid state/edge references.
-
-**Assertions**
-- Overlay merge order follows summary -> event history -> stream increments.
-- `state.entered`, `transition.completed`, and `transition.failed` map correctly.
-- Unknown references show visible graph mismatch indicator and diagnostics.
-
-**Related behaviors:** `B-WEB-032`, `B-WEB-033`.
-
-## ITX-WEB-020: Child-launch annotation visualization
-**Why not E2E-only:** metadata-preservation validation is a deterministic mapping check.
-
-**Setup**
-- Provide definition fixtures with child-launch annotations.
-
-**Assertions**
-- Annotation metadata is preserved in node/edge graph data.
-- Child-launch affordance is visibly rendered.
-
-**Related behaviors:** `B-WEB-034`.
-
-## ITX-WEB-021: Large-graph performance mode behavior
-**Why not E2E-only:** threshold transitions and patch-vs-rebuild behavior are difficult to assert via black-box UI alone.
-
-**Setup**
-- Render graph fixtures above threshold (`>120` nodes or `>200` edges).
-- Apply incremental overlay stream updates.
-
-**Assertions**
-- Performance mode toggles on threshold.
-- Required performance-mode features are active (animation reduction, zoom-gated labels, minimap, search, active-path focus).
-- Overlay updates patch affected nodes/edges without full graph rebuild.
-
-**Related behaviors:** `B-WEB-035`.
-
-## ITX-WEB-022: FSM invariant violation surfacing
-**Why not E2E-only:** malformed-definition permutations are easier to execute via direct fixture injection.
-
-**Setup**
-- Inject definitions with duplicate state IDs, unstable transition identity/order, and unresolved runtime references.
-
-**Assertions**
-- Graph panel displays visible contract/invariant violation state.
-- Development/test diagnostics include violation details.
-
-**Related behaviors:** `B-WEB-033`.
-
 ## ITX-WEB-023: Web-server spec endpoint matrix drift gate
 **Why not E2E-only:** this is static/spec conformance validation.
 
@@ -397,62 +318,13 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 **Why not E2E-only:** chain-level state coupling is easier to assert through integration store/state inspection.
 
 **Setup**
-- Navigate run summary -> tree selection -> graph focus and inspect panel state updates.
+- Navigate run summary -> tree selection and inspect panel state updates.
 
 **Assertions**
-- Tree selection updates run context and graph focus.
+- Tree selection updates run context.
 - Correlated event/log context updates with selected run and causal navigation path.
 
 **Related behaviors:** `B-WEB-040`.
-
-## ITX-WEB-029: Graph layout failure state and retry handling
-**Why not E2E-only:** forcing `dagre` failure paths is an integration concern.
-
-**Setup**
-- Inject layout-engine failure during graph computation.
-
-**Assertions**
-- Graph panel renders visible layout error state.
-- Retry action re-attempts layout; no silent arbitrary-coordinate fallback is used.
-
-**Related behaviors:** `B-WEB-041`.
-
-## ITX-WEB-030: Graph legend and visual encoding semantics
-**Why not E2E-only:** node/edge semantic encoding checks are deterministic with direct model/DOM assertions.
-
-**Setup**
-- Render graph fixture containing each node role and edge outcome type.
-
-**Assertions**
-- Legend is present and available in graph panel.
-- Node roles map to required shape semantics.
-- Edge outcomes map to required style semantics.
-
-**Related behaviors:** `B-WEB-042`.
-
-## ITX-WEB-031: Time-decayed transition highlighting behavior
-**Why not E2E-only:** decay progression and deterministic ordering are easier to verify with controlled clocks.
-
-**Setup**
-- Replay traversed-transition events with timestamp deltas.
-
-**Assertions**
-- Newest traversed transitions receive strongest highlight.
-- Highlight intensity decays over time while preserving deterministic ordering.
-
-**Related behaviors:** `B-WEB-043`.
-
-## ITX-WEB-032: Graph node selection detail reveal
-**Why not E2E-only:** metadata-panel coupling is deterministic in integration harness.
-
-**Setup**
-- Select graph nodes with multiple linked transitions.
-
-**Assertions**
-- State metadata is revealed for selected node.
-- Linked transitions are displayed for selected state.
-
-**Related behaviors:** `B-WEB-044`.
 
 ## ITX-WEB-033: Auto-follow, scroll preservation, and jump-to-latest behavior
 **Why not E2E-only:** scroll-state and follow-mode transitions are less flaky in integration harness.
@@ -515,7 +387,7 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 
 **Assertions**
 - First-seen `(runId, sequence)` frame wins.
-- Frames with `sequence <= highestAcceptedSequence(runId)` do not regress rendered summary/graph/timeline state.
+- Frames with `sequence <= highestAcceptedSequence(runId)` do not regress rendered summary/timeline state.
 - Highest accepted sequence and cursor watermark remain monotonic.
 
 **Related behaviors:** `B-WEB-050`.
@@ -626,49 +498,6 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 
 **Related behaviors:** `B-WEB-059`, `B-WEB-060`.
 
-## ITX-WEB-046: Child drill-down resolution, breadcrumb, and history behavior
-**Why not E2E-only:** runtime/static target resolution and breadcrumb/history state are easier to validate with direct graph and route fixture control.
-
-**Setup**
-- Render graph fixtures with child-launch annotations and provide `RunTreeResponse` variants both with and without matching child runs.
-
-**Assertions**
-- Activating the drill-down affordance routes to `#/runs/:childRunId` when a matching child run exists, otherwise to `#/definitions/:childWorkflowType`.
-- Child-run lookup is derived from `RunTreeResponse` lineage data rather than manual identifiers.
-- Child drill-down renders breadcrumb links for ancestor contexts.
-- Navigation pushes browser history so back/forward restores the parent graph context.
-
-**Related behaviors:** `B-WEB-061`.
-
-## ITX-WEB-047: FSM graph relationship rendering and neighborhood highlighting
-**Why not E2E-only:** orphan/unreachable/parallel-edge permutations and neighborhood highlighting are deterministic fixture-driven assertions.
-
-**Setup**
-- Load definition fixtures that include orphan states, unreachable states, and parallel transitions.
-
-**Assertions**
-- Every transition renders as a directed edge with arrowheads and exact edge-count parity.
-- Orphan states are grouped/styled distinctly and unreachable states use muted warning styling.
-- Parallel transitions remain visually distinct.
-- Selecting a state highlights only its directly connected neighborhood and dims unrelated elements.
-- Graph summary indicators report total states, transitions, unreachable states, and terminal states.
-
-**Related behaviors:** `B-WEB-062`.
-
-## ITX-WEB-048: Iteration-aware child drill-down selector
-**Why not E2E-only:** repeated `child.started` event resolution and selector ordering require deterministic event-history fixtures.
-
-**Setup**
-- Provide parent event histories where the same child-launch state is visited multiple times, including a mix of live child runs and missing child runs.
-
-**Assertions**
-- Iteration selector appears only when more than one launch iteration exists.
-- Selector entries are ordered by matching `child.started` events in `sequence ASC`.
-- Each selector entry shows iteration number, child run ID, lifecycle status, and timestamp.
-- Choosing an iteration resolves to the runtime child run when present or falls back to the static definition when absent.
-
-**Related behaviors:** `B-WEB-063`.
-
 ## ITX-WEB-049: Transition History ordering and nested child-section behavior
 **Why not E2E-only:** inline child-history composition and collapse-state persistence are best validated with direct event fixtures and stream injection.
 
@@ -691,7 +520,7 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 - Select transition history entries while toggling explicit link-filters mode and using child-run history entries.
 
 **Assertions**
-- Selecting a history entry highlights the corresponding graph node/edge and scrolls the events timeline to the matching event.
+- Selecting a history entry scrolls the events timeline to the matching event.
 - Child-run history entries expose navigation to the child dashboard.
 - `since`/`until` synchronization applies only when link-filters mode is enabled.
 
@@ -732,10 +561,10 @@ Web E2E flows validate user-visible outcomes, but integration tests are needed f
 ## 4) Integration vs E2E Ownership Matrix
 
 ## 4.1 Integration-Primary
-- `ITX-WEB-005`, `ITX-WEB-006`, `ITX-WEB-008`, `ITX-WEB-009`, `ITX-WEB-010`, `ITX-WEB-017`, `ITX-WEB-018`, `ITX-WEB-019`, `ITX-WEB-021`, `ITX-WEB-022`, `ITX-WEB-023`, `ITX-WEB-027`, `ITX-WEB-029`, `ITX-WEB-031`, `ITX-WEB-034`, `ITX-WEB-036`, `ITX-WEB-037`, `ITX-WEB-038`, `ITX-WEB-039`, `ITX-WEB-040`, `ITX-WEB-041`, `ITX-WEB-043`, `ITX-WEB-044`, `ITX-WEB-047`, `ITX-WEB-048`, `ITX-WEB-049`, `ITX-WEB-050`, `ITX-WEB-051`, `ITX-WEB-052`.
+- `ITX-WEB-005`, `ITX-WEB-006`, `ITX-WEB-008`, `ITX-WEB-009`, `ITX-WEB-010`, `ITX-WEB-023`, `ITX-WEB-027`, `ITX-WEB-034`, `ITX-WEB-036`, `ITX-WEB-037`, `ITX-WEB-038`, `ITX-WEB-039`, `ITX-WEB-040`, `ITX-WEB-041`, `ITX-WEB-043`, `ITX-WEB-044`, `ITX-WEB-049`, `ITX-WEB-050`, `ITX-WEB-051`, `ITX-WEB-052`.
 
 ## 4.2 Shared Coverage (Integration + E2E)
-- `ITX-WEB-001`, `ITX-WEB-002`, `ITX-WEB-003`, `ITX-WEB-004`, `ITX-WEB-007`, `ITX-WEB-011`, `ITX-WEB-012`, `ITX-WEB-013`, `ITX-WEB-014`, `ITX-WEB-015`, `ITX-WEB-016`, `ITX-WEB-020`, `ITX-WEB-024`, `ITX-WEB-025`, `ITX-WEB-026`, `ITX-WEB-028`, `ITX-WEB-030`, `ITX-WEB-032`, `ITX-WEB-033`, `ITX-WEB-035`, `ITX-WEB-042`, `ITX-WEB-045`, `ITX-WEB-046`.
+- `ITX-WEB-001`, `ITX-WEB-002`, `ITX-WEB-003`, `ITX-WEB-004`, `ITX-WEB-007`, `ITX-WEB-011`, `ITX-WEB-012`, `ITX-WEB-013`, `ITX-WEB-014`, `ITX-WEB-015`, `ITX-WEB-016`, `ITX-WEB-024`, `ITX-WEB-025`, `ITX-WEB-026`, `ITX-WEB-028`, `ITX-WEB-033`, `ITX-WEB-035`, `ITX-WEB-042`, `ITX-WEB-045`.
 
 Guideline:
 - Keep one representative happy-path proof in browser E2E.
@@ -749,7 +578,6 @@ Guideline:
 - `apps/workflow-web/test/integration/start/...`
 - `apps/workflow-web/test/integration/transport/...`
 - `apps/workflow-web/test/integration/stream/...`
-- `apps/workflow-web/test/integration/graph/...`
 - `apps/workflow-web/test/integration/history/...`
 - `apps/workflow-web/test/integration/logs/...`
 - `apps/workflow-web/test/integration/feedback/...`

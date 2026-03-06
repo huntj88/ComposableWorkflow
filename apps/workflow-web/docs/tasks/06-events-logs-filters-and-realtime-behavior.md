@@ -59,6 +59,6 @@ Implement event timeline and logs panel filtering semantics, explicit link-mode 
 | B-WEB-024 | `apps/workflow-web/src/routes/run-detail/components/EventsTimelinePanel.tsx` | Event filters and ordered append semantics are implemented. |
 | B-WEB-025 | `apps/workflow-web/src/routes/run-detail/components/LogsPanel.tsx` | Logs filters preserve required query dimensions and correlation semantics. |
 | B-WEB-026 | `apps/workflow-web/src/routes/run-detail/state/filterStore.ts` | Filter independence + explicit link-mode behavior is enforced. |
-| B-WEB-040 | `apps/workflow-web/src/routes/run-detail/state/filterStore.ts` | Causal navigation chain preserves run-scoped graph/event/log correlation updates. |
+| B-WEB-040 | `apps/workflow-web/src/routes/run-detail/state/filterStore.ts` | Causal navigation chain preserves run-scoped event/log correlation updates. |
 | B-WEB-045 | `apps/workflow-web/src/routes/run-detail/components/EventsTimelinePanel.tsx` | Auto-follow/scroll/jump behavior is deterministic and non-blocking. |
 | B-WEB-052 | `apps/workflow-web/src/routes/run-detail/components/LogsPanel.tsx` | Event/log query bounds and key semantics preserve shared contracts. |

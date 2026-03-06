@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { List, ListItem, ListItemText, Paper, Stack, Typography } from '@mui/material';
 
 import {
   workflowDefinitionResponseSchema,
@@ -72,18 +72,24 @@ export const DefinitionsPage = (): ReactElement => {
           </Paper>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="subtitle2" gutterBottom>
-              Graph
+              Transition Inventory
             </Typography>
-            <Box
-              role="region"
-              aria-label="definition-graph-shell"
-              data-workflow-type={query.data.workflowType}
-              sx={{ minHeight: 280, border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                Definition graph container shell
-              </Typography>
-            </Box>
+            <List dense disablePadding aria-label="definition-transition-list">
+              {query.data.transitions.length > 0 ? (
+                query.data.transitions.map((transition, index) => (
+                  <ListItem key={`${transition.from}-${transition.to}-${index}`} disableGutters>
+                    <ListItemText
+                      primary={transition.name?.trim() || `${transition.from} → ${transition.to}`}
+                      secondary={`${transition.from} → ${transition.to}`}
+                    />
+                  </ListItem>
+                ))
+              ) : (
+                <ListItem disableGutters>
+                  <ListItemText primary="No transitions defined." />
+                </ListItem>
+              )}
+            </List>
           </Paper>
         </Stack>
       ) : null}

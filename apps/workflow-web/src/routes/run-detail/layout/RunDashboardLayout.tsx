@@ -2,9 +2,9 @@
  * Run dashboard 3-zone layout component.
  *
  * B-WEB-027: Required 3-zone information architecture.
- *   Desktop (>=1280px): top summary strip, primary analysis (tree+graph),
+ *   Desktop (>=1280px): top summary strip, primary analysis (tree),
  *   operational details (events/logs/feedback).
- *   Narrow (<1280px): stacks by priority: summary → tree/graph → events/logs → feedback.
+ *   Narrow (<1280px): stacks by priority: summary → tree → events/logs → feedback.
  *
  * B-WEB-029: Keyboard-only completion paths with visible focus indicators.
  */
@@ -21,10 +21,8 @@ import { spacing } from '../../../theme/tokens';
 type RunDashboardLayoutProps = {
   /** Zone 1 — top summary strip (always visible). */
   summaryStrip: ReactNode;
-  /** Zone 2A — primary analysis: execution tree. */
+  /** Zone 2 — primary analysis: execution tree. */
   executionTree: ReactNode;
-  /** Zone 2B — primary analysis: FSM graph. */
-  fsmGraph: ReactNode;
   /** Zone 3A — operational details: transition history. */
   transitionHistory: ReactNode;
   /** Zone 3A — operational details: events timeline. */
@@ -56,7 +54,7 @@ const DESKTOP_BREAKPOINT = 1280;
  *   │  Analysis      │  Details            │
  *   │  (Zone 2)      │  (Zone 3)           │
  *   │  - Tree        │  - Events           │
- *   │  - Graph       │  - Logs             │
+ *   │                │  - Logs             │
  *   │                │  - Feedback         │
  *   └────────────────┴─────────────────────┘
  *
@@ -65,7 +63,6 @@ const DESKTOP_BREAKPOINT = 1280;
 export const RunDashboardLayout = ({
   summaryStrip,
   executionTree,
-  fsmGraph,
   transitionHistory,
   eventsTimeline,
   logs,
@@ -92,7 +89,7 @@ export const RunDashboardLayout = ({
         },
       }}
     >
-      {/* Zone 2: Primary Analysis — tree + graph */}
+      {/* Zone 2: Primary Analysis — tree */}
       <Stack
         component="section"
         aria-label="Primary analysis"
@@ -100,7 +97,6 @@ export const RunDashboardLayout = ({
         sx={{ flex: 2, minWidth: 0 }}
       >
         {executionTree}
-        {fsmGraph}
       </Stack>
 
       {/* Zone 3: Operational Details — events + logs + feedback */}

@@ -12,7 +12,6 @@ import type { ReactElement, PropsWithChildren } from 'react';
 import { HashRouter, MemoryRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, type QueryState } from '@tanstack/react-query';
 import { ThemeProvider, CssBaseline } from '@mui/material';
-import { ReactFlowProvider } from 'reactflow';
 import { createStore, type StoreApi } from 'zustand';
 // @ts-expect-error -- @testing-library/react may not be installed as a direct dep;
 // integration tests that use this harness should ensure it is available.
@@ -171,11 +170,9 @@ export function renderWebApp(options: RenderWebAppOptions = {}): RenderWebAppRes
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
       <QueryClientProvider client={queryClient}>
-        <ReactFlowProvider>
-          <Router>
-            <AppRoutes />
-          </Router>
-        </ReactFlowProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
       </QueryClientProvider>
     </ThemeProvider>
   );

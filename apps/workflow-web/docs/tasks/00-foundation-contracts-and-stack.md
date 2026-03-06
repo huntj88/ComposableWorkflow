@@ -13,7 +13,7 @@ Establish the Workflow Web SPA foundation in `apps/workflow-web` with the requir
 
 ## Interface/Schema Contracts
 - Contract package: `@composable-workflow/workflow-api-types`.
-- Required stack libraries: `react-router-dom`, `@tanstack/react-query`, `zustand`, `@mui/material`, `reactflow`, `recharts`.
+- Required stack libraries: `react-router-dom`, `@tanstack/react-query`, `zustand`, `@mui/material`, `recharts`.
 
 ## Implementation Tasks
 - [x] Confirm package dependencies and strict TS config satisfy baseline spec constraints.

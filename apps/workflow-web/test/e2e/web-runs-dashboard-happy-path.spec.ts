@@ -9,8 +9,6 @@
  * - B-WEB-006: Run dashboard renders six required panels
  * - B-WEB-010: Covered endpoint paths are absolute /api/v1 paths
  * - B-WEB-016: Incremental updates are ordered, no full reload required
- * - B-WEB-030: Deterministic definition projection to React Flow nodes/edges
- * - B-WEB-032: Runtime overlay mapping follows event contract
  *
  * @vitest-environment jsdom
  */
@@ -113,19 +111,17 @@ describe('e2e.web-runs-dashboard-happy-path', () => {
       transport.stubRunTree(runId, buildRunTreeResponse({ runId }));
       transport.stubRunEvents(runId, buildRunEventsResponse(3));
       transport.stubRunLogs(runId, buildRunLogsResponse(2));
-      transport.stubDefinition(DEFAULT_WORKFLOW_TYPE, buildDefinitionResponse());
       transport.stubFeedbackList(
         runId,
         buildListFeedbackRequestsResponse([buildFeedbackRequestSummary({ parentRunId: runId })]),
       );
 
       // Execute all panel data fetches
-      const [summary, tree, events, logs, definition, feedback] = await Promise.all([
+      const [summary, tree, events, logs, feedback] = await Promise.all([
         transport.client.getRunSummary(runId),
         transport.client.getRunTree(runId),
         transport.client.getRunEvents(runId),
         transport.client.getRunLogs(runId),
-        transport.client.getWorkflowDefinition(DEFAULT_WORKFLOW_TYPE),
         transport.client.listRunFeedbackRequests(runId),
       ]);
 
@@ -137,7 +133,6 @@ describe('e2e.web-runs-dashboard-happy-path', () => {
       expect(tree.tree.runId).toBe(runId);
       expect(events.items.length).toBe(3);
       expect(logs.items.length).toBe(2);
-      expect(definition.workflowType).toBe(DEFAULT_WORKFLOW_TYPE);
       expect(feedback.items.length).toBe(1);
 
       // Verify stream opened
@@ -166,7 +161,6 @@ describe('e2e.web-runs-dashboard-happy-path', () => {
       expect(transport.getCallsMatching('/tree').length).toBe(1);
       expect(transport.getCallsMatching('/events').length).toBe(1);
       expect(transport.getCallsMatching('/logs').length).toBe(1);
-      expect(transport.getCallsMatching('/definitions/').length).toBe(1);
       expect(transport.getCallsMatching('/feedback-requests').length).toBe(1);
 
       streamSource.close();
@@ -202,152 +196,7 @@ describe('e2e.web-runs-dashboard-happy-path', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Scenario 3: Graph observability happy path
-  // -------------------------------------------------------------------------
-
-  describe('graph observability happy path', () => {
-    it('definition projection produces correct node/edge counts (B-WEB-030)', async () => {
-      transport = createMockTransport();
-
-      const definition = buildDefinitionResponse({
-        workflowType: 'order.checkout.v1',
-        states: ['init', 'validating', 'processing', 'shipping', 'done', 'failed'],
-        transitions: [
-          { from: 'init', to: 'validating', name: 'start' },
-          { from: 'validating', to: 'processing', name: 'validated' },
-          { from: 'processing', to: 'shipping', name: 'processed' },
-          { from: 'shipping', to: 'done', name: 'shipped' },
-          { from: 'validating', to: 'failed', name: 'validation_error' },
-          { from: 'processing', to: 'failed', name: 'processing_error' },
-        ],
-      });
-
-      transport.stubDefinition('order.checkout.v1', definition);
-
-      const result = await transport.client.getWorkflowDefinition('order.checkout.v1');
-
-      // Node count equals definition state count
-      expect(result.states).toHaveLength(6);
-
-      // Edge count equals definition transition count
-      expect(result.transitions).toHaveLength(6);
-
-      // Verify deterministic ID format expectations (B-WEB-030)
-      const expectedNodeIds = result.states.map(
-        (stateId) => `${result.workflowType}::state::${stateId}`,
-      );
-      expect(expectedNodeIds).toEqual([
-        'order.checkout.v1::state::init',
-        'order.checkout.v1::state::validating',
-        'order.checkout.v1::state::processing',
-        'order.checkout.v1::state::shipping',
-        'order.checkout.v1::state::done',
-        'order.checkout.v1::state::failed',
-      ]);
-
-      const expectedEdgeIds = result.transitions.map(
-        (t, i) => `${result.workflowType}::edge::${t.from}::${t.to}::${i}`,
-      );
-      expect(expectedEdgeIds).toHaveLength(6);
-      expect(expectedEdgeIds[0]).toBe('order.checkout.v1::edge::init::validating::0');
-    });
-
-    it('runtime overlay from tree response maps active node and traversed edges (B-WEB-032)', async () => {
-      transport = createMockTransport();
-      const runId = 'wr_graph_overlay';
-
-      const tree = buildRunTreeResponse({
-        runId,
-        currentState: 'processing',
-      });
-
-      // Enhance overlay with traversed and pending edges
-      const overlayTree = {
-        ...tree,
-        overlay: {
-          ...tree.overlay,
-          activeNode: 'processing',
-          traversedEdges: [
-            {
-              from: 'init',
-              to: 'validating',
-              name: 'start',
-              traversedAt: '2026-03-05T00:01:00.000Z',
-            },
-            {
-              from: 'validating',
-              to: 'processing',
-              name: 'validated',
-              traversedAt: '2026-03-05T00:02:00.000Z',
-            },
-          ],
-          pendingEdges: [],
-          failedEdges: [],
-        },
-      };
-
-      transport.stubRunTree(runId, overlayTree);
-
-      const result = await transport.client.getRunTree(runId);
-
-      // Active node maps from summary currentState
-      expect(result.overlay.activeNode).toBe('processing');
-
-      // Traversed edges recorded from event history
-      expect(result.overlay.traversedEdges).toHaveLength(2);
-      expect(result.overlay.traversedEdges[0]!.from).toBe('init');
-      expect(result.overlay.traversedEdges[0]!.to).toBe('validating');
-      expect(result.overlay.traversedEdges[1]!.from).toBe('validating');
-      expect(result.overlay.traversedEdges[1]!.to).toBe('processing');
-    });
-
-    it('stream increments update overlay without full reload (B-WEB-016, B-WEB-032)', () => {
-      transport = createMockTransport();
-      const runId = 'wr_graph_stream';
-
-      // Open stream for graph overlay updates
-      const streamSource = transport.client.openRunStream(runId);
-      const streamRequests = transport.getStreamRequests();
-
-      expect(streamRequests).toHaveLength(1);
-      expect(streamRequests[0]!.url).toContain(`/runs/${runId}/stream`);
-
-      // Stream frames are the mechanism for incremental overlay updates
-      // (no full GET /tree reload needed for each transition event)
-      streamSource.close();
-    });
-
-    it('child-launch annotations are preserved in definition response (B-WEB-034)', async () => {
-      transport = createMockTransport();
-
-      const definition = buildDefinitionResponse({
-        workflowType: 'parent.flow.v1',
-        states: ['init', 'child-phase', 'done'],
-        transitions: [
-          { from: 'init', to: 'child-phase', name: 'start' },
-          { from: 'child-phase', to: 'done', name: 'child_complete' },
-        ],
-        childLaunchAnnotations: [
-          {
-            parentState: 'child-phase',
-            childWorkflowType: 'child.task.v1',
-            launchCondition: 'on_enter',
-          },
-        ],
-      });
-
-      transport.stubDefinition('parent.flow.v1', definition);
-
-      const result = await transport.client.getWorkflowDefinition('parent.flow.v1');
-
-      expect(result.childLaunchAnnotations).toHaveLength(1);
-      expect(result.childLaunchAnnotations[0]!.parentState).toBe('child-phase');
-      expect(result.childLaunchAnnotations[0]!.childWorkflowType).toBe('child.task.v1');
-    });
-  });
-
-  // -------------------------------------------------------------------------
-  // Scenario 4: Route navigation and transport path correctness
+  // Scenario 3: Route navigation and transport path correctness
   // -------------------------------------------------------------------------
 
   describe('route and transport path correctness', () => {

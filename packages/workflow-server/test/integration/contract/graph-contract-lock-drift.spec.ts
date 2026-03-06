@@ -11,16 +11,14 @@ import {
 } from '@composable-workflow/workflow-api-types';
 import { describe, expect, it } from 'vitest';
 
-interface GraphContractDescriptor {
-  mentionsInitialStateResolvable: boolean;
-  mentionsUniqueStateIdentifiers: boolean;
-  mentionsStableImmutableStateIdentifiers: boolean;
-  mentionsTransitionIdentityTuple: boolean;
-  mentionsTransitionOrderingDeterministic: boolean;
-  mentionsRuntimeCurrentStateResolution: boolean;
-  mentionsOverlayEventReferences: boolean;
-  mentionsUnknownReferenceViolation: boolean;
-  mentionsSequenceCursorDeterminism: boolean;
+interface DefinitionContractDescriptor {
+  mentionsStableMetadata: boolean;
+  mentionsWorkflowIdentityFields: boolean;
+  mentionsStateAndTransitionFields: boolean;
+  mentionsSharedExportAuthority: boolean;
+  mentionsAccessibleMetadataRendering: boolean;
+  mentionsVisibleErrorState: boolean;
+  mentionsIdentifierPreservation: boolean;
 }
 
 interface StaticGraphDefinition {
@@ -54,47 +52,33 @@ const extractSection = (params: { markdownPath: string; sectionHeadingPrefix: st
 
 const normalize = (value: string): string => value.replace(/\s+/gu, ' ').toLowerCase();
 
-const toGraphDescriptor = (rawText: string): GraphContractDescriptor => {
+const toDefinitionDescriptor = (rawText: string): DefinitionContractDescriptor => {
   const text = normalize(rawText);
 
-  const mentionsEventNames =
-    text.includes('state.entered') &&
-    text.includes('transition.completed') &&
-    text.includes('transition.failed');
-
   return {
-    mentionsInitialStateResolvable:
-      /initialstate.*resolve/u.test(text) ||
-      /resolves to a declared state identifier/u.test(text) ||
-      /initial state/u.test(text),
-    mentionsUniqueStateIdentifiers:
-      /state identifiers.*unique/u.test(text) ||
-      /unique within the definition/u.test(text) ||
-      /definition state identifiers must be unique/u.test(text),
-    mentionsStableImmutableStateIdentifiers:
-      /state identifiers.*immutable/u.test(text) ||
-      /stable state.*identity/u.test(text) ||
-      /stable state and transition identity/u.test(text),
-    mentionsTransitionIdentityTuple:
-      text.includes('(fromstate,tostate,ordinalwithinpair)') ||
-      /fromstate.*tostate.*transitionordinal/u.test(text),
-    mentionsTransitionOrderingDeterministic:
-      /stable transition ordering/u.test(text) ||
-      /transition ordering.*stable/u.test(text) ||
-      /layout computation key is \(workflowtype, definitionversion\)/u.test(text),
-    mentionsRuntimeCurrentStateResolution:
-      text.includes('runsummaryresponse.currentstate') &&
-      /definition (state|identifier)/u.test(text),
-    mentionsOverlayEventReferences:
-      mentionsEventNames &&
-      (/resolve against the static definition identifiers/u.test(text) ||
-        /required event-to-overlay mapping/u.test(text)),
-    mentionsUnknownReferenceViolation:
-      /unknown state\/transition references.*contract violations/u.test(text) ||
-      /must show a visible contract-mismatch indicator/u.test(text),
-    mentionsSequenceCursorDeterminism:
-      /sequence.*cursor.*deterministic/u.test(text) ||
-      /cursor\/sequence.*deterministic/u.test(text),
+    mentionsStableMetadata:
+      /stable metadata/u.test(text) ||
+      /deterministic definition graph payload/u.test(text) ||
+      /stable transition ordering/u.test(text),
+    mentionsWorkflowIdentityFields:
+      text.includes('workflowtype') &&
+      (text.includes('workflowversion') || text.includes('definitionversion')),
+    mentionsStateAndTransitionFields:
+      (text.includes('states') || text.includes('state inventory')) &&
+      (text.includes('transitions') || text.includes('transition inventory')),
+    mentionsSharedExportAuthority:
+      /shared exports/u.test(text) ||
+      /schema shape and field names are exported/u.test(text) ||
+      /shared contracts/u.test(text),
+    mentionsAccessibleMetadataRendering:
+      /accessible metadata lists\/tables/u.test(text) ||
+      /lists, tables, or grouped metadata sections/u.test(text),
+    mentionsVisibleErrorState:
+      /visible definition-view error state/u.test(text) ||
+      /visible panel error state with retry/u.test(text),
+    mentionsIdentifierPreservation:
+      /preserve server-provided identifiers and labels/u.test(text) ||
+      /stable identifiers/u.test(text),
   };
 };
 
@@ -180,14 +164,10 @@ const assertStableIdentityForVersion = (
 };
 
 describe('integration.contract.graph-contract-lock-drift', () => {
-  it('ITX-033 / B-CONTRACT-007 keeps graph identity semantics aligned across server spec, web spec, and shared contract exports', () => {
+  it('ITX-033 / B-CONTRACT-007 keeps definition metadata semantics aligned across web spec and shared contract exports', () => {
     const apiTypesSection51 = extractSection({
       markdownPath: apiTypesSpecPath,
       sectionHeadingPrefix: '### 5.1 Static Graph Schema',
-    });
-    const apiTypesSection52 = extractSection({
-      markdownPath: apiTypesSpecPath,
-      sectionHeadingPrefix: '### 5.2 Dynamic Overlay Schema',
     });
     const apiTypesSection53 = extractSection({
       markdownPath: apiTypesSpecPath,
@@ -195,38 +175,25 @@ describe('integration.contract.graph-contract-lock-drift', () => {
     });
     const webSection66 = extractSection({
       markdownPath: webSpecPath,
-      sectionHeadingPrefix: '### 6.6 FSM Contract Invariants (Normative)',
+      sectionHeadingPrefix: '### 6.6 Definition Metadata Handling (Normative)',
     });
     const webSection85 = extractSection({
       markdownPath: webSpecPath,
-      sectionHeadingPrefix: '### 8.5 FSM Graph Rendering Specification (Normative)',
+      sectionHeadingPrefix: '### 8.5 Definition Metadata Presentation (Normative)',
     });
 
-    const apiTypesDescriptor = toGraphDescriptor(
-      `${apiTypesSection51}\n${apiTypesSection52}\n${apiTypesSection53}`,
-    );
-    const webDescriptor = toGraphDescriptor(`${webSection66}\n${webSection85}`);
+    const apiTypesDescriptor = toDefinitionDescriptor(`${apiTypesSection51}\n${apiTypesSection53}`);
+    const webDescriptor = toDefinitionDescriptor(`${webSection66}\n${webSection85}`);
 
-    expect(apiTypesDescriptor.mentionsInitialStateResolvable).toBe(true);
-    expect(webDescriptor.mentionsInitialStateResolvable).toBe(true);
-    expect(apiTypesDescriptor.mentionsUniqueStateIdentifiers).toBe(true);
-    expect(webDescriptor.mentionsUniqueStateIdentifiers).toBe(true);
-    expect(apiTypesDescriptor.mentionsStableImmutableStateIdentifiers).toBe(true);
-    expect(webDescriptor.mentionsStableImmutableStateIdentifiers).toBe(true);
-    expect(apiTypesDescriptor.mentionsTransitionIdentityTuple).toBe(true);
-    expect(webDescriptor.mentionsTransitionIdentityTuple).toBe(true);
-    expect(apiTypesDescriptor.mentionsTransitionOrderingDeterministic).toBe(true);
-    expect(webDescriptor.mentionsTransitionOrderingDeterministic).toBe(true);
-    expect(apiTypesDescriptor.mentionsOverlayEventReferences).toBe(true);
-    expect(webDescriptor.mentionsOverlayEventReferences).toBe(true);
-    expect(apiTypesDescriptor.mentionsUnknownReferenceViolation).toBe(true);
-    expect(webDescriptor.mentionsUnknownReferenceViolation).toBe(true);
-    expect(apiTypesDescriptor.mentionsSequenceCursorDeterminism).toBe(true);
-    expect(webDescriptor.mentionsSequenceCursorDeterminism).toBe(true);
-    expect(
-      apiTypesDescriptor.mentionsRuntimeCurrentStateResolution ||
-        webDescriptor.mentionsRuntimeCurrentStateResolution,
-    ).toBe(true);
+    expect(apiTypesDescriptor.mentionsStableMetadata).toBe(true);
+    expect(webDescriptor.mentionsStableMetadata).toBe(true);
+    expect(apiTypesDescriptor.mentionsWorkflowIdentityFields).toBe(true);
+    expect(apiTypesDescriptor.mentionsStateAndTransitionFields).toBe(true);
+    expect(webDescriptor.mentionsStateAndTransitionFields).toBe(true);
+    expect(apiTypesDescriptor.mentionsSharedExportAuthority).toBe(true);
+    expect(webDescriptor.mentionsAccessibleMetadataRendering).toBe(true);
+    expect(webDescriptor.mentionsVisibleErrorState).toBe(true);
+    expect(webDescriptor.mentionsIdentifierPreservation).toBe(true);
 
     const definitionKeys = getZodObjectKeys(workflowDefinitionResponseSchema);
     const runSummaryKeys = getZodObjectKeys(runSummaryResponseSchema);

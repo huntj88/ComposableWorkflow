@@ -10,12 +10,11 @@ Related documents:
 Build a Vite-based React SPA in `apps/workflow-web` that communicates with `workflow-server` to support workflow operations and observability for composable finite state machines (FSMs), including child workflow relationships and human response interactions.
 
 In scope:
-- route-based UI for run listing, run detail inspection, definition graph visualization, and workflow start,
+- route-based UI for run listing, run detail inspection, definition metadata inspection, and workflow start,
 - workflow start flow: selecting a workflow type, providing required input, and submitting to create a new run,
 - real-time run updates via SSE and deterministic snapshot + stream synchronization,
 - run-level observability (events and logs),
 - linear transition history with iteration-aware state tracking and inline collapsible child state machine transitions,
-- iteration-aware child FSM drill-down for looping/cyclic state machines,
 - run-scoped human feedback discovery and response submission,
 - strict use of shared transport contracts from `packages/workflow-api-types`,
 - path/contract alignment with `packages/workflow-server/docs/typescript-server-workflow-spec.md`.
@@ -54,7 +53,7 @@ In scope:
 - `/runs/:runId`
   - run dashboard for a single root or child run.
 - `/definitions/:workflowType`
-  - definition graph and metadata view.
+  - definition metadata view.
 
 ### 4.2 Start Workflow Flow
 
@@ -83,16 +82,14 @@ The start workflow capability is accessible from the `/runs` route via a primary
    - run id, workflow type/version, lifecycle, current state, parent reference, timestamps, progress counters.
 2. **Execution Tree**
    - recursive parent/child tree with per-node lifecycle and current state.
-3. **FSM Graph**
-   - static definition graph with dynamic overlay for active state and recent transitions.
-4. **Events Timeline**
+3. **Events Timeline**
    - ordered events with sequence/cursor metadata and filter support.
-5. **Transition History**
+4. **Transition History**
    - linear chronological view of all state transitions for the current run, with inline collapsible child state machine transitions (see Section 8.6).
-6. **Logs**
+5. **Logs**
    - structured log entries correlated with events/transitions when identifiers are present.
-   - windowed display with scrollable viewport and incremental loading (see Section 8.7).
-7. **Human Feedback**
+  - windowed display with scrollable viewport and incremental loading (see Section 8.6).
+6. **Human Feedback**
    - lists run-scoped requests, displays status/prompt/options, allows submission for `awaiting_response`.
 
 ### 4.4 Required User Actions
@@ -117,7 +114,7 @@ The start workflow capability is accessible from the `/runs` route via a primary
 - Persist `lastSeenCursor` from each accepted stream frame.
 - Reconnect using `cursor=<lastSeenCursor>`.
 - Deduplicate by `(runId, sequence)` across reconnects.
-- Apply updates incrementally (no full page reload) to summary, tree, graph overlay, timeline, and feedback panel status.
+- Apply updates incrementally (no full page reload) to summary, tree, timeline, transition history, logs, and feedback panel status.
 
 ### 5.3 Stream Wire Protocol and Resume Semantics (Normative)
 - `GET /api/v1/workflows/runs/{runId}/stream` uses SSE with:
@@ -216,7 +213,6 @@ Additional normative rules:
 
 ### 6.4 Cross-Spec Consistency Rules
 - Section 6.2 of this spec and workflow-api-types-spec.md §2 + server spec Section 4 of `packages/workflow-server/docs/typescript-server-workflow-spec.md` must stay path- and contract-consistent for web-visible endpoints.
-- Section 6.6 + 8.5 of this spec and workflow-api-types-spec.md §5 must stay consistent for FSM identity and overlay semantics.
 - Contract evolution order: `packages/workflow-api-types` -> server spec + server handlers -> web spec + web client usage.
 - Any endpoint/path/payload change is incomplete until both specs reflect the same contract.
 
@@ -244,12 +240,10 @@ Rules:
 - Runtime mapping from `WorkflowStreamFrame` to UI state must be exhaustive for the closed variant set in Section 6.9.
 - Log filter query serialization must be derived from `GetRunLogsQuery` (no local remapped filter keys for server requests).
 
-### 6.6 FSM Contract Invariants (Normative)
-- `WorkflowDefinitionResponse` consumed by the SPA must provide stable state and transition identity for a given `(workflowType, definitionVersion|workflowVersion)`.
-- Definition state identifiers must be unique within the definition payload.
-- Definition transition ordering must be stable for the same definition version; this ordering is the source for `transitionOrdinal` used in deterministic edge IDs.
-- `RunSummaryResponse.currentState` and runtime event references used for graph overlays must reference definition state/transition identifiers from the same `WorkflowDefinitionResponse`.
-- Contract violations (for example duplicate state IDs, missing referenced states, or unstable transition identity across repeated fetches for the same definition version) must be surfaced as visible graph-panel error states in development/test builds.
+### 6.6 Definition Metadata Handling (Normative)
+- `WorkflowDefinitionResponse` consumed by the SPA must provide stable metadata for a given `(workflowType, definitionVersion|workflowVersion)`.
+- Definition payloads shown in the browser must render as accessible metadata lists/tables without requiring client-side DTO reshaping outside shared contracts.
+- Missing or internally inconsistent definition metadata required by the UI must surface as a visible definition-view error state in development/test builds.
 
 ### 6.7 Query, Filter, and Pagination Semantics (Normative)
 - `GET /api/v1/workflows/definitions` returns all registered workflow definitions as an array of summaries.
@@ -324,7 +318,7 @@ For run dashboard behavior, stream/event processing must support this closed eve
 - `log`
 
 Rules:
-- Variants in this set must have deterministic runtime handling in summary/tree/graph/timeline/log/feedback projections where applicable.
+- Variants in this set must have deterministic runtime handling in summary/tree/timeline/transition-history/log/feedback projections where applicable.
 - In development/test builds, any stream variant outside this closed set must fail visibly (not silently dropped).
 - Expanding this set requires synchronized updates to this section, web behavior docs, and integration test coverage.
 
@@ -351,7 +345,6 @@ Rules:
 
 ### 7.3 UI Component and Visualization Stack
 - Component library: `@mui/material` for composable, accessible base UI controls and layout primitives.
-- FSM graph and execution-tree graph rendering: `reactflow`.
 - Lightweight trend/summary charting for observability counters: `recharts`.
 
 ### 7.4 Streaming/Transport Client
@@ -371,114 +364,33 @@ Rules:
 ### 8.1 Dashboard Layout
 `/runs/:runId` must use a 3-zone information architecture:
 1. **Top summary strip** (always visible): run identity, lifecycle, current state, parent link, last update timestamp, reconnect status.
-2. **Primary analysis area** (left/center): execution tree and FSM graph as the main causal-navigation surfaces.
+2. **Primary analysis area** (left/center): execution tree as the main causal-navigation surface.
 3. **Operational details area** (right/bottom): events timeline, transition history, logs, and human feedback panels with independent scrolling.
 
 ### 8.2 Information Hierarchy Rules
 - Current lifecycle/state and reconnect health are highest-priority, visible without scrolling.
-- Causal navigation order: summary -> execution tree -> active graph node/transition -> matching event/log records.
+- Causal navigation order: summary -> execution tree -> transition history -> matching event/log records.
 - Human feedback requests with `awaiting_response` status must be visually prioritized above terminal feedback items.
 
 ### 8.3 Visual Affordances for State Transitions
-- Active state node: distinct high-contrast highlight.
-- Recently traversed transitions: time-decayed highlight (newest strongest emphasis).
 - Lifecycle statuses from shared `WorkflowLifecycle` (`running`, `pausing`, `paused`, `resuming`, `recovering`, `cancelling`, `completed`, `failed`, `cancelled`) must have consistent color/icon tokens across summary, tree, timeline, and feedback.
 - Stream health badge states: `connected`, `reconnecting`, `stale`.
 
 ### 8.4 Responsiveness and Density
 - Desktop-first dense observability layout at `>=1280px`.
-- At `<1280px`, panels stack in priority order: summary -> tree/graph -> transition history -> events/logs -> feedback.
+- At `<1280px`, panels stack in priority order: summary -> tree -> transition history -> events/logs -> feedback.
 - No panel may collapse essential status information (run lifecycle, current state, awaiting feedback count).
 
-### 8.5 FSM Graph Rendering Specification (Normative)
+### 8.5 Definition Metadata Presentation (Normative)
 
-#### 8.5.1 Definition-to-React Flow Mapping
-- Graph source is `WorkflowDefinitionResponse` from `GET /api/v1/workflows/definitions/{workflowType}`.
-- Each definition state maps to exactly one React Flow node with deterministic id format: `{workflowType}::state::{stateId}`.
-- Each definition transition maps to exactly one React Flow edge with deterministic id format: `{workflowType}::edge::{fromState}::{toState}::{transitionOrdinal}` where `transitionOrdinal` is the zero-based index of that transition among transitions sharing the same `{fromState,toState}` pair in server-provided transition order.
-- Node label precedence: `display metadata label` -> `stateId`.
-- Edge label precedence: `transition display label` -> `{fromState} -> {toState}`.
-- Node role classification rules:
-  - **initial**: definition metadata marks initial state; if metadata is absent, infer from zero inbound transitions,
-  - **terminal**: zero outbound transitions,
-  - **decision**: more than one outbound transition,
-  - **standard**: all other states.
-- Child-workflow launch annotations from definition metadata must be preserved in React Flow node/edge `data` payload so UI can render a child-launch affordance.
-- Nodes with child-launch annotations must include a drill-down interaction target (e.g., nested-graph icon badge) that is visually distinct from the node selection interaction and keyboard-accessible.
-
-#### 8.5.1.1 Child FSM Graph Drill-Down Rendering
-- When a child-launch node is activated for drill-down and the child run exists (resolved from `RunTreeResponse`), the FSM graph panel must transition to display the child run's definition graph with its own runtime overlay.
-- When the child workflow type is known but no child run exists, drill-down must load the child's static definition graph from `GET /api/v1/workflows/definitions/{childWorkflowType}`.
-- A persistent breadcrumb bar above the FSM graph panel must show the navigation path (e.g., `Root Run > Child Run A > Child Run B`) when viewing any non-root graph context, with each breadcrumb segment being a clickable link back to that ancestor's dashboard.
-- The breadcrumb must update on every drill-down or back-navigation and remain visible as long as the viewed run is not the root context.
-
-#### 8.5.1.2 Iteration-Aware Drill-Down for Looping State Machines
-- A state machine may traverse the same state or transition multiple times (loops/cycles). When a child-launch node has been visited multiple iterations (i.e., the same state has launched child runs more than once), the drill-down affordance must present an **iteration selector** before navigating.
-- The iteration selector must list each discrete visit to the child-launch state in chronological order, labeled by iteration index (1-based) and timestamp derived from the corresponding `child.started` events in the parent run's event history.
-- Each iteration entry in the selector must show: iteration number, child run ID (if available), child run lifecycle status, and the `child.started` event timestamp.
-- If only one iteration exists for a given child-launch state, the iteration selector is skipped and drill-down proceeds directly.
-- Iteration resolution uses the parent run's `RunEventsResponse` events filtered to `child.started` events matching the child-launch annotation's state, ordered by `sequence ASC`.
-- The selected iteration's child run ID is used to navigate to `#/runs/:childRunId`; if the child run for a specific iteration does not exist (e.g., launch failed), the selector entry must indicate the failure state and drill-down navigates to the static definition graph instead.
-
-#### 8.5.2 Layout Algorithm and Determinism
-- Layout engine: `dagre` layered directed graph layout.
-- Layout direction:
-  - `LR` for viewport width `>=1280px`,
-  - `TB` for viewport width `<1280px`.
-- Layout computation key is `(workflowType, definitionVersion)`; stream updates must not trigger full relayout.
-- Pan/zoom and manual viewport position are preserved across runtime overlay updates.
-- If layout computation fails, UI must render a panel error state with retry (no silent fallback to random/manual coordinates).
-
-#### 8.5.3 Runtime Overlay Composition
-- Static graph data comes only from `WorkflowDefinitionResponse`; runtime state is an overlay layer.
-- Overlay sources and merge order:
-  1. `RunSummaryResponse.currentState` sets initial active node,
-  2. `RunEventsResponse.events` hydrates traversed/failed edges in sequence order,
-  3. `WorkflowStreamFrame` events apply incremental updates.
-- Required event-to-overlay mapping:
-  - `state.entered` -> set active node to payload state id,
-  - `transition.completed` -> mark edge as traversed with latest timestamp and increment traverse count,
-  - `transition.failed` -> mark edge as failed and attach failure metadata tooltip.
-- If runtime events reference a missing state/edge (not present in the definition graph), the UI must show a visible contract-mismatch indicator in the graph panel and record diagnostic details in development logs.
-- Contract-mismatch references must never be silently ignored in any build; production may reduce diagnostic verbosity but must preserve visible mismatch indication.
-
-#### 8.5.4 Visual Encoding Rules
-- Node shapes:
-  - initial: stadium/rounded-pill,
-  - decision: diamond,
-  - terminal: rounded rectangle with double border,
-  - standard: rounded rectangle.
-- Node styling:
-  - active node uses high-contrast accent + focus ring,
-  - inactive nodes use neutral surface token,
-  - terminal node outcome styling must align with lifecycle/status tokens where applicable.
-- Edge styling:
-  - default transition: solid neutral stroke,
-  - traversed transition: accent stroke with increased width,
-  - failed transition: dashed error stroke,
-  - child-launch transition: dotted variant with child-workflow icon/marker, plus a drill-down affordance badge.
-- Orphan/unreachable state styling:
-  - states not reachable from the initial state via any transition path: muted/desaturated fill with a warning indicator icon,
-  - states present in `states` but absent from all `transitions[].from` and `transitions[].to`: outlined with dashed border and grouped separately in layout.
-- Neighborhood highlight on selection:
-  - selecting a node highlights all directly connected inbound/outbound edges and their source/target nodes,
-  - non-connected nodes and edges dim to a reduced opacity,
-  - highlight clears on deselection or clicking graph background.
-- Graph must include an always-available legend describing node/edge semantics.
-
-#### 8.5.5 Large FSM Handling
-- Large graph threshold is `>120` nodes or `>200` edges.
-- At/above threshold, graph enters **performance mode**:
-  - disable non-essential edge/node animation,
-  - hide edge labels below zoom `0.85`,
-  - keep minimap enabled,
-  - enable state search/filter by state id or display label.
-- Provide an **Active Path Focus** toggle that filters to active node plus two-hop neighbors without mutating the underlying definition graph data.
-- Runtime overlay updates must patch only affected nodes/edges; they must not rebuild the full node/edge array for every incoming stream frame.
+- `/definitions/:workflowType` renders `WorkflowDefinitionResponse` as accessible metadata, not as a rendered FSM diagram.
+- The definition view must present workflow identity, version, state inventory, transition inventory, and child-workflow references when present.
+- State and transition data may be rendered in lists, tables, or grouped metadata sections, but must preserve server-provided identifiers and labels from shared contracts.
+- If definition metadata required for rendering is missing or inconsistent, the definition view must surface a visible panel error state with retry.
 
 ### 8.6 Transition History Panel (Normative)
 
-The Transition History panel provides a **linear chronological view** of all state transitions for a workflow run, including transitions from child state machines rendered inline. This panel complements the FSM graph (which shows the static definition with runtime overlay) by providing a sequential, time-ordered narrative of actual execution.
+The Transition History panel provides a **linear chronological view** of all state transitions for a workflow run, including transitions from child state machines rendered inline. This panel provides a sequential, time-ordered narrative of actual execution.
 
 #### 8.6.1 Data Source and Ordering
 - Transition history entries are derived from the run's `RunEventsResponse` events, filtered to transition-relevant event types: `state.entered`, `transition.requested`, `transition.completed`, `transition.failed`, `child.started`, `child.completed`, `child.failed`.
@@ -500,14 +412,14 @@ The Transition History panel provides a **linear chronological view** of all sta
 - Child transition data is fetched from `GET /api/v1/workflows/runs/{childRunId}/events` when the child section is expanded for the first time; subsequent expansions use cached data updated by stream events if the child run is live.
 
 #### 8.6.4 Interaction with Other Panels
-- Selecting a transition entry in the history panel must highlight the corresponding edge/node in the FSM graph panel (if visible) and scroll the events timeline to the matching event.
+- Selecting a transition entry in the history panel must scroll the events timeline to the matching event.
 - If the selected transition belongs to a child run, clicking it offers a navigation action to drill down to the child run's dashboard (`#/runs/:childRunId`).
 - The transition history panel respects the same time-range filters (`since`, `until`) as the events timeline when link-filters mode (Section 9.3) is enabled.
 
 #### 8.6.5 Visual Encoding
 - Parent-level transitions use standard row styling.
 - Child-level transitions use indented styling with a left-border accent matching the child run's workflow type color token.
-- Failed transitions (`transition.failed`) use error styling consistent with Section 8.5.4 edge styling.
+- Failed transitions (`transition.failed`) use error styling consistent with Section 10.2 error-token rules.
 - Loop/cycle indicators: transitions that return to a previously visited state display a loop icon badge.
 - Active/in-progress transitions (the most recent `transition.requested` without a corresponding `transition.completed`) display a pulsing/loading indicator.
 
@@ -542,31 +454,11 @@ The Logs panel displays structured log entries correlated with events/transition
 - Submit action must stay disabled until mandatory fields are valid (at minimum `questionId` present, and exactly one option selected when options are present).
 - On successful submit, UI status transitions to terminal state without page reload and form controls become read-only.
 
-### 9.2 Tree and Graph Navigation
+### 9.2 Tree Navigation
 - Selecting a tree node must navigate to the selected run route (`#/runs/:runId`) and update:
   - run summary context,
-  - graph overlay focus,
   - event/log filters to the selected run.
 - Parent/child navigation must preserve browser history and deep links (back/forward returns prior run route context).
-- Graph node selection must reveal state metadata and linked transitions.
-
-#### 9.2.1 Child FSM Drill-Down from Graph
-- FSM graph nodes or edges annotated with child-workflow launch metadata (from `WorkflowDefinitionResponse.childLaunchAnnotations`) must render an interactive drill-down affordance (e.g., expand icon, nested-graph indicator, or clickable child-launch badge).
-- Activating the drill-down affordance on a child-launch node/edge must:
-  1. If a live child run exists for that annotation (resolved via `RunTreeResponse` children matching the annotation's `childWorkflowType`), navigate to `#/runs/:childRunId` which loads the child run's own FSM graph and dashboard context.
-  2. If no live child run exists (child not yet launched or annotation is definition-only), navigate to `#/definitions/:childWorkflowType` to display the child workflow's static definition graph.
-- The drill-down target resolution must use the execution tree data (`RunTreeResponse`) to map definition-level child-launch annotations to runtime child run IDs; manual user entry of child run IDs is not required.
-- A breadcrumb or back-navigation trail must be rendered when viewing a child run reached via graph drill-down, showing the parent run context and enabling one-click return to the parent run's dashboard.
-- Drill-down navigation must push a new browser history entry so that browser back/forward returns to the parent graph context.
-
-#### 9.2.2 State Relationship Visualization
-- The FSM graph must render all transitions from `WorkflowDefinitionResponse.transitions` as directed edges between state nodes, ensuring every defined connection is visible.
-- States with no transitions (orphan states present in `states` but absent from any `transitions[].from` or `transitions[].to`) must be visually distinguished (e.g., muted styling, warning icon, or grouped in an "unreachable" cluster) so the user can identify disconnected states.
-- Edge directionality must be conveyed via arrowheads on all transition edges.
-- Parallel/multi-edge transitions (multiple transitions between the same `from`/`to` pair) must be visually distinguishable (e.g., offset curves, distinct labels, or stacked edges) rather than collapsed into a single edge.
-- The graph layout (dagre) must group related states by reachability from the initial state, placing connected subgraphs in a coherent flow direction and isolating disconnected components visually.
-- Hovering or selecting a state node must highlight all directly connected inbound and outbound transitions and their source/target nodes, dimming unrelated nodes and edges to clarify the selected state's neighborhood.
-- A graph-level summary indicator must display: total state count, total transition count, count of unreachable states (states not reachable from the initial state via any transition path), and count of terminal states.
 
 ### 9.3 Event/Log Filtering and Correlation
 - Event timeline filters: event type, time range (`since/until`), and free-text search.
@@ -633,7 +525,7 @@ The Logs panel displays structured log entries correlated with events/transition
 3. Covered web transport contracts are imported from `@composable-workflow/workflow-api-types` with no duplicate local DTOs for those endpoints.
 4. Every REST/SSE call used by this feature uses absolute `/api/v1`-prefixed paths exactly as listed in Section 6.2.
 5. `/runs` renders server-backed run data and supports lifecycle/workflow type filters.
-6. `/runs/:runId` renders all seven required panels from server data (summary, tree, graph, events, transition history, logs, feedback).
+6. `/runs/:runId` renders all six required panels from server data (summary, tree, events, transition history, logs, feedback).
 7. On live runs, SSE updates apply incrementally without full page refresh and preserve strict event ordering by sequence.
 8. After stream reconnect, resume uses `lastSeenCursor` and duplicate events are not re-rendered.
 9. Panel-level failures remain isolated; one panel failure does not blank the full dashboard.
@@ -644,7 +536,7 @@ The Logs panel displays structured log entries correlated with events/transition
 14. `packages/workflow-server/docs/typescript-server-workflow-spec.md` documents matching paths and shared DTO ownership for every endpoint in Section 6.2.
 15. Covered web transport function signatures use shared DTO/query/event exports directly (no local duplicate DTO definitions for those surfaces).
 16. Stream processing logic handles all server-emitted `WorkflowStreamEvent` variants used for run dashboard updates; unsupported variants fail visibly in development/test instead of being silently dropped.
-17. `apps/workflow-web/package.json` declares and uses the stack defined in Sections 7.2-7.4 (`react-router-dom`, `@tanstack/react-query`, `zustand`, `@mui/material`, `reactflow`, `recharts`) unless the spec is updated in the same change set.
+17. `apps/workflow-web/package.json` declares and uses the stack defined in Sections 7.2-7.4 (`react-router-dom`, `@tanstack/react-query`, `zustand`, `@mui/material`, `recharts`) unless the spec is updated in the same change set.
 18. SSE integration is implemented via a typed `EventSource` adapter that converts payloads to `WorkflowStreamFrame` and reconnects with `cursor=<lastSeenCursor>`.
 19. `/runs/:runId` layout satisfies Section 8.1 3-zone architecture at desktop width (`>=1280px`) and Section 8.4 stacked priority order below `1280px`.
 20. Awaiting human feedback requests are rendered with higher visual priority than responded/cancelled feedback entries.
@@ -652,15 +544,9 @@ The Logs panel displays structured log entries correlated with events/transition
 22. Event and log filters support the dimensions in Section 9.3, and log request serialization uses shared `GetRunLogsQuery` field names without local key remapping; panel filters remain independent unless an explicit link mode is enabled.
 23. Lifecycle and stream-health visual tokens are consistent across all panels and map to shared `WorkflowLifecycle` statuses plus stream-health states defined in Sections 8.3 and 10.2.
 24. Keyboard-only users can complete run list navigation, tree traversal, and feedback response submission with visible focus indicators.
-25. FSM graph projection is deterministic: node count equals definition state count, edge count equals definition transition count, and node/edge ids follow Section 8.5.1 formats.
-26. Graph layout uses `dagre` with `LR` direction at `>=1280px` and `TB` direction below `1280px`; stream updates do not trigger full graph relayout.
-27. Runtime overlay behavior matches Section 8.5.3 event mapping (`state.entered`, `transition.completed`, `transition.failed`) and updates graph state without page reload.
-28. Child-workflow launch annotations from definition metadata are visually represented on corresponding nodes/edges.
-29. Graph panel enters performance mode when the Section 8.5.5 threshold is exceeded and applies all required behaviors (animation reduction, zoom-gated labels, minimap, search).
-30. Runtime references to unknown states/transitions produce a visible graph-panel contract-mismatch indicator rather than being silently ignored.
 31. `packages/workflow-api-types` exists in the workspace and exports all transport contracts listed in Section 6.1.
 32. `GET /api/v1/workflows/runs/{runId}/feedback-requests` is consumed as a run-scoped discovery API and returns only feedback requests linked to the specified run.
-33. FSM contract invariants in Section 6.6 hold for each rendered definition: unique state IDs, stable transition ordering for a given definition version, and runtime state/transition references that resolve against the loaded definition.
+33. Definition metadata handling in Section 6.6 preserves shared-contract semantics and surfaces visible errors for invalid payloads.
 34. SSE processing uses wire semantics in Section 5.3 (`event: workflow-event`, `id=<cursor>`, `data=<WorkflowStreamFrame JSON>`) and persists cursor from accepted frame IDs.
 35. Stream resume boundary semantics are strictly greater-than cursor `sequence`; duplicate/out-of-order events do not regress rendered state (Section 5.5).
 36. Run-feedback discovery pagination uses Section 6.7 defaults/limits and stable ordering (`requestedAt DESC`, tie-break `feedbackRunId ASC`).
@@ -683,25 +569,12 @@ The Logs panel displays structured log entries correlated with events/transition
 53. Start workflow transport and error handling follow Sections 6.7 and 6.8 contracts.
 54. `@composable-workflow/workflow-api-types` exports `ListDefinitionsResponse`, `DefinitionSummary`, `StartWorkflowRequest`, and `StartWorkflowResponse` as listed in Section 6.1.
 55. Keyboard-only users can complete the start workflow flow (open form, select type, enter input, submit) with visible focus indicators.
-56. Child-launch nodes/edges in the FSM graph render an interactive drill-down affordance; activating it navigates to `#/runs/:childRunId` (if a matching child run exists in `RunTreeResponse`) or `#/definitions/:childWorkflowType` (if no child run exists).
-57. A breadcrumb navigation bar is visible above the FSM graph when viewing a child run reached via drill-down, showing the full ancestor path with clickable links back to each parent run's dashboard.
-58. Drill-down navigation pushes browser history entries; back/forward returns to the parent graph context.
-59. Child-run resolution for drill-down uses `RunTreeResponse` children matched by `childWorkflowType` from definition annotations; manual child run ID entry is not required.
-60. All `WorkflowDefinitionResponse.transitions` are rendered as directed edges with arrowheads between state nodes in the FSM graph; edge count equals transition count.
-61. Orphan states (present in `states` but absent from all `transitions[].from` and `transitions[].to`) are visually distinguished with dashed borders and grouped separately in the graph layout.
-62. States unreachable from the initial state via any transition path are rendered with muted/desaturated styling and a warning indicator.
-63. Parallel transitions (multiple transitions between the same `from`/`to` pair) are visually distinguishable (offset curves, distinct labels, or stacked edges) rather than collapsed into a single edge.
-64. Selecting a state node in the FSM graph highlights all directly connected inbound/outbound transitions and their source/target nodes; non-connected elements dim to reduced opacity.
-65. A graph-level summary indicator displays total state count, total transition count, unreachable state count, and terminal state count.
-66. Keyboard-only users can activate child-launch drill-down affordances in the FSM graph with visible focus indicators.
-67. When a child-launch state has been visited multiple times (looping FSM), the drill-down affordance presents an iteration selector listing each visit with iteration number, child run ID, lifecycle status, and timestamp; single-iteration states skip the selector.
-68. Iteration resolution uses `child.started` events from the parent run's event history filtered by the child-launch state, ordered by `sequence ASC`.
 69. The Transition History panel renders a linear chronological list of all transition-relevant events (`state.entered`, `transition.requested`, `transition.completed`, `transition.failed`, `child.started`, `child.completed`, `child.failed`) ordered by `sequence ASC`.
 70. Repeated visits to the same state in the Transition History panel display iteration counters (e.g., `StateA (visit 3)`) to distinguish loop iterations.
 71. Child state machine transitions appear inline in the parent's Transition History as collapsible sections; collapsed view shows a summary row (child workflow type, run ID, lifecycle, transition count); expanded view shows the full child transition history indented.
 72. Nested child state machines (children of children) render recursively with increasing indentation depth in the Transition History panel.
 73. Collapse/expand state for child transition sections is preserved across live stream updates.
-74. Selecting a transition entry in the Transition History panel highlights the corresponding node/edge in the FSM graph panel and scrolls the events timeline to the matching event.
+74. Selecting a transition entry in the Transition History panel scrolls the events timeline to the matching event.
 75. The Transition History panel respects time-range filters (`since`, `until`) when link-filters mode is enabled.
 76. Human feedback option selection uses single-select radio button controls; the UI never allows more than one option to be selected simultaneously, and never sends a `selectedOptionIds` array with more than one element.
 77. The Logs panel displays a limited initial window of entries (default `100` per `GetRunLogsQuery.limit`) and supports scroll-to-load-more or explicit pagination for additional entries; all log entries are not rendered at once.

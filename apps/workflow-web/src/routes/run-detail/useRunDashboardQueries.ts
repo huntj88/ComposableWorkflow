@@ -6,14 +6,12 @@ import {
   listRunFeedbackRequestsResponseSchema,
   runSummaryResponseSchema,
   runTreeResponseSchema,
-  workflowDefinitionResponseSchema,
   type CancelRunResponse,
   type ListRunFeedbackRequestsResponse,
   type RunEventsResponse,
   type RunLogsResponse,
   type RunSummaryResponse,
   type RunTreeResponse,
-  type WorkflowDefinitionResponse,
 } from '@composable-workflow/workflow-api-types';
 
 import { workflowApiClient } from '../../transport/workflowApiClient';
@@ -23,7 +21,7 @@ import {
   useRunDetailFilterStore,
 } from './state/filterStore';
 
-type DashboardPanelKey = 'summary' | 'tree' | 'events' | 'logs' | 'definition' | 'feedback';
+type DashboardPanelKey = 'summary' | 'tree' | 'events' | 'logs' | 'feedback';
 
 type DashboardPanelState<TData> = {
   data: TData | null;
@@ -36,7 +34,6 @@ type DashboardPanelsState = {
   tree: DashboardPanelState<RunTreeResponse>;
   events: DashboardPanelState<RunEventsResponse>;
   logs: DashboardPanelState<RunLogsResponse>;
-  definition: DashboardPanelState<WorkflowDefinitionResponse>;
   feedback: DashboardPanelState<ListRunFeedbackRequestsResponse>;
 };
 
@@ -73,7 +70,6 @@ const createInitialPanelsState = (): DashboardPanelsState => ({
   tree: createPanelState<RunTreeResponse>(),
   events: createPanelState<RunEventsResponse>(),
   logs: createPanelState<RunLogsResponse>(),
-  definition: createPanelState<WorkflowDefinitionResponse>(),
   feedback: createPanelState<ListRunFeedbackRequestsResponse>(),
 });
 
@@ -132,12 +128,6 @@ const getLogs = async (runId: string): Promise<RunLogsResponse> => {
   return workflowApiClient.getRunLogs(runId, toLogsTransportQuery(filters));
 };
 
-const getDefinition = (workflowType: string): Promise<WorkflowDefinitionResponse> =>
-  getJson(
-    `/api/v1/workflows/definitions/${encodeURIComponent(workflowType)}`,
-    workflowDefinitionResponseSchema,
-  );
-
 const getFeedback = (runId: string): Promise<ListRunFeedbackRequestsResponse> =>
   getJson(
     `/api/v1/workflows/runs/${runId}/feedback-requests?status=awaiting_response,responded&limit=50`,
@@ -190,7 +180,6 @@ export const useRunDashboardQueries = (runId: string): RunDashboardState => {
           tree: { data: null, isLoading: false, errorMessage: null },
           events: { data: null, isLoading: false, errorMessage: null },
           logs: { data: null, isLoading: false, errorMessage: null },
-          definition: { data: null, isLoading: false, errorMessage: null },
           feedback: { data: null, isLoading: false, errorMessage: null },
         }));
         setIsRefreshing(false);
@@ -249,34 +238,6 @@ export const useRunDashboardQueries = (runId: string): RunDashboardState => {
       }));
     }
 
-    if (summary !== null) {
-      try {
-        const definition = await getDefinition(summary.workflowType);
-        setPanels((previous) => ({
-          ...previous,
-          definition: { data: definition, isLoading: false, errorMessage: null },
-        }));
-      } catch (error) {
-        setPanels((previous) => ({
-          ...previous,
-          definition: {
-            data: null,
-            isLoading: false,
-            errorMessage: getErrorMessage(error, 'Failed to load workflow definition.'),
-          },
-        }));
-      }
-    } else {
-      setPanels((previous) => ({
-        ...previous,
-        definition: {
-          data: null,
-          isLoading: false,
-          errorMessage: 'Cannot load definition before run summary is available.',
-        },
-      }));
-    }
-
     try {
       const feedback = await getFeedback(runId);
       setPanels((previous) => ({
@@ -316,25 +277,7 @@ export const useRunDashboardQueries = (runId: string): RunDashboardState => {
           setPanels((previous) => ({
             ...previous,
             summary: { data: summary, isLoading: false, errorMessage: null },
-            definition: setLoadingPanel(previous.definition),
           }));
-
-          try {
-            const definition = await getDefinition(summary.workflowType);
-            setPanels((previous) => ({
-              ...previous,
-              definition: { data: definition, isLoading: false, errorMessage: null },
-            }));
-          } catch (error) {
-            setPanels((previous) => ({
-              ...previous,
-              definition: {
-                data: null,
-                isLoading: false,
-                errorMessage: getErrorMessage(error, 'Failed to load workflow definition.'),
-              },
-            }));
-          }
 
           setIsNotFound(false);
           setLastUpdatedAt(new Date().toISOString());
@@ -427,46 +370,6 @@ export const useRunDashboardQueries = (runId: string): RunDashboardState => {
         return;
       }
 
-      if (panel === 'definition') {
-        const workflowType = panels.summary.data?.workflowType;
-
-        setPanels((previous) => ({
-          ...previous,
-          definition: setLoadingPanel(previous.definition),
-        }));
-
-        if (!workflowType) {
-          setPanels((previous) => ({
-            ...previous,
-            definition: {
-              data: null,
-              isLoading: false,
-              errorMessage: 'Cannot load definition before run summary is available.',
-            },
-          }));
-          return;
-        }
-
-        try {
-          const definition = await getDefinition(workflowType);
-          setPanels((previous) => ({
-            ...previous,
-            definition: { data: definition, isLoading: false, errorMessage: null },
-          }));
-        } catch (error) {
-          setPanels((previous) => ({
-            ...previous,
-            definition: {
-              data: null,
-              isLoading: false,
-              errorMessage: getErrorMessage(error, 'Failed to load workflow definition.'),
-            },
-          }));
-        }
-
-        return;
-      }
-
       setPanels((previous) => ({ ...previous, feedback: setLoadingPanel(previous.feedback) }));
 
       try {
@@ -486,7 +389,7 @@ export const useRunDashboardQueries = (runId: string): RunDashboardState => {
         }));
       }
     },
-    [panels.summary.data?.workflowType, runId],
+    [runId],
   );
 
   const refreshAll = useCallback(async (): Promise<void> => {

@@ -1,27 +1,24 @@
-# WEB-11 - Integration Suite: Stream, Transport, Graph, and Contract Conformance
+# WEB-11 - Integration Suite: Stream, Transport, and Contract Conformance
 
 ## Depends On
 - `WEB-09`
 - `WEB-03`
 - `WEB-04`
-- `WEB-08`
 
 ## Objective
-Implement deterministic integration coverage for stream ordering/reconnect semantics, transport contract conformance, graph projection/layout/overlay/performance invariants, and spec-lock contract drift gates.
+Implement deterministic integration coverage for stream ordering/reconnect semantics, transport contract conformance, and spec-lock contract drift gates.
 
 ## Fixed Implementation Decisions
 - Contract conformance includes runtime + static lock tests.
-- Graph assertions are semantic and identity-based (not snapshots).
 - Stream tests explicitly exercise duplicate/out-of-order overlap windows.
 
 ## Interface/Schema Contracts
 - Shared transport/event contracts from `@composable-workflow/workflow-api-types`.
-- Graph and stream semantics from web spec Sections 5, 6.5-6.10, and 8.5.
+- Stream and transport semantics from web spec Sections 5, 6.5-6.10, and 9.3.
 
 ## Implementation Tasks
 - [x] Add stream integration tests for ordered patching, reconnect/dedup, unsupported variants, backoff constants, wire framing, and non-regression.
 - [x] Add transport conformance tests for DTO imports, signatures, endpoint/query serialization, and shared error mapping.
-- [x] Add graph integration tests for projection/layout/overlay/mismatch/performance/legend/selection/highlight behavior.
 - [x] Add spec-lock drift tests for server/web endpoint matrix and DTO authority constraints.
 - [x] Add integration tests for event/log defaults-max ordering semantics and event free-text matching domain behavior.
 - [x] Add spec-lock tests for shared API-types required export set and contract evolution-order enforcement.
@@ -29,7 +26,6 @@ Implement deterministic integration coverage for stream ordering/reconnect seman
 ## Required Artifacts
 - `apps/workflow-web/test/integration/stream/*.spec.ts`
 - `apps/workflow-web/test/integration/transport/*.spec.ts`
-- `apps/workflow-web/test/integration/graph/*.spec.ts`
 - `apps/workflow-web/test/integration/spec-lock/*.spec.ts`
 
 ## File Plan (Exact)
@@ -39,19 +35,8 @@ Implement deterministic integration coverage for stream ordering/reconnect seman
 - `apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-008.spec.ts`
 - `apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-009.spec.ts`
 - `apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-010.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-017.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-018.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-019.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-020.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-021.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-022.spec.ts`
 - `apps/workflow-web/test/integration/spec-lock/itx.web.spec-lock.ITX-WEB-023.spec.ts`
 - `apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-027.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-029.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-030.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-031.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-032.spec.ts`
-- `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-034.spec.ts`
 - `apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-036.spec.ts`
 - `apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-037.spec.ts`
 - `apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-038.spec.ts`
@@ -67,14 +52,13 @@ Implement deterministic integration coverage for stream ordering/reconnect seman
 
 ## Acceptance Criteria
 - Every assigned ITX case has a deterministic integration test file.
-- Transport/stream/graph invariants fail clearly on contract drift/regression.
+- Transport/stream invariants fail clearly on contract drift/regression.
 - Contract lock tests gate server-web shared endpoint/DTO parity.
 - Defaults/max bounds and ordering semantics for events/logs are asserted in transport integration scope.
 - Shared export-set and evolution-order lock tests fail on contract-process drift.
 
 ## Verification
 - `pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/stream/itx.web.stream.ITX-WEB-006.spec.ts`
-- `pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/graph/itx.web.graph.ITX-WEB-021.spec.ts`
 - `pnpm --filter @composable-workflow/workflow-web exec vitest run test/integration/spec-lock/itx.web.spec-lock.ITX-WEB-023.spec.ts`
 
 ## One-to-One Requirement Mapping
@@ -85,19 +69,8 @@ Implement deterministic integration coverage for stream ordering/reconnect seman
 | ITX-WEB-008 | `apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-008.spec.ts` | Unsupported stream variants fail visibly in dev/test. |
 | ITX-WEB-009 | `apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-009.spec.ts` | Shared DTO import/signature conformance is enforced. |
 | ITX-WEB-010 | `apps/workflow-web/test/integration/transport/itx.web.transport.ITX-WEB-010.spec.ts` | Absolute endpoint path and query key serialization contract is enforced. |
-| ITX-WEB-017 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-017.spec.ts` | Graph definition projection determinism is enforced. |
-| ITX-WEB-018 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-018.spec.ts` | Layout determinism and viewport preservation are enforced. |
-| ITX-WEB-019 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-019.spec.ts` | Overlay mapping and mismatch indicator behavior is enforced. |
-| ITX-WEB-020 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-020.spec.ts` | Child-launch annotation visualization is enforced. |
-| ITX-WEB-021 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-021.spec.ts` | Large-graph performance mode behavior is enforced. |
-| ITX-WEB-022 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-022.spec.ts` | FSM invariant violation surfacing is enforced. |
 | ITX-WEB-023 | `apps/workflow-web/test/integration/spec-lock/itx.web.spec-lock.ITX-WEB-023.spec.ts` | Web/server endpoint matrix drift is a hard failure. |
 | ITX-WEB-027 | `apps/workflow-web/test/integration/routes/itx.web.routes.ITX-WEB-027.spec.ts` | Exponential reconnect backoff behavior is deterministic. |
-| ITX-WEB-029 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-029.spec.ts` | Graph layout failure state and retry handling are enforced. |
-| ITX-WEB-030 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-030.spec.ts` | Graph legend and visual encoding semantics are enforced. |
-| ITX-WEB-031 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-031.spec.ts` | Time-decayed transition highlighting behavior is deterministic. |
-| ITX-WEB-032 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-032.spec.ts` | Graph node selection detail reveal is enforced. |
-| ITX-WEB-034 | `apps/workflow-web/test/integration/graph/itx.web.graph.ITX-WEB-034.spec.ts` | Theme defaults and error-token differentiation are enforced. |
 | ITX-WEB-036 | `apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-036.spec.ts` | SSE wire-frame contract handling is enforced. |
 | ITX-WEB-037 | `apps/workflow-web/test/integration/stream/itx.web.stream.ITX-WEB-037.spec.ts` | Duplicate/out-of-order non-regression behavior is enforced. |
 | ITX-WEB-038 | `apps/workflow-web/test/integration/feedback/itx.web.feedback.ITX-WEB-038.spec.ts` | Run-feedback pagination/default ordering contract is enforced. |

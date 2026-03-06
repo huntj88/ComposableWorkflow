@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 
 import type {
@@ -7,13 +7,10 @@ import type {
   RunLogsResponse,
   RunSummaryResponse,
   WorkflowLifecycle,
-  WorkflowStreamFrame,
 } from '@composable-workflow/workflow-api-types';
 
 import { EventsTimelinePanel } from './components/EventsTimelinePanel';
 import { ExecutionTreePanel } from './components/ExecutionTreePanel';
-import { FsmGraphPanel, type GraphDrilldownAncestor } from './components/FsmGraphPanel';
-import type { FsmGraphBreadcrumbItem } from './components/FsmGraphBreadcrumbs';
 import { HumanFeedbackPanel } from './components/HumanFeedbackPanel';
 import { LogsPanel } from './components/LogsPanel';
 import { RunSummaryPanel } from './components/RunSummaryPanel';
@@ -38,19 +35,6 @@ import { resolveStreamHealthToken } from '../../theme/tokens';
 
 const TERMINAL_LIFECYCLES = new Set(['completed', 'failed', 'cancelled']);
 
-const isGraphDrilldownAncestor = (value: unknown): value is GraphDrilldownAncestor => {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.runId === 'string' &&
-    typeof candidate.label === 'string' &&
-    (typeof candidate.workflowType === 'string' || candidate.workflowType === null)
-  );
-};
-
 const toInitialStreamDashboardState = (params: {
   summary: RunSummaryResponse | null;
   events: RunEventsResponse | null;
@@ -59,7 +43,6 @@ const toInitialStreamDashboardState = (params: {
 
 export const RunDetailPage = (): ReactElement => {
   const { runId } = useParams<{ runId: string }>();
-  const location = useLocation();
   const resetTransitionHistory = useTransitionHistoryStore((state) => state.reset);
 
   if (!runId) {
@@ -97,7 +80,6 @@ export const RunDetailPage = (): ReactElement => {
   const [streamHealthState, setStreamHealthState] = useState<StreamHealthState>('reconnecting');
   const [streamRequestError, setStreamRequestError] = useState<string | null>(null);
   const [streamUpdatedAt, setStreamUpdatedAt] = useState<string | null>(dashboard.lastUpdatedAt);
-  const [graphStreamFrames, setGraphStreamFrames] = useState<WorkflowStreamFrame[]>([]);
 
   // Track previous lifecycle for announcement diffing
   const prevLifecycleRef = useRef<string | null>(null);
@@ -112,7 +94,6 @@ export const RunDetailPage = (): ReactElement => {
       }),
     );
     setStreamUpdatedAt(dashboard.lastUpdatedAt);
-    setGraphStreamFrames([]);
   }, [
     dashboard.lastUpdatedAt,
     dashboard.panels.events.data,
@@ -157,7 +138,6 @@ export const RunDetailPage = (): ReactElement => {
 
         if (accepted) {
           setStreamUpdatedAt(new Date().toISOString());
-          setGraphStreamFrames((prev) => [...prev, frame]);
         }
 
         return accepted;
@@ -205,35 +185,6 @@ export const RunDetailPage = (): ReactElement => {
   }, [streamHealthState]);
 
   const streamHealthToken = resolveStreamHealthToken(streamHealthState);
-  const rawAncestors =
-    typeof location.state === 'object' &&
-    location.state !== null &&
-    Array.isArray((location.state as { graphAncestors?: unknown[] }).graphAncestors)
-      ? (location.state as { graphAncestors: unknown[] }).graphAncestors
-      : [];
-  const graphAncestors = rawAncestors
-    .filter(isGraphDrilldownAncestor)
-    .filter((ancestor) => ancestor.runId !== runId);
-  const currentGraphCrumb: GraphDrilldownAncestor = {
-    runId,
-    workflowType: summary?.workflowType ?? dashboard.panels.definition.data?.workflowType ?? null,
-    label:
-      (summary?.workflowType ?? dashboard.panels.definition.data?.workflowType)
-        ? `${summary?.workflowType ?? dashboard.panels.definition.data?.workflowType} · ${runId}`
-        : runId,
-  };
-  const graphBreadcrumbs: FsmGraphBreadcrumbItem[] = [
-    ...graphAncestors.map((ancestor, index) => ({
-      key: `${ancestor.runId}-${index}`,
-      label: ancestor.label,
-      to: `/runs/${ancestor.runId}`,
-      state: { graphAncestors: graphAncestors.slice(0, index) },
-    })),
-    {
-      key: `current-${runId}`,
-      label: currentGraphCrumb.label,
-    },
-  ];
 
   if (dashboard.isNotFound) {
     // B-WEB-055: Focus returns to /runs heading on not-found navigation
@@ -349,24 +300,6 @@ export const RunDetailPage = (): ReactElement => {
           isLoading={dashboard.panels.tree.isLoading}
           errorMessage={dashboard.panels.tree.errorMessage}
           onRetry={() => dashboard.retryPanel('tree')}
-        />
-      }
-      fsmGraph={
-        <FsmGraphPanel
-          runId={runId}
-          definition={dashboard.panels.definition.data}
-          tree={dashboard.panels.tree.data}
-          summary={summary}
-          events={events}
-          streamFrames={graphStreamFrames}
-          navigationContext={{
-            ancestors: graphAncestors,
-            current: currentGraphCrumb,
-            breadcrumbs: graphBreadcrumbs,
-          }}
-          isLoading={dashboard.panels.definition.isLoading}
-          errorMessage={dashboard.panels.definition.errorMessage}
-          onRetry={() => dashboard.retryPanel('definition')}
         />
       }
       transitionHistory={
