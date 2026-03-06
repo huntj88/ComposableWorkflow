@@ -14,7 +14,7 @@ Implement durable persistence for workflow definitions, runs, events, and option
   - `workflow_events`
   - `workflow_run_children` (required)
   - `workflow_snapshots` (optional optimization)
-  - migration `001_init_workflow_tables.ts` must mirror the `workflow_run_children` DDL contract in `docs/typescript-server-workflow-spec.md` section 7.3 (columns, PK/FK/unique, and indexes)
+  - migration `001_init_workflow_tables.ts` must mirror the `workflow_run_children` DDL contract in `docs/typescript-server-workflow-spec.md` section 3 (columns, PK/FK/unique, and indexes)
 - [x] Add indexes for:
   - event query path (`runId`, `sequence`, `eventType`, `timestamp`)
   - run listing filters (`lifecycle`, `workflowType`, time fields)

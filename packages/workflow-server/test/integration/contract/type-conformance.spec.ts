@@ -213,7 +213,7 @@ describe('integration.contract.type-conformance', () => {
     expect(parsed.data.eventId).toBe('evt_itx031_1');
   });
 
-  it('ITX-031 shared schemas parse canonical section 8 payload shapes', () => {
+  it('ITX-031 shared schemas parse canonical section 4 payload shapes', () => {
     startWorkflowRequestSchema.parse({
       workflowType: 'wf.test.section8',
       input: { k: 'v' },

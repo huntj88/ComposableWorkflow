@@ -32,9 +32,9 @@ interface StaticGraphDefinition {
 }
 
 const repoRoot = resolve(fileURLToPath(new URL('../../../../../', import.meta.url)));
-const serverSpecPath = resolve(
+const apiTypesSpecPath = resolve(
   repoRoot,
-  'packages/workflow-server/docs/typescript-server-workflow-spec.md',
+  'packages/workflow-api-types/docs/workflow-api-types-spec.md',
 );
 const webSpecPath = resolve(repoRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
 
@@ -181,17 +181,17 @@ const assertStableIdentityForVersion = (
 
 describe('integration.contract.graph-contract-lock-drift', () => {
   it('ITX-033 / B-CONTRACT-007 keeps graph identity semantics aligned across server spec, web spec, and shared contract exports', () => {
-    const serverSection101 = extractSection({
-      markdownPath: serverSpecPath,
-      sectionHeadingPrefix: '## 10.1 Static Graph Schema',
+    const apiTypesSection51 = extractSection({
+      markdownPath: apiTypesSpecPath,
+      sectionHeadingPrefix: '### 5.1 Static Graph Schema',
     });
-    const serverSection102 = extractSection({
-      markdownPath: serverSpecPath,
-      sectionHeadingPrefix: '## 10.2 Dynamic Overlay Schema',
+    const apiTypesSection52 = extractSection({
+      markdownPath: apiTypesSpecPath,
+      sectionHeadingPrefix: '### 5.2 Dynamic Overlay Schema',
     });
-    const serverSection103 = extractSection({
-      markdownPath: serverSpecPath,
-      sectionHeadingPrefix: '## 10.3 Cross-Spec Graph Contract Lock',
+    const apiTypesSection53 = extractSection({
+      markdownPath: apiTypesSpecPath,
+      sectionHeadingPrefix: '### 5.3 Cross-Spec Graph Contract Lock',
     });
     const webSection66 = extractSection({
       markdownPath: webSpecPath,
@@ -202,29 +202,29 @@ describe('integration.contract.graph-contract-lock-drift', () => {
       sectionHeadingPrefix: '### 8.5 FSM Graph Rendering Specification (Normative)',
     });
 
-    const serverDescriptor = toGraphDescriptor(
-      `${serverSection101}\n${serverSection102}\n${serverSection103}`,
+    const apiTypesDescriptor = toGraphDescriptor(
+      `${apiTypesSection51}\n${apiTypesSection52}\n${apiTypesSection53}`,
     );
     const webDescriptor = toGraphDescriptor(`${webSection66}\n${webSection85}`);
 
-    expect(serverDescriptor.mentionsInitialStateResolvable).toBe(true);
+    expect(apiTypesDescriptor.mentionsInitialStateResolvable).toBe(true);
     expect(webDescriptor.mentionsInitialStateResolvable).toBe(true);
-    expect(serverDescriptor.mentionsUniqueStateIdentifiers).toBe(true);
+    expect(apiTypesDescriptor.mentionsUniqueStateIdentifiers).toBe(true);
     expect(webDescriptor.mentionsUniqueStateIdentifiers).toBe(true);
-    expect(serverDescriptor.mentionsStableImmutableStateIdentifiers).toBe(true);
+    expect(apiTypesDescriptor.mentionsStableImmutableStateIdentifiers).toBe(true);
     expect(webDescriptor.mentionsStableImmutableStateIdentifiers).toBe(true);
-    expect(serverDescriptor.mentionsTransitionIdentityTuple).toBe(true);
+    expect(apiTypesDescriptor.mentionsTransitionIdentityTuple).toBe(true);
     expect(webDescriptor.mentionsTransitionIdentityTuple).toBe(true);
-    expect(serverDescriptor.mentionsTransitionOrderingDeterministic).toBe(true);
+    expect(apiTypesDescriptor.mentionsTransitionOrderingDeterministic).toBe(true);
     expect(webDescriptor.mentionsTransitionOrderingDeterministic).toBe(true);
-    expect(serverDescriptor.mentionsOverlayEventReferences).toBe(true);
+    expect(apiTypesDescriptor.mentionsOverlayEventReferences).toBe(true);
     expect(webDescriptor.mentionsOverlayEventReferences).toBe(true);
-    expect(serverDescriptor.mentionsUnknownReferenceViolation).toBe(true);
+    expect(apiTypesDescriptor.mentionsUnknownReferenceViolation).toBe(true);
     expect(webDescriptor.mentionsUnknownReferenceViolation).toBe(true);
-    expect(serverDescriptor.mentionsSequenceCursorDeterminism).toBe(true);
+    expect(apiTypesDescriptor.mentionsSequenceCursorDeterminism).toBe(true);
     expect(webDescriptor.mentionsSequenceCursorDeterminism).toBe(true);
     expect(
-      serverDescriptor.mentionsRuntimeCurrentStateResolution ||
+      apiTypesDescriptor.mentionsRuntimeCurrentStateResolution ||
         webDescriptor.mentionsRuntimeCurrentStateResolution,
     ).toBe(true);
 

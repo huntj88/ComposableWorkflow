@@ -35,7 +35,7 @@ Implement REST API endpoints and response contracts required for run control, ru
 - Unit tests cover API schema and projection helper logic that does not require live service wiring.
 
 ## Spec/Behavior Links
-- Spec: section 8, section 10.
+- Spec: section 4, `workflow-api-types-spec.md` §5.
 - Behaviors: `B-API-001..006`, `B-START-001`, `B-START-002`, `B-START-004`, `B-CHILD-003`, `B-API-005`.
 - Integration: `ITX-015`, `ITX-016`.
 

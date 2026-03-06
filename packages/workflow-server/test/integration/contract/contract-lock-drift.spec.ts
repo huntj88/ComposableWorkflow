@@ -13,9 +13,9 @@ type EndpointContractRow = {
 const HTTP_METHOD_PATTERN = /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+(.+)$/u;
 
 const repoRoot = resolve(fileURLToPath(new URL('../../../../../', import.meta.url)));
-const serverSpecPath = resolve(
+const apiTypesSpecPath = resolve(
   repoRoot,
-  'packages/workflow-server/docs/typescript-server-workflow-spec.md',
+  'packages/workflow-api-types/docs/workflow-api-types-spec.md',
 );
 const webSpecPath = resolve(repoRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
 
@@ -97,34 +97,34 @@ const normalizeRows = (rows: EndpointContractRow[]): string[] =>
   rows.map(toStableKey).sort((left, right) => left.localeCompare(right));
 
 describe('integration.contract.contract-lock-drift', () => {
-  it('ITX-032 / B-CONTRACT-004 keeps spec section 6.9.1 and web spec section 6.2 synchronized', () => {
-    const serverRows = parseContractLockRows({
-      markdownPath: serverSpecPath,
-      sectionHeadingPrefix: '## 6.9.1 Web SPA Endpoint Contract Lock',
+  it('ITX-032 / B-CONTRACT-004 keeps api-types spec section 2 and web spec section 6.2 synchronized', () => {
+    const apiTypesRows = parseContractLockRows({
+      markdownPath: apiTypesSpecPath,
+      sectionHeadingPrefix: '## 2) Web SPA Endpoint Contract Lock',
     });
     const webRows = parseContractLockRows({
       markdownPath: webSpecPath,
       sectionHeadingPrefix: '### 6.2 Endpoint Usage Matrix (Normative)',
     });
 
-    const normalizedServerRows = normalizeRows(serverRows);
+    const normalizedApiTypesRows = normalizeRows(apiTypesRows);
     const normalizedWebRows = normalizeRows(webRows);
 
-    if (JSON.stringify(normalizedServerRows) !== JSON.stringify(normalizedWebRows)) {
+    if (JSON.stringify(normalizedApiTypesRows) !== JSON.stringify(normalizedWebRows)) {
       const webSet = new Set(normalizedWebRows);
-      const serverSet = new Set(normalizedServerRows);
-      const onlyInServer = normalizedServerRows.filter((row) => !webSet.has(row));
-      const onlyInWeb = normalizedWebRows.filter((row) => !serverSet.has(row));
+      const apiTypesSet = new Set(normalizedApiTypesRows);
+      const onlyInApiTypes = normalizedApiTypesRows.filter((row) => !webSet.has(row));
+      const onlyInWeb = normalizedWebRows.filter((row) => !apiTypesSet.has(row));
 
       throw new Error(
         [
-          'Contract lock drift detected between docs/typescript-server-workflow-spec.md (6.9.1) and apps/workflow-web/docs/workflow-web-spec.md (6.2).',
-          `Only in server spec: ${onlyInServer.length === 0 ? '(none)' : onlyInServer.join('; ')}`,
+          'Contract lock drift detected between packages/workflow-api-types/docs/workflow-api-types-spec.md (Section 2) and apps/workflow-web/docs/workflow-web-spec.md (6.2).',
+          `Only in api-types spec: ${onlyInApiTypes.length === 0 ? '(none)' : onlyInApiTypes.join('; ')}`,
           `Only in web spec: ${onlyInWeb.length === 0 ? '(none)' : onlyInWeb.join('; ')}`,
         ].join('\n'),
       );
     }
 
-    expect(normalizedServerRows).toEqual(normalizedWebRows);
+    expect(normalizedApiTypesRows).toEqual(normalizedWebRows);
   });
 });

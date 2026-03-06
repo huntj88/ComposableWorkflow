@@ -7,23 +7,23 @@
 - `T23`
 
 ## Objective
-Create `packages/workflow-api-types` as the canonical shared transport contract package consumed by `workflow-server`, `workflow-cli`, and `workflow-web`. Extract all Section 8 endpoint request/response/query/event types into this package and wire all three consumers to import from `@composable-workflow/workflow-api-types`, eliminating local DTO redefinitions for covered endpoints.
+Create `packages/workflow-api-types` as the canonical shared transport contract package consumed by `workflow-server`, `workflow-cli`, and `workflow-web`. Extract all Section 4 endpoint request/response/query/event types into this package and wire all three consumers to import from `@composable-workflow/workflow-api-types`, eliminating local DTO redefinitions for covered endpoints.
 
 ## Fixed Implementation Decisions
 - Package is TypeScript-only, zero runtime dependencies, exports only types and zod schemas.
-- Minimum export set matches spec Section 6.9 exactly: `StartWorkflowRequest`, `StartWorkflowResponse`, `ListRunsResponse`, `RunSummaryResponse`, `RunTreeResponse`, `RunTreeNode`, `RunEventsResponse`, `WorkflowEventDto`, `EventCursor`, `GetRunLogsQuery`, `RunLogsResponse`, `WorkflowLogEntryDto`, `WorkflowDefinitionResponse`, `CancelRunResponse`, `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse`, `HumanFeedbackRequestStatusResponse`, `ListRunFeedbackRequestsQuery`, `ListRunFeedbackRequestsResponse`, `RunFeedbackRequestSummary`, `WorkflowStreamEvent`, `WorkflowStreamFrame`.
+- Minimum export set matches workflow-api-types-spec.md §1 exactly: `StartWorkflowRequest`, `StartWorkflowResponse`, `ListRunsResponse`, `RunSummaryResponse`, `RunTreeResponse`, `RunTreeNode`, `RunEventsResponse`, `WorkflowEventDto`, `EventCursor`, `GetRunLogsQuery`, `RunLogsResponse`, `WorkflowLogEntryDto`, `WorkflowDefinitionResponse`, `CancelRunResponse`, `SubmitHumanFeedbackResponseRequest`, `SubmitHumanFeedbackResponseResponse`, `HumanFeedbackRequestStatusResponse`, `ListRunFeedbackRequestsQuery`, `ListRunFeedbackRequestsResponse`, `RunFeedbackRequestSummary`, `WorkflowStreamEvent`, `WorkflowStreamFrame`.
 - Breaking changes to any exported contract require semver-major version bump.
 - Coordinated updates to endpoint path, payload shape, or event frame schema must land in: (1) `packages/workflow-api-types`, (2) `docs/typescript-server-workflow-spec.md`, (3) `apps/workflow-web/docs/workflow-web-spec.md`.
 - `zod` schemas already defined in `workflow-server` for matching contracts are moved (not duplicated) to `workflow-api-types` and re-exported from server as needed.
 
 ## Interface/Schema Contracts
-- All exported types/schemas must match the endpoint contracts documented in spec Sections 6.9, 6.9.1, and 8.
+- All exported types/schemas must match the endpoint contracts documented in workflow-api-types-spec.md §1–§2 and server spec Section 4.
 - SSE stream frame types (`WorkflowStreamFrame`, `WorkflowStreamEvent`) must be the single source of truth for both server emission and client parsing.
 - `EventCursor` is an opaque string type used by events pagination and stream resume surfaces.
 
 ## Implementation Tasks
 - [x] Create `packages/workflow-api-types` workspace package with `package.json`, `tsconfig.json`, and `src/index.ts`.
-- [x] Define and export all minimum-set transport types/schemas from spec Section 6.9.
+- [x] Define and export all minimum-set transport types/schemas from workflow-api-types-spec.md §1.
 - [x] Move applicable zod schemas from `workflow-server` API schemas into `workflow-api-types` (re-export from server to avoid breakage).
 - [x] Wire `packages/workflow-server` to import transport contracts from `@composable-workflow/workflow-api-types` in route handler/service boundaries.
 - [x] Wire `apps/workflow-cli` to import transport contracts from `@composable-workflow/workflow-api-types` for covered endpoints.
@@ -64,11 +64,11 @@ Create `packages/workflow-api-types` as the canonical shared transport contract 
 - `apps/workflow-web/package.json` (add `@composable-workflow/workflow-api-types` dependency)
 
 ## Acceptance Criteria
-- `packages/workflow-api-types` builds and exports all minimum-set types from spec Section 6.9.
+- `packages/workflow-api-types` builds and exports all minimum-set types from workflow-api-types-spec.md §1.
 - `workflow-server` route handler/service boundaries reference types from `@composable-workflow/workflow-api-types`.
 - `workflow-cli` compiles against shared contracts without local transport DTO declarations for covered endpoints.
 - `workflow-web` declares dependency and compiles (or stubs compile) against shared contracts.
-- No local transport DTO redefinitions exist in consumers for endpoints covered by Sections 6.9.1 and 8.
+- No local transport DTO redefinitions exist in consumers for endpoints covered by workflow-api-types-spec.md §2 and server spec Section 4.
 - Build/typecheck pipelines fail on missing or drifted shared contract exports.
 - SSE stream frame emission and parsing align to `WorkflowStreamFrame` / `WorkflowStreamEvent` exports.
 

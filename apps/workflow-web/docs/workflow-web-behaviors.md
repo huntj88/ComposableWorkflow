@@ -123,7 +123,7 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 - Global feedback listing endpoints are not required for dashboard discovery.
 
 ## B-WEB-014: Server and web endpoint/contract tables remain lockstep
-**Given** server spec Section 6.9.1 + 8 and web spec Section 6.2
+**Given** workflow-api-types-spec.md §2 + server spec Section 4 and web spec Section 6.2
 **When** compared in CI
 **Then** method/path/shared contract entries match exactly
 **And** drift is treated as contract failure

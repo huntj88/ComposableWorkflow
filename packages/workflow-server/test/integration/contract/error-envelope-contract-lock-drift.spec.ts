@@ -20,6 +20,10 @@ const serverSpecPath = resolve(
   repoRoot,
   'packages/workflow-server/docs/typescript-server-workflow-spec.md',
 );
+const apiTypesSpecPath = resolve(
+  repoRoot,
+  'packages/workflow-api-types/docs/workflow-api-types-spec.md',
+);
 const webSpecPath = resolve(repoRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
 
 const extractSection = (params: { markdownPath: string; sectionHeadingPrefix: string }): string => {
@@ -101,25 +105,25 @@ const getZodObjectKeys = (schema: unknown): string[] => {
 
 describe('integration.contract.error-envelope-contract-lock-drift', () => {
   it('ITX-034 / B-CONTRACT-006 keeps error contract semantics synchronized across server spec, web spec, and shared exports', () => {
-    const server80 = extractSection({
-      markdownPath: serverSpecPath,
-      sectionHeadingPrefix: '## 8.0 Error Envelope Contract (Normative)',
+    const errorEnvelopeSection = extractSection({
+      markdownPath: apiTypesSpecPath,
+      sectionHeadingPrefix: '## 4) Error Envelope Contract (Normative)',
     });
-    const server810 = extractSection({
+    const server410 = extractSection({
       markdownPath: serverSpecPath,
-      sectionHeadingPrefix: '## 8.10 Submit Human Feedback Response',
+      sectionHeadingPrefix: '### 4.10 Submit Human Feedback Response',
     });
     const web68 = extractSection({
       markdownPath: webSpecPath,
       sectionHeadingPrefix: '### 6.8 Error Contract Handling (Normative)',
     });
 
-    const serverDescriptor = toDescriptor(`${server80}\n${server810}`);
+    const serverDescriptor = toDescriptor(`${errorEnvelopeSection}\n${server410}`);
     const webDescriptor = toDescriptor(web68);
 
     if (JSON.stringify(serverDescriptor) !== JSON.stringify(webDescriptor)) {
       throwDrift(
-        'Error-contract drift detected between packages/workflow-server/docs/typescript-server-workflow-spec.md (8.0/8.10) and apps/workflow-web/docs/workflow-web-spec.md (6.8).',
+        'Error-contract drift detected between packages/workflow-api-types/docs/workflow-api-types-spec.md (§4) + packages/workflow-server/docs/typescript-server-workflow-spec.md (4.10) and apps/workflow-web/docs/workflow-web-spec.md (6.8).',
         serverDescriptor,
         webDescriptor,
       );

@@ -21,7 +21,7 @@ Implement near-real-time run event streaming via SSE.
 - Unit tests cover cursor and frame helper behavior for deterministic edge-case handling.
 
 ## Spec/Behavior Links
-- Spec: section 8.9.
+- Spec: section 4.9.
 - Behaviors: `B-API-006`.
 
 ## Fixed Implementation Decisions

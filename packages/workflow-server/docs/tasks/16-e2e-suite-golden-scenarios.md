@@ -41,7 +41,7 @@ Implement E2E acceptance suite that validates externally visible contracts and f
 
 ## Spec/Behavior Links
 - Behaviors: `B-*` entire document, `GS-001..005`.
-- Spec: section 14 testing strategy, section 16 acceptance criteria.
+- Spec: `docs/architecture.md` (testing strategy & acceptance criteria).
 
 ## Fixed Implementation Decisions
 - E2E runner: `vitest` with server process launched per suite and isolated test DB schema.

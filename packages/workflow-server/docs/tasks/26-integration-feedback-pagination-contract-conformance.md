@@ -15,7 +15,7 @@ Implement integration tests for run-scoped feedback discovery pagination/filter 
 
 ## Interface/Schema Contracts
 - ITX-030 tests the `GET /api/v1/workflows/runs/{runId}/feedback-requests` endpoint contract as defined in B-API-009.
-- ITX-031 verifies that all Section 8 endpoint handler/service boundaries import and type-conform to `@composable-workflow/workflow-api-types` exports.
+- ITX-031 verifies that all Section 4 endpoint handler/service boundaries import and type-conform to `@composable-workflow/workflow-api-types` exports.
 
 ## Implementation Tasks
 - [x] Implement ITX-030: Run-scoped feedback discovery pagination and filter behavior.
@@ -24,7 +24,7 @@ Implement integration tests for run-scoped feedback discovery pagination/filter 
   - Create feedback requests under a different parent run to verify scoping.
   - Assert: only run-lineage feedback requests returned; status filter works; sort order correct; cursor stable; no cross-run leakage.
 - [x] Implement ITX-031: Endpoint handler type conformance against `workflow-api-types`.
-  - For each Section 8 endpoint, verify server route handler/service boundaries import and type-conform to transport contracts from `@composable-workflow/workflow-api-types`.
+  - For each Section 4 endpoint, verify server route handler/service boundaries import and type-conform to transport contracts from `@composable-workflow/workflow-api-types`.
   - Check that `apps/workflow-cli` and `apps/workflow-web` consume shared contracts without local DTO redefinition.
   - Assert: all endpoints have matching shared contracts; build/typecheck fails on drift; SSE frames align to `WorkflowStreamFrame`.
 - [x] Update coverage matrix with new entries.
@@ -43,7 +43,7 @@ Implement integration tests for run-scoped feedback discovery pagination/filter 
 
 ## Acceptance Criteria
 - ITX-030: Pagination is stable under concurrent insertion; run-scoping prevents cross-run leakage; status/limit/cursor filters work correctly; sort order is `requested_at DESC`, tie-break `feedback_run_id ASC`.
-- ITX-031: All Section 8 endpoints have matching shared transport contracts; server/CLI/web type-conform to `workflow-api-types`; build/typecheck fails on missing or drifted exports.
+- ITX-031: All Section 4 endpoints have matching shared transport contracts; server/CLI/web type-conform to `workflow-api-types`; build/typecheck fails on missing or drifted exports.
 
 ## Verification
 - Command: `pnpm --filter @composable-workflow/workflow-server test:system -- run-scoped-pagination`
@@ -52,7 +52,7 @@ Implement integration tests for run-scoped feedback discovery pagination/filter 
   - Expected: ITX-031 type conformance assertions pass.
 
 ## Spec/Behavior Links
-- Spec: sections 6.9, 6.9.2, 8.
+- Spec: sections 6.9, 6.9.2, 4.
 - Behaviors: `B-API-009`, `B-CONTRACT-001`, `B-CONTRACT-002`, `B-CONTRACT-003`.
 - Integration: `ITX-030`, `ITX-031`.
 
@@ -60,4 +60,4 @@ Implement integration tests for run-scoped feedback discovery pagination/filter 
 | Requirement ID | Implementation Artifact | Verification Assertion |
 |---|---|---|
 | ITX-030 | `test/integration/human-feedback/run-scoped-pagination.spec.ts` | Run-scoped pagination stable; status filter correct; cross-run isolation enforced; sort order verified. |
-| ITX-031 | `test/integration/contract/type-conformance.spec.ts` | All Section 8 endpoint handlers type-conform to `workflow-api-types` exports; no local DTO redefinitions; build fails on drift. |
+| ITX-031 | `test/integration/contract/type-conformance.spec.ts` | All Section 4 endpoint handlers type-conform to `workflow-api-types` exports; no local DTO redefinitions; build fails on drift. |

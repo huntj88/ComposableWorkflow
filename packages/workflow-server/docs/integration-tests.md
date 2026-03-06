@@ -112,7 +112,7 @@ A behavior is integration-primary when one or more is true:
 - Loser path exits safely without mutating run state.
 - Lock release/reacquire works after completion/failure.
 
-**Related behaviors:** section 7.2 concurrency model, `B-LIFE-007`.
+**Related behaviors:** section 2 concurrency model, `B-LIFE-007`.
 
 ## ITX-004: Idempotency key dedupe transaction race
 **Why not E2E-only:** race window is narrow and flaky in black-box mode.
@@ -487,11 +487,11 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** compile-time and structural type conformance assertions require static analysis or type-level tests, not runtime API calls.
 
 **Setup**
-- For each Section 8 endpoint, verify that server route handler/service boundaries import and type-conform to transport contracts from `@composable-workflow/workflow-api-types`.
+- For each Section 4 endpoint, verify that server route handler/service boundaries import and type-conform to transport contracts from `@composable-workflow/workflow-api-types`.
 - Check that `apps/workflow-web` and `apps/workflow-cli` consume the same shared contracts without local DTO redefinition.
 
 **Assertions**
-- All Section 8 endpoints have matching shared transport contracts in `packages/workflow-api-types`.
+- All Section 4 endpoints have matching shared transport contracts in `packages/workflow-api-types`.
 - Server handler request/response types reference `workflow-api-types` exports (no local duplicate DTOs for covered endpoints).
 - `workflow-web` and `workflow-cli` compile against shared contracts without local transport DTO declarations for covered endpoints.
 - SSE stream frame emission and parsing aligns to `WorkflowStreamFrame` / `WorkflowStreamEvent` exports.
@@ -499,17 +499,17 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-CONTRACT-001`, `B-CONTRACT-002`, `B-CONTRACT-003`.
 
-## ITX-032: Contract lock drift test (Section 6.9.1 vs web spec Section 6.2)
+## ITX-032: Contract lock drift test (workflow-api-types-spec.md §2 vs web spec Section 6.2)
 **Why not E2E-only:** table comparison is a static validation concern, not a runtime behavior.
 
 **Setup**
-- Parse the endpoint contract lock table from `docs/typescript-server-workflow-spec.md` Section 6.9.1.
+- Parse the endpoint contract lock table from `packages/workflow-api-types/docs/workflow-api-types-spec.md` Section 2.
 - Parse the web spec endpoint matrix from `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2.
 
 **Assertions**
 - Method, path, and shared contract names match exactly between the two tables.
 - CI fails on any drift between the two tables.
-- No endpoint in Section 6.9.1 is missing from web spec Section 6.2 or vice versa.
+- No endpoint in workflow-api-types-spec.md Section 2 is missing from web spec Section 6.2 or vice versa.
 
 **Related behaviors:** `B-CONTRACT-004`.
 
@@ -517,7 +517,7 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** graph identity/overlay invariants require deterministic schema comparison and controlled invalid-reference assertions that are brittle in black-box-only flows.
 
 **Setup**
-- Parse and compare graph-contract sections across `docs/typescript-server-workflow-spec.md` Section 10 and `apps/workflow-web/docs/workflow-web-spec.md` Sections 6.6 and 8.5, and compare graph-identity contract surfaces exported by `@composable-workflow/workflow-api-types`.
+- Parse and compare graph-contract sections across `packages/workflow-api-types/docs/workflow-api-types-spec.md` Section 5 and `apps/workflow-web/docs/workflow-web-spec.md` Sections 6.6 and 8.5, and compare graph-identity contract surfaces exported by `@composable-workflow/workflow-api-types`.
 - Validate server-emitted runtime events/stream frames against registered definition metadata identifiers for a fixed workflow definition version.
 - Validate `RunSummaryResponse.currentState` against registered definition metadata identifiers for the same definition payload.
 
@@ -533,7 +533,7 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** error-contract lock and payload-shape assertions require deterministic static cross-spec comparison plus controlled covered-failure fixtures.
 
 **Setup**
-- Parse and compare error-contract sections across `docs/typescript-server-workflow-spec.md` Sections 8.0/8.10 and `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8, and compare error-contract exports from `@composable-workflow/workflow-api-types`.
+- Parse and compare error-contract sections across `packages/workflow-api-types/docs/workflow-api-types-spec.md` §4 + `packages/workflow-server/docs/typescript-server-workflow-spec.md` Section 4.10 and `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8, and compare error-contract exports from `@composable-workflow/workflow-api-types`.
 - Validate covered endpoint failure responses for `400`/`404` envelope handling and feedback submit `409` conflict payload semantics.
 - Implementation artifacts: `packages/workflow-server/test/integration/contract/error-envelope-contract-lock-drift.spec.ts`, `packages/workflow-server/test/integration/api/error-envelope-conformance.spec.ts`.
 
@@ -590,10 +590,10 @@ Integration suite is complete when:
    - human feedback response idempotency, projection transactionality, and option validation,
    - run-scoped feedback discovery pagination and filter behavior.
 4. Every integration-primary test maps to one or more `docs/behaviors.md` behavior IDs.
-5. Endpoint handler type conformance against `workflow-api-types` is verified for all Section 8 routes.
-6. Contract lock drift test confirms Section 6.9.1 and web spec Section 6.2 tables match exactly.
-7. Graph contract lock and runtime overlay reference conformance are verified for server spec Section 10 and web spec Sections 6.6/8.5.
-8. Error-envelope and feedback-conflict contract conformance are verified for server spec Sections 8.0/8.10 and web spec Section 6.8.
+5. Endpoint handler type conformance against `workflow-api-types` is verified for all Section 4 routes.
+6. Contract lock drift test confirms workflow-api-types-spec.md §2 and web spec Section 6.2 tables match exactly.
+7. Graph contract lock and runtime overlay reference conformance are verified for workflow-api-types-spec.md §5 and web spec Sections 6.6/8.5.
+8. Error-envelope and feedback-conflict contract conformance are verified for workflow-api-types-spec.md §4 + server spec Section 4.10 and web spec Section 6.8.
 
 ---
 

@@ -5,7 +5,7 @@
 - `T25`
 
 ## Objective
-Implement automated CI-verifiable contract lock drift tests between the endpoint contract lock table in `docs/typescript-server-workflow-spec.md` Section 6.9.1 and the web spec endpoint matrix in `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2. This ensures method, path, and shared contract names remain exactly synchronized across both documents.
+Implement automated CI-verifiable contract lock drift tests between the endpoint contract lock table in `workflow-api-types-spec.md` §2 and the web spec endpoint matrix in `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2. This ensures method, path, and shared contract names remain exactly synchronized across both documents.
 
 ## Fixed Implementation Decisions
 - Drift test is a static validation concern, not a runtime behavior test.
@@ -15,12 +15,12 @@ Implement automated CI-verifiable contract lock drift tests between the endpoint
 - Test fails on any drift: added/removed/modified rows in either table without matching update in the other.
 
 ## Interface/Schema Contracts
-- Section 6.9.1 table format: `| Capability | Method + Path | Shared Contract(s) |`
+- `workflow-api-types-spec.md` §2 table format: `| Capability | Method + Path | Shared Contract(s) |`
 - Web spec Section 6.2 table format: matches the same logical structure (method, path, contracts).
 - Comparison is structural (method + path + contracts), not cosmetic (capability label differences are tolerated).
 
 ## Implementation Tasks
-- [x] Implement contract lock drift test that parses spec Section 6.9.1 and web spec Section 6.2 tables.
+- [x] Implement contract lock drift test that parses `workflow-api-types-spec.md` §2 and web spec Section 6.2 tables.
 - [x] Assert exact match on method, path, and shared contract names between the two tables.
 - [x] Ensure test fails on any drift (added/removed/modified entries).
 - [x] Add test to CI pipeline as part of standard test suite.
@@ -47,12 +47,12 @@ Implement automated CI-verifiable contract lock drift tests between the endpoint
   - Expected: contract lock drift test passes when spec and web spec tables are synchronized.
 
 ## Spec/Behavior Links
-- Spec: sections 6.9.1, 6.9.2.
+- Spec: `workflow-api-types-spec.md` §2, section 6.9.2.
 - Behaviors: `B-CONTRACT-004`.
 - Integration: `ITX-032`.
 
 ## One-to-One Requirement Mapping
 | Requirement ID | Implementation Artifact | Verification Assertion |
 |---|---|---|
-| B-CONTRACT-004 | `test/integration/contract/contract-lock-drift.spec.ts` | Spec Section 6.9.1 and web spec Section 6.2 tables match exactly on method, path, and contract names. |
+| B-CONTRACT-004 | `test/integration/contract/contract-lock-drift.spec.ts` | `workflow-api-types-spec.md` §2 and web spec Section 6.2 tables match exactly on method, path, and contract names. |
 | ITX-032 | `test/integration/contract/contract-lock-drift.spec.ts` | CI fails on any drift between the two contract lock tables. |

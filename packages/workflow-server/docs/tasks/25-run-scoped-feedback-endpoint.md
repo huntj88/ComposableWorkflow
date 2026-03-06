@@ -26,7 +26,7 @@ Implement `GET /api/v1/workflows/runs/{runId}/feedback-requests` as a run-scoped
   - `limit`: optional integer (default `50`, max `200`).
   - `cursor`: optional opaque pagination cursor string.
 - Response body: `{ items: RunFeedbackRequestSummary[], nextCursor?: string }`.
-- `RunFeedbackRequestSummary` fields (per spec Section 8.12): `feedbackRunId`, `parentRunId`, `questionId`, `status`, `requestedAt`, `respondedAt?`, `cancelledAt?`, `respondedBy?`, `prompt`, `options`, `constraints`.
+- `RunFeedbackRequestSummary` fields (per spec Section 4.12): `feedbackRunId`, `parentRunId`, `questionId`, `status`, `requestedAt`, `respondedAt?`, `cancelledAt?`, `respondedBy?`, `prompt`, `options`, `constraints`.
 
 ## Implementation Tasks
 - [x] Use shared transport contracts from `@composable-workflow/workflow-api-types` for query/response typing in route handler/service boundaries; avoid local DTO declarations for covered endpoint contracts.

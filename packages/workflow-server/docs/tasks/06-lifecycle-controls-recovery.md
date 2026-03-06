@@ -7,7 +7,7 @@
 Implement exact lifecycle machine transitions and control endpoints with cooperative safe-point semantics and startup/manual reconciliation.
 
 ## Implementation Tasks
-- [x] Implement lifecycle transition guards exactly as spec section 11.1.
+- [x] Implement lifecycle transition guards exactly as spec section 6.1.
 - [x] Implement control endpoints:
   - `POST /api/v1/workflows/runs/{runId}/pause`
   - `POST /api/v1/workflows/runs/{runId}/resume`
@@ -37,7 +37,7 @@ Implement exact lifecycle machine transitions and control endpoints with coopera
 - Unit tests validate lifecycle transition legality independently from API transport concerns.
 
 ## Spec/Behavior Links
-- Spec: section 11, section 12.
+- Spec: section 6, section 7.
 - Behaviors: `B-LIFE-001..008`, `B-CHILD-004` (cancel propagation dependency).
 - Integration: `ITX-005`, `ITX-006`, `ITX-007`, `ITX-008`, `ITX-009`.
 

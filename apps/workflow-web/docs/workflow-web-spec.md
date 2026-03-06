@@ -173,8 +173,8 @@ Additional normative rules:
 - `409` submit responses are terminal conflicts and must include current feedback status plus terminal timestamp metadata (`respondedAt` or `cancelledAt`) for conflict rendering.
 
 ### 6.4 Cross-Spec Consistency Rules
-- Section 6.2 of this spec and Sections 6.9.1 + 8 of `packages/workflow-server/docs/typescript-server-workflow-spec.md` must stay path- and contract-consistent for web-visible endpoints.
-- Section 6.6 + 8.5 of this spec and Section 10 of `packages/workflow-server/docs/typescript-server-workflow-spec.md` must stay consistent for FSM identity and overlay semantics.
+- Section 6.2 of this spec and workflow-api-types-spec.md §2 + server spec Section 4 of `packages/workflow-server/docs/typescript-server-workflow-spec.md` must stay path- and contract-consistent for web-visible endpoints.
+- Section 6.6 + 8.5 of this spec and workflow-api-types-spec.md §5 must stay consistent for FSM identity and overlay semantics.
 - Contract evolution order: `packages/workflow-api-types` -> server spec + server handlers -> web spec + web client usage.
 - Any endpoint/path/payload change is incomplete until both specs reflect the same contract.
 

@@ -11,9 +11,9 @@ type EndpointMatrixEntry = {
 const workspaceRoot = resolve(import.meta.dirname, '../../../../..');
 
 const webSpecPath = resolve(workspaceRoot, 'apps/workflow-web/docs/workflow-web-spec.md');
-const serverSpecPath = resolve(
+const apiTypesSpecPath = resolve(
   workspaceRoot,
-  'packages/workflow-server/docs/typescript-server-workflow-spec.md',
+  'packages/workflow-api-types/docs/workflow-api-types-spec.md',
 );
 
 const extractTableRows = (content: string, sectionTitle: string): string[] => {
@@ -57,17 +57,17 @@ const parseEndpointMatrix = (rows: string[]): EndpointMatrixEntry[] =>
     .sort((left, right) => left.methodPath.localeCompare(right.methodPath));
 
 describe('integration.spec-lock.ITX-WEB-023', () => {
-  it('keeps web Section 6.2 endpoint matrix aligned with server Section 6.9.1', () => {
+  it('keeps web Section 6.2 endpoint matrix aligned with api-types spec Section 2', () => {
     const webSpec = readFileSync(webSpecPath, 'utf8');
-    const serverSpec = readFileSync(serverSpecPath, 'utf8');
+    const apiTypesSpec = readFileSync(apiTypesSpecPath, 'utf8');
 
     const webRows = extractTableRows(webSpec, '### 6.2 Endpoint Usage Matrix (Normative)');
-    const serverRows = extractTableRows(serverSpec, '## 6.9.1 Web SPA Endpoint Contract Lock');
+    const apiTypesRows = extractTableRows(apiTypesSpec, '## 2) Web SPA Endpoint Contract Lock');
 
     const webMatrix = parseEndpointMatrix(webRows);
-    const serverMatrix = parseEndpointMatrix(serverRows);
+    const apiTypesMatrix = parseEndpointMatrix(apiTypesRows);
 
-    expect(webMatrix).toEqual(serverMatrix);
+    expect(webMatrix).toEqual(apiTypesMatrix);
     expect(webMatrix.every((entry) => entry.methodPath.includes('/api/v1'))).toBe(true);
   });
 });

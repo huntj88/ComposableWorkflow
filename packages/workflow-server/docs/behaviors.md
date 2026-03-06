@@ -508,8 +508,8 @@ Security and multi-tenancy are not goals of this project and are intentionally e
 
 ## 13) Shared API Contract Behaviors (`workflow-api-types`)
 
-## B-CONTRACT-001: Server imports shared transport contracts for all Section 8 endpoints
-**Given** `packages/workflow-api-types` exports transport request/response/query/event types for all Section 8 endpoints
+## B-CONTRACT-001: Server imports shared transport contracts for all Section 4 endpoints
+**Given** `packages/workflow-api-types` exports transport request/response/query/event types for all Section 4 endpoints
 **When** `workflow-server` compiles and serves those endpoints
 **Then** route handler/service boundaries reference types from `@composable-workflow/workflow-api-types`
 **And** no local transport DTO redefinitions exist for covered endpoints
@@ -517,7 +517,7 @@ Security and multi-tenancy are not goals of this project and are intentionally e
 ## B-CONTRACT-002: CLI and web consume shared contracts without local duplication
 **Given** `apps/workflow-cli` and `apps/workflow-web` depend on `@composable-workflow/workflow-api-types`
 **When** those consumers compile against covered endpoint contracts
-**Then** no local transport DTO interfaces/types are declared for endpoints covered by Sections 6.9.1 and 8
+**Then** no local transport DTO interfaces/types are declared for endpoints covered by workflow-api-types-spec.md Sections 2 and server spec Section 4
 **And** typecheck/build fails on missing or drifted shared contract exports
 
 ## B-CONTRACT-003: SSE stream frames use WorkflowStreamFrame contract
@@ -527,7 +527,7 @@ Security and multi-tenancy are not goals of this project and are intentionally e
 **And** client adapters do not define local mirror interfaces for stream frames
 
 ## B-CONTRACT-004: Endpoint contract lock matches web spec exactly
-**Given** the endpoint contract lock table in spec Section 6.9.1
+**Given** the endpoint contract lock table in workflow-api-types-spec.md Section 2
 **And** the web spec endpoint matrix in `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2
 **When** both tables are compared
 **Then** method, path, and shared contract names match exactly
@@ -546,9 +546,9 @@ Security and multi-tenancy are not goals of this project and are intentionally e
 **And** implementation is not considered complete until all three are updated
 
 ## B-CONTRACT-007: Graph identity and overlay semantics stay cross-spec aligned
-**Given** graph identity and overlay semantics are defined in server spec Section 10 and web spec Sections 6.6 and 8.5
+**Given** graph identity and overlay semantics are defined in workflow-api-types-spec.md §5 and web spec Sections 6.6 and 8.5
 **When** graph contracts, transition ordering semantics, or overlay event-reference semantics change
-**Then** updates are coordinated across `packages/workflow-api-types`, server spec Section 10, and web spec Sections 6.6 and 8.5
+**Then** updates are coordinated across `packages/workflow-api-types`, workflow-api-types-spec.md §5, and web spec Sections 6.6 and 8.5
 **And** CI drift checks fail when those graph contract artifacts diverge, including drift against graph identity surfaces exported by `@composable-workflow/workflow-api-types`
 
 ---
@@ -666,7 +666,7 @@ Must assert:
 2. Dynamic loading + start by type → `B-LOAD-001`, `B-START-001`.
 3. Parent launches child and awaits typed result → `B-CHILD-001`.
 4. API exposes current state, children, linear events → `B-API-001`, `B-API-002`, `B-CHILD-003`.
-5. API exposes definition + runtime data satisfying Section 10 invariants → `B-API-005`, `B-API-010`, dynamic endpoints (`B-API-001..003`, `B-API-006`).
+5. API exposes definition + runtime data satisfying workflow-api-types-spec.md §5 invariants → `B-API-005`, `B-API-010`, dynamic endpoints (`B-API-001..003`, `B-API-006`).
 6. Logging/telemetry hooks for major operations → `B-OBS-001..003`.
 7. Workflow command execution + policy + observability → `B-CMD-001..004`.
 8. User CLI independent of workflow step commands → `B-CLI-001..004`.
@@ -678,8 +678,8 @@ Must assert:
 14. API endpoints documented with consistent absolute `/api/v1` path prefixes → all `B-API-*` behaviors verify absolute paths.
 15. API contract updates versioned via `workflow-api-types` with semver-major for breaking changes → `B-CONTRACT-005`.
 16. Run-scoped feedback discovery endpoint returns paginated data → `B-API-009`.
-17. Every Section 8 endpoint has matching shared transport contract → `B-CONTRACT-001`, `B-CONTRACT-002`.
-18. Endpoints and shared contracts in Section 6.9.1 match web spec Section 6.2 exactly → `B-CONTRACT-004`.
+17. Every Section 4 endpoint has matching shared transport contract → `B-CONTRACT-001`, `B-CONTRACT-002`.
+18. Endpoints and shared contracts in workflow-api-types-spec.md Section 2 match web spec Section 6.2 exactly → `B-CONTRACT-004`.
 19. CI fails on contract drift between spec and `workflow-api-types` → `B-CONTRACT-004`, `B-CONTRACT-006`.
 20. Feedback requests endpoint enforces run-scoped filtering → `B-API-009`.
 21. Server graph contracts stay aligned with web graph requirements and shared exports → `B-API-010`, `B-CONTRACT-007`.
