@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  errorEnvelopeSchema,
+  startWorkflowResponseSchema,
+} from '@composable-workflow/workflow-api-types';
+import {
   createSharedPostgresTestContainer,
   type PostgresTestContainerHandle,
 } from '../../harness/postgres-container.js';
@@ -11,6 +15,8 @@ import { createPool } from '../../../src/persistence/db.js';
 import { createReconcileService } from '../../../src/recovery/reconcile-service.js';
 import { createStartupReconcileController } from '../../../src/recovery/startup-reconcile.js';
 import { createWorkflowRegistry } from '../../../src/registry/workflow-registry.js';
+
+const parseErrorEnvelope = (payload: unknown) => errorEnvelopeSchema.parse(payload);
 
 describe('api start and summary', () => {
   let postgres: PostgresTestContainerHandle | undefined;
@@ -79,22 +85,53 @@ describe('api start and summary', () => {
       },
     });
     expect(unknownStart.statusCode).toBe(404);
+    const unknownEnvelope = parseErrorEnvelope(unknownStart.json());
+    expect(unknownEnvelope.code).toBe('WORKFLOW_TYPE_NOT_FOUND');
+    expect(unknownEnvelope.message).toContain('Unknown workflow type');
+    expect(unknownEnvelope.requestId.length).toBeGreaterThan(0);
+    expect(unknownEnvelope.details).toBeUndefined();
+
+    const invalidStart = await server.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/start',
+      payload: {
+        workflowType: '   ',
+        input: {},
+      },
+    });
+    expect(invalidStart.statusCode).toBe(400);
+    const invalidEnvelope = parseErrorEnvelope(invalidStart.json());
+    expect(invalidEnvelope.code).toBe('VALIDATION_ERROR');
+    expect(invalidEnvelope.message).toBe('Request validation failed');
+    expect(invalidEnvelope.requestId.length).toBeGreaterThan(0);
+    expect(Array.isArray(invalidEnvelope.details?.issues)).toBe(true);
 
     try {
+      const startPayload = {
+        workflowType: 'wf.api.simple',
+        input: { key: 'value' },
+        idempotencyKey: 'idem-start-and-summary',
+      };
       const startResponse = await server.inject({
         method: 'POST',
         url: '/api/v1/workflows/start',
-        payload: {
-          workflowType: 'wf.api.simple',
-          input: { key: 'value' },
-        },
+        payload: startPayload,
       });
 
       expect(startResponse.statusCode).toBe(201);
-      const started = startResponse.json();
+      const started = startWorkflowResponseSchema.parse(startResponse.json());
       expect(started.workflowType).toBe('wf.api.simple');
       expect(started.lifecycle).toBe('running');
       expect(typeof started.startedAt).toBe('string');
+
+      const duplicateStart = await server.inject({
+        method: 'POST',
+        url: '/api/v1/workflows/start',
+        payload: startPayload,
+      });
+      expect(duplicateStart.statusCode).toBe(200);
+      const duplicate = startWorkflowResponseSchema.parse(duplicateStart.json());
+      expect(duplicate).toEqual(started);
 
       const summaryResponse = await server.inject({
         method: 'GET',

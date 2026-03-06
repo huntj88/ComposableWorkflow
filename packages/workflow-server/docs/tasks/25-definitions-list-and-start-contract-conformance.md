@@ -37,14 +37,14 @@ This task ensures implementation and tests match:
   - failure: `404 WORKFLOW_TYPE_NOT_FOUND` (`ErrorEnvelope`), `400` (`ErrorEnvelope`).
 
 ## Implementation Tasks
-- [ ] Add server route handler for `GET /api/v1/workflows/definitions` and register it in API composition.
-- [ ] Source definitions from registered + persisted definitions as implemented policy dictates and normalize to `DefinitionSummary`.
-- [ ] Enforce deterministic ordering by `workflowType ASC`.
-- [ ] Validate route response with `listDefinitionsResponseSchema` from `@composable-workflow/workflow-api-types`.
-- [ ] Add integration test for ITX-035 list-definitions ordering + contract conformance.
-- [ ] Extend Section 4 endpoint handler type-conformance assertions to include `GET /api/v1/workflows/definitions` and shared list-definition contracts.
-- [ ] Tighten existing start endpoint tests to explicitly assert `200` idempotent status and required `ErrorEnvelope` fields for covered failures.
-- [ ] Update coverage matrix ownership for `B-API-011` and `ITX-035`.
+- [x] Add server route handler for `GET /api/v1/workflows/definitions` and register it in API composition.
+- [x] Source definitions from registered + persisted definitions as implemented policy dictates and normalize to `DefinitionSummary`.
+- [x] Enforce deterministic ordering by `workflowType ASC`.
+- [x] Validate route response with `listDefinitionsResponseSchema` from `@composable-workflow/workflow-api-types`.
+- [x] Add integration test for ITX-035 list-definitions ordering + contract conformance.
+- [x] Extend Section 4 endpoint handler type-conformance assertions to include `GET /api/v1/workflows/definitions` and shared list-definition contracts.
+- [x] Tighten existing start endpoint tests to explicitly assert `200` idempotent status and required `ErrorEnvelope` fields for covered failures.
+- [x] Update coverage matrix ownership for `B-API-011` and `ITX-035`.
 
 ## Required Artifacts
 - `packages/workflow-server/src/api/routes/definitions.ts`

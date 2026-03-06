@@ -1,11 +1,20 @@
 import type { FastifyInstance } from 'fastify';
 
-import { workflowDefinitionResponseSchema } from '@composable-workflow/workflow-api-types';
+import {
+  definitionSummarySchema,
+  workflowDefinitionResponseSchema,
+} from '@composable-workflow/workflow-api-types';
 
 import type { WorkflowRegistration } from '../../registry/workflow-registry.js';
 import { ApiError, type ApiServerDependencies } from '../server.js';
-import { errorEnvelopeSchema } from '../schemas.js';
+import { errorEnvelopeSchema, listDefinitionsResponseSchema } from '../schemas.js';
 import type { RuntimeWorkflowContext } from '../../registry/runtime-types.js';
+
+interface PersistedDefinitionRow {
+  workflow_type: string;
+  workflow_version: string;
+  metadata_jsonb: Record<string, unknown> | null;
+}
 
 const createInspectionContext = (
   workflowType: string,
@@ -48,6 +57,62 @@ export const inspectRegistrationDefinition = (registration: WorkflowRegistration
     transitions: [...(definition.transitions ?? [])],
     childLaunchAnnotations: metadataAnnotations,
   };
+};
+
+const normalizeDefinitionMetadata = (
+  metadata: Record<string, unknown>,
+): Record<string, unknown> | undefined => {
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+};
+
+const buildRegistrationMetadata = (
+  registration: WorkflowRegistration,
+): Record<string, unknown> => ({
+  ...(registration.metadata ?? {}),
+  packageName: registration.packageName,
+  packageVersion: registration.packageVersion,
+  source: registration.source,
+  sourceValue: registration.sourceValue,
+});
+
+const summarizeRegistrationDefinition = (registration: WorkflowRegistration) => {
+  return definitionSummarySchema.parse({
+    workflowType: registration.workflowType,
+    workflowVersion: registration.workflowVersion,
+    metadata: normalizeDefinitionMetadata(buildRegistrationMetadata(registration)),
+  });
+};
+
+const summarizePersistedDefinition = (row: PersistedDefinitionRow) => {
+  return definitionSummarySchema.parse({
+    workflowType: row.workflow_type,
+    workflowVersion: row.workflow_version,
+    metadata: normalizeDefinitionMetadata(row.metadata_jsonb ?? {}),
+  });
+};
+
+const listDefinitionSummaries = async (deps: ApiServerDependencies) => {
+  const persistedDefinitions = await deps.pool.query<PersistedDefinitionRow>(
+    `
+SELECT workflow_type, workflow_version, metadata_jsonb
+FROM workflow_definitions
+ORDER BY workflow_type ASC
+`,
+  );
+
+  const summaries = new Map<string, ReturnType<typeof summarizePersistedDefinition>>();
+
+  for (const row of persistedDefinitions.rows) {
+    summaries.set(row.workflow_type, summarizePersistedDefinition(row));
+  }
+
+  for (const registration of deps.registry.list()) {
+    summaries.set(registration.workflowType, summarizeRegistrationDefinition(registration));
+  }
+
+  return [...summaries.values()].sort((left, right) =>
+    left.workflowType.localeCompare(right.workflowType),
+  );
 };
 
 const parseMetadataStates = (metadata: Record<string, unknown>): string[] => {
@@ -105,6 +170,22 @@ export const registerDefinitionRoutes = async (
   deps: ApiServerDependencies,
 ): Promise<void> => {
   server.get(
+    '/api/v1/workflows/definitions',
+    {
+      schema: {
+        response: {
+          200: listDefinitionsResponseSchema,
+        },
+      },
+    },
+    async () => {
+      return listDefinitionsResponseSchema.parse({
+        items: await listDefinitionSummaries(deps),
+      });
+    },
+  );
+
+  server.get(
     '/api/v1/workflows/definitions/:workflowType',
     {
       schema: {
@@ -126,13 +207,7 @@ export const registerDefinitionRoutes = async (
           states: inspected.states,
           transitions: inspected.transitions,
           childLaunchAnnotations: inspected.childLaunchAnnotations,
-          metadata: {
-            ...(registration.metadata ?? {}),
-            packageName: registration.packageName,
-            packageVersion: registration.packageVersion,
-            source: registration.source,
-            sourceValue: registration.sourceValue,
-          },
+          metadata: buildRegistrationMetadata(registration),
         });
       }
 

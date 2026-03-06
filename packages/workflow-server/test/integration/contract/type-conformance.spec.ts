@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import {
+  definitionSummarySchema,
   humanFeedbackRequestStatusResponseSchema,
+  listDefinitionsResponseSchema,
   listRunFeedbackRequestsResponseSchema,
   listRunsResponseSchema,
   runEventsResponseSchema,
@@ -18,7 +20,9 @@ import {
   workflowDefinitionResponseSchema,
   workflowEventDtoSchema,
   workflowStreamFrameSchema,
+  type DefinitionSummary,
   type HumanFeedbackRequestStatusResponse,
+  type ListDefinitionsResponse,
   type ListRunFeedbackRequestsResponse,
   type ListRunsResponse,
   type RunEventsResponse,
@@ -58,7 +62,11 @@ import { registerHumanFeedbackRoutes } from '../../../src/api/routes/human-feedb
 import { registerRunFeedbackRequestRoutes } from '../../../src/api/routes/run-feedback-requests.js';
 import { getRunSummaryById, registerRunRoutes } from '../../../src/api/routes/runs.js';
 import { registerWorkflowRoutes } from '../../../src/api/routes/workflows.js';
-import { startWorkflowBodySchema } from '../../../src/api/schemas.js';
+import {
+  definitionSummarySchema as serverDefinitionSummarySchema,
+  listDefinitionsResponseSchema as serverListDefinitionsResponseSchema,
+  startWorkflowBodySchema,
+} from '../../../src/api/schemas.js';
 import type { ApiServerDependencies } from '../../../src/api/server.js';
 import { registerSseRunRoute, serializeWorkflowEventFrame } from '../../../src/stream/sse-route.js';
 
@@ -74,11 +82,23 @@ type IsExact<Left, Right> =
 export type ServerStartRequestConforms = Assert<
   IsExact<z.infer<typeof startWorkflowBodySchema>, StartWorkflowRequest>
 >;
+export type ServerDefinitionSummaryConforms = Assert<
+  IsExact<z.infer<typeof serverDefinitionSummarySchema>, DefinitionSummary>
+>;
+export type ServerListDefinitionsResponseConforms = Assert<
+  IsExact<z.infer<typeof serverListDefinitionsResponseSchema>, ListDefinitionsResponse>
+>;
 export type SharedStartRequestConforms = Assert<
   IsExact<z.infer<typeof startWorkflowRequestSchema>, StartWorkflowRequest>
 >;
 export type SharedStartResponseConforms = Assert<
   IsExact<z.infer<typeof startWorkflowResponseSchema>, StartWorkflowResponse>
+>;
+export type SharedDefinitionSummaryConforms = Assert<
+  IsExact<z.infer<typeof definitionSummarySchema>, DefinitionSummary>
+>;
+export type SharedListDefinitionsConforms = Assert<
+  IsExact<z.infer<typeof listDefinitionsResponseSchema>, ListDefinitionsResponse>
 >;
 export type SharedListRunsConforms = Assert<
   IsExact<z.infer<typeof listRunsResponseSchema>, ListRunsResponse>
@@ -159,7 +179,7 @@ export type CliFollowChunkUsesSharedEvents = Assert<
 >;
 export type WebStreamFrameConforms = Assert<IsExact<WorkflowWebStreamFrame, WorkflowStreamFrame>>;
 
-const section8RouteRegistrars = [
+const section4RouteRegistrars = [
   registerWorkflowRoutes,
   registerRunRoutes,
   registerRunFeedbackRequestRoutes,
@@ -169,7 +189,7 @@ const section8RouteRegistrars = [
   registerSseRunRoute,
 ] satisfies Array<(server: FastifyInstance, deps: ApiServerDependencies) => Promise<void>>;
 
-export const routeRegistrarCount: 7 = section8RouteRegistrars.length as 7;
+export const routeRegistrarCount: 7 = section4RouteRegistrars.length as 7;
 export const getRunSummaryReturnType: Promise<RunSummaryResponse | null> =
   null as unknown as ReturnType<typeof getRunSummaryById>;
 
@@ -214,6 +234,19 @@ describe('integration.contract.type-conformance', () => {
   });
 
   it('ITX-031 shared schemas parse canonical section 4 payload shapes', () => {
+    listDefinitionsResponseSchema.parse({
+      items: [
+        {
+          workflowType: 'server.human-feedback.v1',
+          workflowVersion: '1.0.0',
+          metadata: {
+            packageName: '@composable-workflow/workflow-server-internal',
+            source: 'bundle',
+          },
+        },
+      ],
+    });
+
     startWorkflowRequestSchema.parse({
       workflowType: 'wf.test.section8',
       input: { k: 'v' },

@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 import {
+  definitionSummarySchema,
   errorEnvelopeSchema,
+  listDefinitionsResponseSchema,
   listRunsResponseSchema,
   runEventsResponseSchema,
   runLogsResponseSchema,
@@ -17,7 +19,7 @@ import {
 
 const isoDateTime = z.string().datetime({ offset: true });
 
-export { errorEnvelopeSchema };
+export { definitionSummarySchema, errorEnvelopeSchema, listDefinitionsResponseSchema };
 
 const commaSeparatedTextList = z.preprocess(
   (value) => {
