@@ -340,10 +340,13 @@ describe('delegateToCopilot - copilotPromptOptions forwarding', () => {
     const request = buildDelegationRequest(
       TEMPLATE_IDS.expandClarification,
       {
+        request: 'Build app',
+        specPath: 'specs/current.md',
         sourceQuestionId: 'q-1',
         sourceQuestionPrompt: 'Pick one',
         sourceOptionsJson: '[]',
-        clarifyingQuestionText: 'What about X?',
+        customQuestionText: 'What about X?',
+        intent: 'clarifying-question',
       },
       'ExpandQuestionWithClarification',
       opts,
@@ -555,10 +558,13 @@ describe('delegateToCopilot - observability logging', () => {
     const request = buildDelegationRequest(
       TEMPLATE_IDS.expandClarification,
       {
+        request: 'Build app',
+        specPath: 'specs/current.md',
         sourceQuestionId: 'q-1',
         sourceQuestionPrompt: 'Pick one',
         sourceOptionsJson: '[]',
-        clarifyingQuestionText: 'Can you clarify?',
+        customQuestionText: 'Can you clarify?',
+        intent: 'clarifying-question',
       },
       'ExpandQuestionWithClarification',
     );
@@ -630,10 +636,13 @@ describe('delegateToCopilot - all four templates', () => {
       label: 'ExpandQuestionWithClarification',
       templateId: TEMPLATE_IDS.expandClarification,
       variables: {
+        request: 'Build app',
+        specPath: 'specs/current.md',
         sourceQuestionId: 'q-1',
         sourceQuestionPrompt: 'Pick one',
         sourceOptionsJson: '[]',
-        clarifyingQuestionText: 'Clarify please',
+        customQuestionText: 'Clarify please',
+        intent: 'clarifying-question',
       },
       state: 'ExpandQuestionWithClarification',
     },

@@ -50,7 +50,7 @@ describe('ITX-SD-003: Custom prompt classification routing matrix', () => {
       ClassifyCustomPrompt: [
         {
           structuredOutput: makeClassificationOutput('clarifying-question', {
-            clarifyingQuestionText: 'Could you clarify the scope boundary?',
+            customQuestionText: 'Could you clarify the scope boundary?',
           }),
         },
       ],
@@ -69,7 +69,7 @@ describe('ITX-SD-003: Custom prompt classification routing matrix', () => {
     const nextData = result.transitions[0].data as SpecDocStateData;
     expect(nextData.pendingClarification).toBeDefined();
     expect(nextData.pendingClarification!.sourceQuestionId).toBe(sourceQuestion.questionId);
-    expect(nextData.pendingClarification!.clarifyingQuestionText).toBe(
+    expect(nextData.pendingClarification!.customQuestionText).toBe(
       'Could you clarify the scope boundary?',
     );
   });

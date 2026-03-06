@@ -45,6 +45,8 @@ export const OBS_TYPES = {
   classificationOutcome: 'spec-doc.classification.completed',
   /** Clarification follow-up question generated and queued. */
   clarificationGenerated: 'spec-doc.clarification.generated',
+  /** Research-only clarification result logged. */
+  researchResultLogged: 'spec-doc.research.logged',
   /** Terminal completion reached (Done state). */
   terminalCompleted: 'spec-doc.terminal.completed',
 } as const;
@@ -125,6 +127,16 @@ export interface ClarificationGeneratedPayload extends ObsPayloadBase {
   promptTemplateId: PromptTemplateId;
 }
 
+/** Payload for research-only clarification outcomes. */
+export interface ResearchResultLoggedPayload extends ObsPayloadBase {
+  observabilityType: typeof OBS_TYPES.researchResultLogged;
+  sourceQuestionId: string;
+  intent: string;
+  researchOutcome: string;
+  researchSummary: string;
+  promptTemplateId: PromptTemplateId;
+}
+
 /** Payload for terminal completed events. */
 export interface TerminalCompletedPayload extends ObsPayloadBase {
   observabilityType: typeof OBS_TYPES.terminalCompleted;
@@ -142,6 +154,7 @@ export type ObservabilityPayload =
   | ResponseReceivedPayload
   | ClassificationOutcomePayload
   | ClarificationGeneratedPayload
+  | ResearchResultLoggedPayload
   | TerminalCompletedPayload;
 
 // ---------------------------------------------------------------------------
@@ -347,6 +360,37 @@ export function emitClarificationGenerated(
   ctx.log({
     level: 'info',
     message: `[obs] Clarification follow-up "${params.followUpQuestionId}" generated at position ${params.insertIndex}`,
+    payload,
+  });
+  return payload;
+}
+
+/**
+ * Emit a research-only clarification result event.
+ */
+export function emitResearchResultLogged(
+  ctx: WorkflowContext<unknown, unknown>,
+  params: {
+    state: string;
+    sourceQuestionId: string;
+    intent: string;
+    researchOutcome: string;
+    researchSummary: string;
+    promptTemplateId: PromptTemplateId;
+  },
+): ResearchResultLoggedPayload {
+  const payload: ResearchResultLoggedPayload = {
+    observabilityType: OBS_TYPES.researchResultLogged,
+    state: params.state,
+    sourceQuestionId: params.sourceQuestionId,
+    intent: params.intent,
+    researchOutcome: params.researchOutcome,
+    researchSummary: params.researchSummary,
+    promptTemplateId: params.promptTemplateId,
+  };
+  ctx.log({
+    level: 'info',
+    message: `[obs] Research result logged for "${params.sourceQuestionId}"`,
     payload,
   });
   return payload;

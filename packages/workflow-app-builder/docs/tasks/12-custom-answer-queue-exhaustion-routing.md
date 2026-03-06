@@ -63,9 +63,9 @@ This was observed in production run `wr_01KJWQGTZR2CQSTWWCK67QS7Y4` where a `com
 - `packages/workflow-app-builder/test/workflows/spec-doc/numbered-options-human-request.test.ts`
 
 ## Verification
-- Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- numbered-options-human-request`
+- Command: `pnpm --filter @composable-workflow/workflow-app-builder exec vitest run test/workflows/spec-doc/numbered-options-human-request.test.ts`
   - Expected: all tests pass including new re-entry queue-exhaustion tests.
-- Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- classify-custom-prompt`
+- Command: `pnpm --filter @composable-workflow/workflow-app-builder exec vitest run test/workflows/spec-doc/classify-custom-prompt.test.ts`
   - Expected: no regressions; existing tests still pass unchanged.
 - Command: `pnpm --filter @composable-workflow/workflow-app-builder test`
   - Expected: full suite passes.

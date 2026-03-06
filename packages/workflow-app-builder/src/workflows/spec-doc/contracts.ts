@@ -144,8 +144,8 @@ export interface ConsistencyCheckOutput {
 // ---------------------------------------------------------------------------
 
 export interface CustomPromptClassificationOutput {
-  intent: 'clarifying-question' | 'custom-answer';
-  clarifyingQuestionText?: string;
+  intent: 'clarifying-question' | 'unrelated-question' | 'custom-answer';
+  customQuestionText?: string;
   customAnswerText?: string;
 }
 
@@ -165,7 +165,9 @@ export interface BaseNumberedQuestionItem {
 }
 
 export interface ClarificationFollowUpOutput {
-  followUpQuestion: BaseNumberedQuestionItem;
+  researchOutcome: 'resolved-with-research' | 'needs-follow-up-question';
+  researchSummary: string;
+  followUpQuestion?: BaseNumberedQuestionItem;
 }
 
 // ---------------------------------------------------------------------------

@@ -59,7 +59,8 @@ describe('ITX-SD-010: Question immutability enforcement', () => {
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: sourceQuestion.questionId,
-        clarifyingQuestionText: 'What exactly do you mean?',
+        intent: 'clarifying-question',
+        customQuestionText: 'What exactly do you mean?',
       },
     };
   }

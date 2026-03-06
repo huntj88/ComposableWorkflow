@@ -25,7 +25,11 @@ import type {
   SpecDocGenerationOutput,
 } from '../contracts.js';
 import { buildDelegationRequest, delegateToCopilot } from '../copilot-delegation.js';
-import { emitDelegationStarted, emitClarificationGenerated } from '../observability.js';
+import {
+  emitDelegationStarted,
+  emitClarificationGenerated,
+  emitResearchResultLogged,
+} from '../observability.js';
 import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { insertImmediateNext } from '../queue.js';
 import { createSpecDocValidator } from '../schema-validation.js';
@@ -73,15 +77,17 @@ function validateProsConsDescriptions(question: NumberedQuestionItem): string[] 
  * Execute the `ExpandQuestionWithClarification` state.
  *
  * Entered after `ClassifyCustomPrompt` determines the user's custom text is
- * a clarifying question. The `pendingClarification` field in state data
- * carries the source question context and clarifying text.
+ * a question intent. The `pendingClarification` field in state data
+ * carries the source question context and normalized question text.
  *
  * On success the handler:
- * 1. Assigns `kind: "issue-resolution"` to the follow-up (workflow authority).
- * 2. Validates Pros/Cons content in option descriptions.
- * 3. Validates that `followUpQuestion.questionId` is distinct from the source.
- * 4. Inserts the follow-up at `queueIndex` (immediate-next position).
- * 5. Clears `pendingClarification` and transitions to `NumberedOptionsHumanRequest`.
+ * 1. Branches only from `structuredOutput.researchOutcome`.
+ * 2. Records research-only outcomes in `researchNotes` when no follow-up is needed.
+ * 3. Assigns `kind: "issue-resolution"` to generated follow-ups (workflow authority).
+ * 4. Validates Pros/Cons content in option descriptions.
+ * 5. Validates that `followUpQuestion.questionId` is distinct from the source.
+ * 6. Inserts follow-ups at `queueIndex` (immediate-next position).
+ * 7. Clears `pendingClarification` and transitions to `NumberedOptionsHumanRequest`.
  */
 export async function handleExpandQuestionWithClarification(
   ctx: WorkflowContext<SpecDocGenerationInput, SpecDocGenerationOutput>,
@@ -104,7 +110,7 @@ export async function handleExpandQuestionWithClarification(
     return;
   }
 
-  const { sourceQuestionId, clarifyingQuestionText } = pending;
+  const { sourceQuestionId, customQuestionText, intent } = pending;
 
   // Find the source question in the queue for context
   const sourceQuestion = stateData.queue.find((q) => q.questionId === sourceQuestionId);
@@ -122,10 +128,13 @@ export async function handleExpandQuestionWithClarification(
   // ---------------------------------------------------------------------------
 
   const variables: Record<string, string> = {
+    request: ctx.input.request,
+    specPath: stateData.artifacts.specPath ?? '',
     sourceQuestionId,
     sourceQuestionPrompt: sourceQuestion.prompt,
     sourceOptionsJson: JSON.stringify(sourceQuestion.options),
-    clarifyingQuestionText,
+    customQuestionText,
+    intent,
   };
 
   const request = buildDelegationRequest(
@@ -176,7 +185,45 @@ export async function handleExpandQuestionWithClarification(
   }
 
   const output = validation.value;
+
+  if (output.researchOutcome === 'resolved-with-research') {
+    const updatedStateData: SpecDocStateData = {
+      ...stateData,
+      researchNotes: [
+        ...stateData.researchNotes,
+        {
+          sourceQuestionId,
+          intent,
+          questionText: customQuestionText,
+          researchSummary: output.researchSummary,
+          recordedAt: ctx.now().toISOString(),
+        },
+      ],
+      pendingClarification: undefined,
+    };
+
+    emitResearchResultLogged(ctx, {
+      state: EXPAND_QUESTION_WITH_CLARIFICATION_STATE,
+      sourceQuestionId,
+      intent,
+      researchOutcome: output.researchOutcome,
+      researchSummary: output.researchSummary,
+      promptTemplateId: TEMPLATE_IDS.expandClarification,
+    });
+
+    ctx.transition('NumberedOptionsHumanRequest', updatedStateData);
+    return;
+  }
+
   const rawFollowUp = output.followUpQuestion;
+  if (!rawFollowUp) {
+    ctx.fail(
+      new Error(
+        `[${EXPAND_QUESTION_WITH_CLARIFICATION_STATE}] researchOutcome requires followUpQuestion when human input is still needed.`,
+      ),
+    );
+    return;
+  }
 
   // ---------------------------------------------------------------------------
   // Workflow-assigned kind: "issue-resolution" (before queue insertion)

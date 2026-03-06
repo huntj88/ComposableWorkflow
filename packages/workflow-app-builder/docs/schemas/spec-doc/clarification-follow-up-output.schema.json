@@ -5,11 +5,62 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "followUpQuestion"
+    "researchOutcome",
+    "researchSummary"
   ],
   "properties": {
+    "researchOutcome": {
+      "type": "string",
+      "enum": [
+        "resolved-with-research",
+        "needs-follow-up-question"
+      ]
+    },
+    "researchSummary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Concise summary of what the research found in the current spec and workspace context."
+    },
     "followUpQuestion": {
       "$ref": "../../../../workflow-server/docs/schemas/human-input/numbered-question-item.schema.json"
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "researchOutcome": {
+            "const": "needs-follow-up-question"
+          }
+        },
+        "required": [
+          "researchOutcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "followUpQuestion"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "researchOutcome": {
+            "const": "resolved-with-research"
+          }
+        },
+        "required": [
+          "researchOutcome"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "followUpQuestion"
+          ]
+        }
+      }
+    }
+  ]
 }

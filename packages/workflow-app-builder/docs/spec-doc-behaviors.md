@@ -89,11 +89,11 @@ Each behavior should validate all relevant dimensions:
 **And** terminal output satisfies `spec-doc-generation-output.schema.json`
 **And** `status === "completed"`, `specPath` ends with `.md`, `summary.unresolvedQuestions === 0`
 
-## B-SD-TRANS-008: ClassifyCustomPrompt routes to ExpandQuestionWithClarification on clarifying-question
+## B-SD-TRANS-008: ClassifyCustomPrompt routes to ExpandQuestionWithClarification on question intents
 **Given** run is in `ClassifyCustomPrompt`
-**When** `app-builder.copilot.prompt.v1` classifies intent as `clarifying-question`
+**When** `app-builder.copilot.prompt.v1` classifies intent as `clarifying-question` or `unrelated-question`
 **Then** run transitions to `ExpandQuestionWithClarification`
-**And** `structuredOutput.intent === "clarifying-question"` is the single source of truth
+**And** `structuredOutput.intent` is the single source of truth
 
 ## B-SD-TRANS-009: ClassifyCustomPrompt routes to NumberedOptionsHumanRequest on custom-answer
 **Given** run is in `ClassifyCustomPrompt`
@@ -103,13 +103,35 @@ Each behavior should validate all relevant dimensions:
 
 ## B-SD-TRANS-010: ExpandQuestionWithClarification routes to NumberedOptionsHumanRequest
 **Given** run is in `ExpandQuestionWithClarification`
-**When** follow-up question is materialized via `app-builder.copilot.prompt.v1`
-**Then** new queue item with new `questionId` is inserted as immediate next question
-**And** run transitions to `NumberedOptionsHumanRequest` to ask the expanded question
+**When** research is completed via `app-builder.copilot.prompt.v1`
+**Then** either a new queue item with new `questionId` is inserted as immediate next question
+**Or** a research-only answer is logged with no new queue item
+**And** run transitions to `NumberedOptionsHumanRequest`
+**And** `structuredOutput.researchOutcome` is the single source of truth for whether a follow-up question exists
+
+## B-SD-TRANS-013: Research detours defer and revisit the source question
+**Given** user custom text is classified as `clarifying-question` or `unrelated-question`
+**When** the workflow leaves `NumberedOptionsHumanRequest` for `ExpandQuestionWithClarification`
+**Then** the source numbered question is deferred unless it already has a valid answer
+**And** any generated follow-up question is asked next
+**And** the deferred source question is revisited after the inserted follow-up chain completes
+
+## B-SD-TRANS-014: Research-only resolution resumes the deferred question
+**Given** run is in `ExpandQuestionWithClarification`
+**When** research finds no remaining ambiguity and generates no follow-up question
+**Then** the workflow logs the research answer
+**And** transitions to `NumberedOptionsHumanRequest`
+**And** resumes at the deferred source question rather than skipping it permanently
+
+## B-SD-TRANS-015: Deferred questions block terminal queue exhaustion
+**Given** run re-enters `NumberedOptionsHumanRequest` with `queueIndex >= queue.length`
+**When** one or more deferred source questions remain
+**Then** the handler must revisit the most recently deferred source question
+**And** must not transition to `Done` or `IntegrateIntoSpec` until the deferred-question stack is empty
 
 ## B-SD-TRANS-012: NumberedOptionsHumanRequest handles re-entry with exhausted queue
 **Given** run re-enters `NumberedOptionsHumanRequest` from `ClassifyCustomPrompt` (custom-answer) or `ExpandQuestionWithClarification`
-**When** `queueIndex >= queue.length` (all items already answered)
+**When** `queueIndex >= queue.length` and no deferred source questions remain
 **Then** handler does not fail
 **And** if any answered item is completion-confirmation with done option selected, run transitions to `Done`
 **And** otherwise run transitions to `IntegrateIntoSpec` with accumulated normalized answers
@@ -405,7 +427,7 @@ Must assert:
 8. Follow-up is asked and answered; workflow completes.
 
 Must assert:
-- Both classification intents exercised.
+- At least one question intent plus `custom-answer` are exercised.
 - Custom-answer buffered and carried to `IntegrateIntoSpec`.
 - Clarification follow-up inserted ahead of remaining queue items.
 - New question has new `questionId` and conforms to schema.

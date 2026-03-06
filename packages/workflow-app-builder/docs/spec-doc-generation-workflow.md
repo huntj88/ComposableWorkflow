@@ -88,7 +88,8 @@ NumberedOptionsHumanRequest : one feedback child run per queue item
 NumberedOptionsHumanRequest : questionId required
 NumberedOptionsHumanRequest : option ids are integers 1..N per question
 NumberedOptionsHumanRequest : asked questions are immutable (append new questionId)
-NumberedOptionsHumanRequest : responses are buffered until queue exhaustion
+NumberedOptionsHumanRequest : answers are buffered until queue exhaustion
+NumberedOptionsHumanRequest : research detours may defer current question for later revisit
 
 NumberedOptionsHumanRequest --> NumberedOptionsHumanRequest : more queued questions remain
 NumberedOptionsHumanRequest --> Done : queue exhausted + completion-confirmation selected\n(exactly one selected option required)
@@ -98,15 +99,16 @@ NumberedOptionsHumanRequest --> ClassifyCustomPrompt : custom prompt text provid
 state ClassifyCustomPrompt
 ClassifyCustomPrompt : classify intent via app-builder.copilot.prompt.v1\n(schema-validated structuredOutput)
 
-ClassifyCustomPrompt --> ExpandQuestionWithClarification : intent=clarifying-question
+ClassifyCustomPrompt --> ExpandQuestionWithClarification : intent=clarifying-question|unrelated-question
 ClassifyCustomPrompt --> NumberedOptionsHumanRequest : intent=custom-answer\n(buffer answer; continue queue processing)
 
 state ExpandQuestionWithClarification
-ExpandQuestionWithClarification : generate related follow-up question\nusing clarifying details
-ExpandQuestionWithClarification : append new queue item with new questionId
-ExpandQuestionWithClarification : insert as immediate next queue item\n(no context switch)
+ExpandQuestionWithClarification : research working spec and relevant implementation context
+ExpandQuestionWithClarification : if ambiguity remains, generate research-grounded follow-up question
+ExpandQuestionWithClarification : if ambiguity is resolved, log research answer and ask no new question
+ExpandQuestionWithClarification : generated follow-up is asked next; skipped question is revisited later
 
-ExpandQuestionWithClarification --> NumberedOptionsHumanRequest : ask expanded question next
+ExpandQuestionWithClarification --> NumberedOptionsHumanRequest : ask generated question next or revisit deferred question
 
 Done : terminal\nstatus=completed
 @enduml
@@ -131,15 +133,25 @@ Done : terminal\nstatus=completed
   - If multiple numbered follow-up questions exist, this state self-loops question-by-question until all answers are captured.
   - User may answer by selecting numbered options or by providing a custom prompt; responses are accumulated until the numbered queue is exhausted.
   - If custom prompt text is provided, route through `ClassifyCustomPrompt`; classification results return to numbered-options processing.
+  - If custom prompt text is classified as a research question rather than an answer, the current numbered question is deferred and revisited after the research detour completes.
   - If no unresolved questions remain, this state asks explicit completion confirmation (`Done` vs additional work for `IntegrateIntoSpec`).
 
 4. `ClassifyCustomPrompt`
-  - Uses `app-builder.copilot.prompt.v1` with schema-validated `structuredOutput` to classify custom prompt intent as either clarifying-question or custom-answer.
-  - Does not transition directly to `IntegrateIntoSpec`; custom-answer returns to `NumberedOptionsHumanRequest`, while clarifying-question transitions to `ExpandQuestionWithClarification`.
+  - Uses `app-builder.copilot.prompt.v1` with schema-validated `structuredOutput` to classify custom prompt intent as `clarifying-question`, `unrelated-question`, or `custom-answer`.
+  - `clarifying-question` means the user is asking for information needed to answer the current numbered question.
+  - `unrelated-question` means the user is requesting research on the spec or implementation that is not itself an answer to the current numbered question.
+  - For either question intent, `structuredOutput.customQuestionText` is the normalized text handed to `ExpandQuestionWithClarification`.
+  - Does not transition directly to `IntegrateIntoSpec`; `custom-answer` returns to `NumberedOptionsHumanRequest`, while question intents transition to `ExpandQuestionWithClarification`.
 
 5. `ExpandQuestionWithClarification`
-  - Materializes a related follow-up question from clarifying intent.
-  - Appends a new immutable queue item with a new `questionId` and inserts it as immediate next question.
+  - Performs research against the current spec draft and relevant implementation/workspace context before deciding whether another human question is required.
+  - For `clarifying-question`, research is scoped to resolving ambiguity in the current numbered question.
+  - For `unrelated-question`, research answers the user's side question without treating it as an answer to the current numbered question.
+  - If research reveals a remaining ambiguity or decision gap, materializes a research-grounded follow-up question, appends a new immutable queue item with a new `questionId`, and inserts it as the immediate next question.
+  - If research resolves the issue without needing human input, records a research log entry/observability event and returns to numbered-options processing without appending a new queue item.
+  - `structuredOutput.researchOutcome` is the single source of truth for whether a follow-up question is required.
+  - Research-only results are persisted as `researchNotes[]` state records for audit/observability and are not merged into `IntegrateIntoSpec.answers` unless later echoed in a human answer.
+  - Deferred questions are managed as a LIFO revisit stack. When a follow-up question is generated, the source numbered question that triggered the research detour is pushed onto that stack and revisited before the workflow advances to older unresolved items or evaluates terminal queue exhaustion.
 
 6. `Done`
    - Terminal state.
@@ -162,9 +174,9 @@ Done : terminal\nstatus=completed
 - `ClassifyCustomPrompt -> NumberedOptionsHumanRequest`
   - Guard: intent is custom-answer, so answer is buffered and queue processing continues.
 - `ClassifyCustomPrompt -> ExpandQuestionWithClarification`
-  - Guard: intent is clarifying-question.
+  - Guard: intent is clarifying-question or unrelated-question.
 - `ExpandQuestionWithClarification -> NumberedOptionsHumanRequest`
-  - Guard: follow-up question has been materialized and inserted as immediate next queue item.
+  - Guard: research has completed; either a follow-up question has been materialized and inserted as immediate next queue item, or a research-only answer has been logged and numbered-options processing can resume.
 - `NumberedOptionsHumanRequest -> Done`
   - Guard: numbered queue is exhausted and completion-confirmation is selected with exactly one selected option.
 
@@ -183,6 +195,10 @@ Question queue construction:
 - Each generated option should include concise pros/cons to help user decision-making (use option `description` with a clear `Pros:` / `Cons:` format).
 - Queue order must be stable across retries/recovery (deterministic ordering by generated `questionId`).
 - Clarification-generated follow-up questions must be inserted as the immediate next queue item (ahead of older unresolved items) to avoid context switching.
+- When a research detour is triggered from the current queue item, that source question becomes deferred rather than completed unless a valid numbered answer was actually provided.
+- Deferred source questions must be tracked on a LIFO revisit stack.
+- Before the queue processor advances to older unresolved items or treats the queue as exhausted, it must revisit the most recently deferred source question.
+- A source question must not be deferred more than once at the same time; repeated research detours while it is already deferred reuse the existing deferred entry.
 
 Per-question execution:
 - For the current queue item, request human feedback through the server-owned feedback workflow.
@@ -194,31 +210,47 @@ Per-question execution:
 - Treat invalid `selectedOptionIds` as request-validation errors from the feedback API (no answer recorded; question remains pending until valid response).
 - For completion-confirmation questions, require exactly one selected option; treat zero or multi-select responses as request-validation errors.
 - Assume no protocol-level max for custom `text` in MVP; handle any implementation-local validation errors as retryable feedback submission failures.
-- Persist normalized answer record in state data:
+- Persist normalized answer record in state data when the current numbered question actually receives an answer:
   - `questionId`,
   - `selectedOptionIds` (possibly empty),
   - `text` (possibly empty),
   - `answeredAt` timestamp.
+- If custom text is classified as `clarifying-question` or `unrelated-question` and no answer has been given for the current numbered item, do not mark that item answered; instead persist a `researchNotes[]` entry and defer the numbered question for later revisit.
+
+Research note persistence:
+- Research-only outcomes are stored separately from normalized answers as `researchNotes[]` entries with:
+  - `sourceQuestionId`,
+  - `intent`,
+  - `questionText`,
+  - `researchSummary`,
+  - `recordedAt` timestamp.
+- `researchNotes[]` is for auditability and observability, not direct spec integration input.
 
 Custom prompt handling:
 - Custom prompt text is additive context, not a replacement for numbered options.
-- Custom prompt intent classification (clarifying-question vs custom-answer) is delegated to `app-builder.copilot.prompt.v1`.
+- Custom prompt intent classification (`clarifying-question` vs `unrelated-question` vs `custom-answer`) is delegated to `app-builder.copilot.prompt.v1`.
 - Classification must be derived from schema-validated `structuredOutput` (not ad-hoc local heuristics) before choosing the next transition.
 - Example: alternative answer text augments selected option intent, is buffered with the current answer set, and is carried into `IntegrateIntoSpec` after queue exhaustion.
-- Example: clarifying question text may produce an additional numbered follow-up queue item; that item is inserted next, and transition remains `NumberedOptionsHumanRequest -> NumberedOptionsHumanRequest`.
-- Asked numbered-options questions are immutable once issued; clarifications must append a new queue item with a new `questionId`.
+- Example: a clarifying question first triggers research against the spec and implementation; if the research still leaves an ambiguity, a new numbered follow-up queue item is inserted next and the original source question is revisited later.
+- Example: an unrelated research question may produce only a logged research answer and no new queue item; numbered-options processing then returns to the deferred source question.
+- Question-intent outputs use `customQuestionText` as the normalized payload passed into research.
+- Asked numbered-options questions are immutable once issued; research-generated follow-ups must append a new queue item with a new `questionId`.
 
 Transition resolution after each response:
 - If custom prompt text is provided, transition to `ClassifyCustomPrompt` first for intent classification.
-- If custom prompt intent is clarifying-question, transition to `ExpandQuestionWithClarification`, insert the generated follow-up as immediate next, then transition to `NumberedOptionsHumanRequest`.
+- If custom prompt intent is clarifying-question or unrelated-question, transition to `ExpandQuestionWithClarification` and defer the source numbered question unless it already has a valid answer.
+- If `ExpandQuestionWithClarification.structuredOutput.researchOutcome === "resolved-with-research"`, log the research answer and transition to `NumberedOptionsHumanRequest`; the most recently deferred source question becomes the next item to revisit.
+- If `ExpandQuestionWithClarification.structuredOutput.researchOutcome === "needs-follow-up-question"`, insert the schema-validated `followUpQuestion` as immediate next, transition to `NumberedOptionsHumanRequest`, ask that generated question next, and revisit the deferred source question when the inserted follow-up chain completes.
 - If custom prompt intent is custom-answer, buffer it and continue numbered queue processing.
 - If unasked queue items remain and no custom prompt text is pending classification, transition to `NumberedOptionsHumanRequest` (self-loop).
-- If queue is exhausted and completion-confirmation indicates done with exactly one selected option, transition to `Done`.
+- If no unasked queue items remain but deferred questions remain on the revisit stack, transition to `NumberedOptionsHumanRequest` and revisit the most recently deferred source question instead of evaluating terminal exhaustion.
+- If queue is exhausted, deferred-question stack is empty, and completion-confirmation indicates done with exactly one selected option, transition to `Done`.
 - Otherwise transition to `IntegrateIntoSpec` with accumulated normalized answers (including buffered custom-answer prompts) as integration input.
 
 Re-entry with exhausted queue:
 - `NumberedOptionsHumanRequest` may be re-entered from `ClassifyCustomPrompt` (custom-answer) or `ExpandQuestionWithClarification` with `queueIndex >= queue.length`.
 - When entered with an exhausted queue, the handler must not fail. Instead it evaluates queue-exhaustion transitions using the already-recorded answers:
+- If deferred questions remain on the revisit stack, queue exhaustion is not final; the handler must resume with the most recently deferred source question.
   - If any answered item is the completion-confirmation question with the done option selected (option 1), transition to `Done`.
   - Otherwise, transition to `IntegrateIntoSpec` with accumulated normalized answers.
 
@@ -287,10 +319,14 @@ Minimum usage contract by FSM state:
   - if `structuredOutput.followUpQuestions` is empty, workflow logic synthesizes one completion-confirmation queue item with an explicit "spec is done" option before entering `NumberedOptionsHumanRequest`.
 - `ClassifyCustomPrompt`
   - `outputSchema` must use `custom-prompt-classification-output.schema.json`.
-  - `structuredOutput.intent` is the single source of truth for intent routing (`clarifying-question` vs `custom-answer`).
+  - `structuredOutput.intent` is the single source of truth for intent routing (`clarifying-question` vs `unrelated-question` vs `custom-answer`).
+  - For question intents, `structuredOutput.customQuestionText` is required and is forwarded unchanged into `ExpandQuestionWithClarification`.
 - `ExpandQuestionWithClarification`
   - `outputSchema` must use `clarification-follow-up-output.schema.json`.
-  - `structuredOutput.followUpQuestion` must conform to server-owned base `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json`; workflow logic assigns `kind: "issue-resolution"` and inserts as immediate next queue item.
+  - `structuredOutput.researchOutcome` is the single source of truth for branch selection (`resolved-with-research` vs `needs-follow-up-question`).
+  - `structuredOutput.researchSummary` is required and must summarize the research grounded in the current spec and relevant implementation context.
+  - `structuredOutput.followUpQuestion` is required only when `researchOutcome === "needs-follow-up-question"`; when present it must conform to server-owned base `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json`, workflow logic assigns `kind: "issue-resolution"`, and inserts it as the immediate next queue item.
+  - when `researchOutcome === "resolved-with-research"`, workflow logic records a `researchNotes[]` entry and resumes numbered-options processing at the deferred source question.
 - `Done`
   - terminal payload must conform to `spec-doc-generation-output.schema.json`.
 
@@ -304,12 +340,14 @@ Transition mapping from consistency-check output:
 
 Transition mapping from numbered-options response:
 - if custom prompt text is provided: transition to `ClassifyCustomPrompt` (evaluate this first for the current response).
-- if custom prompt intent is classified as clarifying-question: transition to `ExpandQuestionWithClarification`, insert related follow-up as immediate next, then transition to `NumberedOptionsHumanRequest`.
+- if custom prompt intent is classified as clarifying-question or unrelated-question: transition to `ExpandQuestionWithClarification` and defer the source numbered question unless already answered.
+- if `ExpandQuestionWithClarification.researchOutcome === "resolved-with-research"`: log the research answer and transition to `NumberedOptionsHumanRequest` to revisit the deferred source question.
+- if `ExpandQuestionWithClarification.researchOutcome === "needs-follow-up-question"`: insert the related follow-up as immediate next, transition to `NumberedOptionsHumanRequest`, ask it next, then revisit the deferred source question.
 - if user selects completion confirmation option and the numbered queue is exhausted with exactly one selected option: transition to `Done`.
 - if custom prompt intent is classified as custom-answer: buffer response and transition to `NumberedOptionsHumanRequest`.
 - if user selects non-completion numbered option(s) while questions remain: record response and transition to `NumberedOptionsHumanRequest`.
 - if additional numbered follow-up questions remain and no custom prompt text is provided: transition to `NumberedOptionsHumanRequest`.
-- if queue is exhausted and collected responses require updates (including custom-answer text): transition to `IntegrateIntoSpec`.
+- if queue is exhausted, deferred-question stack is empty, and collected responses require updates (including custom-answer text): transition to `IntegrateIntoSpec`.
 
 Numbered-options question requirements:
 - For workflow-synthesized completion-confirmation questions, options must include at least one explicit "spec is done" numbered option.
@@ -445,8 +483,10 @@ Input context:
 - customText: {{customText}}
 
 Classification policy:
-- intent = clarifying-question when the custom text is primarily asking for clarification, disambiguation, or additional information before deciding.
+- intent = clarifying-question when the custom text is primarily asking for clarification, disambiguation, or additional information needed to answer the current numbered question.
+- intent = unrelated-question when the custom text is primarily a side research task about the spec, implementation, or repository and is not itself an answer to the current numbered question.
 - intent = custom-answer when the custom text primarily provides an answer, preference, constraint, or detail to be integrated.
+- For both question intents, populate `customQuestionText` with the normalized question text that should be researched next.
 - Choose exactly one intent.
 
 ```
@@ -458,27 +498,38 @@ Usage:
 - output schema: `clarification-follow-up-output.schema.json`
 
 Required runtime interpolation variables:
+- `{{request}}`
+- `{{specPath}}` (optional existing draft path)
 - `{{sourceQuestionId}}`
 - `{{sourceQuestionPrompt}}`
 - `{{sourceOptionsJson}}`
-- `{{clarifyingQuestionText}}`
+- `{{customQuestionText}}`
+- `{{intent}}` (`clarifying-question` or `unrelated-question`)
 
 Prompt text:
 
 ```text
-Create one deterministic numbered follow-up question from the provided clarifying question.
+Research the user's question against the current spec draft and relevant implementation context before deciding whether another human question is needed.
 
 Input context:
+- request: {{request}}
+- specPath: {{specPath}}
 - sourceQuestionId: {{sourceQuestionId}}
 - sourceQuestionPrompt: {{sourceQuestionPrompt}}
 - sourceOptions: {{sourceOptionsJson}}
-- clarifyingQuestionText: {{clarifyingQuestionText}}
+- customQuestionText: {{customQuestionText}}
+- intent: {{intent}}
 
 Rules:
-- followUpQuestion.questionId must be new and deterministic.
-- followUpQuestion.options must use contiguous integer ids starting at 1.
-- followUpQuestion options should include `description` with concise `Pros:` and `Cons:` for each choice.
-- The question should resolve the clarification with minimal ambiguity and clear decision branches.
+1) Research first; do not merely restate the user's question.
+2) The delegated run must have access to the current workflow request, the spec draft at `specPath` when present, and workspace context reachable through the workflow's configured Copilot prompt options (`cwd`, `allowedDirs`).
+3) Always return `researchOutcome` and `researchSummary`.
+4) If research resolves the question without remaining ambiguity, set `researchOutcome = resolved-with-research` and omit `followUpQuestion`.
+5) If research finds a remaining decision or ambiguity that requires human input, set `researchOutcome = needs-follow-up-question` and create exactly one deterministic numbered `followUpQuestion` grounded in the research findings.
+6) `followUpQuestion.questionId` must be new and deterministic.
+7) `followUpQuestion.options` must use contiguous integer ids starting at 1.
+8) `followUpQuestion` options should include `description` with concise `Pros:` and `Cons:` for each choice.
+9) Any generated question should minimize ambiguity, be based on the research, and be suitable for asking next while the skipped source question is revisited later.
 
 ```
 
@@ -502,6 +553,7 @@ Server-spec placement requirement:
 Per run, emit events for:
 - entering each FSM state,
 - question generated (numbered-options follow-up/confirmation),
+- research result logged,
 - user response received,
 - spec integration pass completed,
 - consistency-check outcome,

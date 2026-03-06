@@ -7,8 +7,8 @@
  *
  *  - `custom-answer`  → buffers custom answer text with current answer set,
  *    transitions back to `NumberedOptionsHumanRequest`.
- *  - `clarifying-question` → transitions to `ExpandQuestionWithClarification`
- *    carrying the clarifying text for follow-up generation.
+ *  - `clarifying-question` / `unrelated-question` → transitions to
+ *    `ExpandQuestionWithClarification` carrying normalized question text.
  *
  * Spec references: sections 6.2, 6.3, 6.4, 7.1, 7.2.3.
  * Behaviors: B-SD-TRANS-005, B-SD-TRANS-008, B-SD-TRANS-009,
@@ -182,14 +182,14 @@ export async function handleClassifyCustomPrompt(
     return;
   }
 
-  if (output.intent === 'clarifying-question') {
-    // SD-CUSTOM-004: route to ExpandQuestionWithClarification carrying clarifying text
-    // Pass clarifyingQuestionText through state data for the next handler.
+  if (output.intent === 'clarifying-question' || output.intent === 'unrelated-question') {
+    // SD-CUSTOM-004: route to ExpandQuestionWithClarification carrying normalized question text.
     const updatedStateData: SpecDocStateData = {
       ...stateData,
       pendingClarification: {
         sourceQuestionId: sourceQuestion.questionId,
-        clarifyingQuestionText: output.clarifyingQuestionText!,
+        intent: output.intent,
+        customQuestionText: output.customQuestionText!,
       },
     };
 

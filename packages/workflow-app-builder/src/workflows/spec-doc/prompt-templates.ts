@@ -119,25 +119,35 @@ Input context:
 - customText: {{customText}}
 
 Classification policy:
-- intent = clarifying-question when the custom text is primarily asking for clarification, disambiguation, or additional information before deciding.
+- intent = clarifying-question when the custom text is primarily asking for clarification, disambiguation, or additional information needed to answer the current numbered question.
+- intent = unrelated-question when the custom text is primarily a side research task about the spec, implementation, or repository and is not itself an answer to the current numbered question.
 - intent = custom-answer when the custom text primarily provides an answer, preference, constraint, or detail to be integrated. An actionable item may sometimes be phrased as a question.
+- For question intents, populate \`customQuestionText\` with the normalized question text that should be researched next.
 - Choose exactly one intent.`;
 
 // -- 7.2.4 ExpandQuestionWithClarification ----------------------------------
 
-const EXPAND_CLARIFICATION_BODY = `Create one deterministic numbered follow-up question from the provided clarifying question.
+const EXPAND_CLARIFICATION_BODY = `Research the user's question against the current spec draft and relevant implementation context before deciding whether another human question is needed.
 
 Input context:
+- request: {{request}}
+- specPath: {{specPath}}
 - sourceQuestionId: {{sourceQuestionId}}
 - sourceQuestionPrompt: {{sourceQuestionPrompt}}
 - sourceOptions: {{sourceOptionsJson}}
-- clarifyingQuestionText: {{clarifyingQuestionText}}
+- customQuestionText: {{customQuestionText}}
+- intent: {{intent}}
 
 Rules:
-- followUpQuestion.questionId must be new and deterministic.
-- followUpQuestion.options must use contiguous integer ids starting at 1.
-- followUpQuestion options should include \`description\` with concise \`Pros:\` and \`Cons:\` for each choice.
-- The question should resolve the clarification with minimal ambiguity and clear decision branches.`;
+1) Research first; do not merely restate the user's question.
+2) The delegated run must have access to the current workflow request, the spec draft at \`specPath\` when present, and workspace context reachable through the workflow's configured Copilot prompt options (\`cwd\`, \`allowedDirs\`).
+3) Always return \`researchOutcome\` and \`researchSummary\`.
+4) If research resolves the question without remaining ambiguity, set \`researchOutcome = resolved-with-research\` and omit \`followUpQuestion\`.
+5) If research finds a remaining decision or ambiguity that requires human input, set \`researchOutcome = needs-follow-up-question\` and create exactly one deterministic numbered \`followUpQuestion\` grounded in the research findings.
+6) \`followUpQuestion.questionId\` must be new and deterministic.
+7) \`followUpQuestion.options\` must use contiguous integer ids starting at 1.
+8) \`followUpQuestion\` options should include \`description\` with concise \`Pros:\` and \`Cons:\` for each choice.
+9) Any generated question should minimize ambiguity, be based on the research, and be suitable for asking next while the skipped source question is revisited later.`;
 
 // ---------------------------------------------------------------------------
 // Template catalog
@@ -174,10 +184,13 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
     outputSchemaId: SCHEMA_IDS.clarificationFollowUpOutput,
     body: EXPAND_CLARIFICATION_BODY,
     requiredVars: [
+      'request',
+      'specPath',
       'sourceQuestionId',
       'sourceQuestionPrompt',
       'sourceOptionsJson',
-      'clarifyingQuestionText',
+      'customQuestionText',
+      'intent',
     ],
   },
 } as const;

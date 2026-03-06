@@ -140,6 +140,7 @@ describe('PROMPT_TEMPLATES', () => {
       expect(tpl.body).toContain("Classify the user's custom text");
       expect(tpl.body).toContain('{{customText}}');
       expect(tpl.body).toContain('clarifying-question');
+      expect(tpl.body).toContain('unrelated-question');
       expect(tpl.body).toContain('custom-answer');
     });
   });
@@ -160,16 +161,20 @@ describe('PROMPT_TEMPLATES', () => {
     });
 
     it('declares all required interpolation variables', () => {
+      expect(tpl.requiredVars).toContain('request');
+      expect(tpl.requiredVars).toContain('specPath');
       expect(tpl.requiredVars).toContain('sourceQuestionId');
       expect(tpl.requiredVars).toContain('sourceQuestionPrompt');
       expect(tpl.requiredVars).toContain('sourceOptionsJson');
-      expect(tpl.requiredVars).toContain('clarifyingQuestionText');
+      expect(tpl.requiredVars).toContain('customQuestionText');
+      expect(tpl.requiredVars).toContain('intent');
     });
 
     it('body contains key spec 7.2.4 phrases', () => {
-      expect(tpl.body).toContain('deterministic numbered follow-up question');
+      expect(tpl.body).toContain("Research the user's question");
       expect(tpl.body).toContain('{{sourceQuestionId}}');
-      expect(tpl.body).toContain('{{clarifyingQuestionText}}');
+      expect(tpl.body).toContain('{{customQuestionText}}');
+      expect(tpl.body).toContain('researchOutcome');
     });
   });
 });

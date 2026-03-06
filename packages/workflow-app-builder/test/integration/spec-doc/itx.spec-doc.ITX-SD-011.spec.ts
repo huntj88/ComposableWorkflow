@@ -203,7 +203,8 @@ describe('ITX-SD-011: Numbered question item schema compliance', () => {
         artifacts: { specPath: 'docs/generated-spec.md' },
         pendingClarification: {
           sourceQuestionId: 'q-clar-schema',
-          clarifyingQuestionText: 'What is the schema?',
+          intent: 'clarifying-question',
+          customQuestionText: 'What is the schema?',
         },
       };
 

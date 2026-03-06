@@ -12,13 +12,14 @@
       "type": "string",
       "enum": [
         "clarifying-question",
+        "unrelated-question",
         "custom-answer"
       ]
     },
-    "clarifyingQuestionText": {
+    "customQuestionText": {
       "type": "string",
       "minLength": 1,
-      "description": "Clarifying question text that should be expanded into a follow-up numbered question."
+      "description": "Question text for either a clarifying-question or unrelated-question intent."
     },
     "customAnswerText": {
       "type": "string",
@@ -40,7 +41,24 @@
       },
       "then": {
         "required": [
-          "clarifyingQuestionText"
+          "customQuestionText"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "intent": {
+            "const": "unrelated-question"
+          }
+        },
+        "required": [
+          "intent"
+        ]
+      },
+      "then": {
+        "required": [
+          "customQuestionText"
         ]
       }
     },

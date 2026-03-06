@@ -138,7 +138,7 @@ export function makeBlockingIssue(id: string, overrides?: Partial<BlockingIssue>
 
 /** Create a `CustomPromptClassificationOutput`. */
 export function makeClassificationOutput(
-  intent: 'custom-answer' | 'clarifying-question',
+  intent: 'custom-answer' | 'clarifying-question' | 'unrelated-question',
   overrides?: Partial<CustomPromptClassificationOutput>,
 ): CustomPromptClassificationOutput {
   if (intent === 'custom-answer') {
@@ -150,7 +150,7 @@ export function makeClassificationOutput(
   }
   return {
     intent,
-    clarifyingQuestionText: 'What specific aspect needs clarification?',
+    customQuestionText: 'What specific aspect needs clarification?',
     ...overrides,
   };
 }
@@ -158,6 +158,8 @@ export function makeClassificationOutput(
 /** Create a valid `ClarificationFollowUpOutput`. */
 export function makeClarificationFollowUpOutput(questionId: string): ClarificationFollowUpOutput {
   return {
+    researchOutcome: 'needs-follow-up-question',
+    researchSummary: `Research indicates that ${questionId} still needs a human decision.`,
     followUpQuestion: {
       questionId,
       prompt: `Clarification follow-up for ${questionId}`,
@@ -235,7 +237,8 @@ export function makeStateDataForExpandClarification(
     ...makeStateDataForClassification(sourceQuestion, 'User clarification request'),
     pendingClarification: {
       sourceQuestionId: sourceQuestion.questionId,
-      clarifyingQuestionText: clarifyingText,
+      intent: 'clarifying-question',
+      customQuestionText: clarifyingText,
     },
   };
 }

@@ -52,8 +52,19 @@ export interface SpecDocArtifacts {
 export interface PendingClarification {
   /** The questionId of the source question that triggered classification. */
   sourceQuestionId: string;
-  /** The clarifying question text extracted by classification. */
-  clarifyingQuestionText: string;
+  /** The question intent extracted by classification. */
+  intent: 'clarifying-question' | 'unrelated-question';
+  /** The normalized question text extracted by classification. */
+  customQuestionText: string;
+}
+
+/** Research-only note persisted for auditability and observability. */
+export interface ResearchNote {
+  sourceQuestionId: string;
+  intent: 'clarifying-question' | 'unrelated-question';
+  questionText: string;
+  researchSummary: string;
+  recordedAt: string;
 }
 
 /**
@@ -74,6 +85,8 @@ export interface SpecDocStateData {
   counters: SpecDocCounters;
   /** Working artifacts (spec draft path, integration metadata). */
   artifacts: SpecDocArtifacts;
+  /** Research-only outcomes recorded outside normalized integration answers. */
+  researchNotes: ResearchNote[];
   /**
    * Transient: carries classification result from `ClassifyCustomPrompt` to
    * `ExpandQuestionWithClarification`. Cleared after consumption.
@@ -96,5 +109,6 @@ export function createInitialStateData(): SpecDocStateData {
       consistencyCheckPasses: 0,
     },
     artifacts: {},
+    researchNotes: [],
   };
 }

@@ -62,6 +62,8 @@ function validExpandOutput(
   overrides?: Partial<ClarificationFollowUpOutput>,
 ): ClarificationFollowUpOutput {
   return {
+    researchOutcome: 'needs-follow-up-question',
+    researchSummary: 'Research found a remaining API decision.',
     followUpQuestion: validFollowUpQuestion(),
     ...overrides,
   };
@@ -73,7 +75,7 @@ function validExpandOutput(
  */
 function stateDataForExpansion(
   sourceQuestionId = 'q-cc-1',
-  clarifyingQuestionText = 'Do you mean REST or RPC?',
+  customQuestionText = 'Do you mean REST or RPC?',
 ): SpecDocStateData {
   const queue: QuestionQueueItem[] = [
     makeQueueItem(sourceQuestionId, { answered: true }),
@@ -100,7 +102,8 @@ function stateDataForExpansion(
     },
     pendingClarification: {
       sourceQuestionId,
-      clarifyingQuestionText,
+      intent: 'clarifying-question',
+      customQuestionText,
     },
   };
 }
@@ -273,7 +276,11 @@ describe('SD-CUSTOM-006-ClarificationProsConsContent', () => {
     const stateData = stateDataForExpansion();
     const { ctx, failSpy } = createMockContext({
       childOutput: {
-        structuredOutput: { followUpQuestion: questionWithoutDesc },
+        structuredOutput: {
+          researchOutcome: 'needs-follow-up-question',
+          researchSummary: 'Need a choice.',
+          followUpQuestion: questionWithoutDesc,
+        },
       },
     });
 
@@ -296,7 +303,7 @@ describe('SD-CUSTOM-006-ClarificationProsConsContent', () => {
     const stateData = stateDataForExpansion();
     const { ctx, failSpy } = createMockContext({
       childOutput: {
-        structuredOutput: { followUpQuestion: questionMissingPros },
+        structuredOutput: validExpandOutput({ followUpQuestion: questionMissingPros }),
       },
     });
 
@@ -319,7 +326,7 @@ describe('SD-CUSTOM-006-ClarificationProsConsContent', () => {
     const stateData = stateDataForExpansion();
     const { ctx, failSpy } = createMockContext({
       childOutput: {
-        structuredOutput: { followUpQuestion: questionMissingCons },
+        structuredOutput: validExpandOutput({ followUpQuestion: questionMissingCons }),
       },
     });
 
@@ -354,7 +361,7 @@ describe('Workflow-assigned kind', () => {
     const stateData = stateDataForExpansion();
     const { ctx, transitionSpy } = createMockContext({
       childOutput: {
-        structuredOutput: { followUpQuestion: followUp },
+        structuredOutput: validExpandOutput({ followUpQuestion: followUp }),
       },
     });
 
@@ -376,6 +383,8 @@ describe('Distinct questionId validation', () => {
     const { ctx, failSpy } = createMockContext({
       childOutput: {
         structuredOutput: {
+          researchOutcome: 'needs-follow-up-question',
+          researchSummary: 'Still need a human answer.',
           followUpQuestion: validFollowUpQuestion({ questionId: 'q-cc-1' }),
         },
       },
@@ -394,6 +403,8 @@ describe('Distinct questionId validation', () => {
     const { ctx, failSpy, transitionSpy } = createMockContext({
       childOutput: {
         structuredOutput: {
+          researchOutcome: 'needs-follow-up-question',
+          researchSummary: 'Still need a human answer.',
           followUpQuestion: validFollowUpQuestion({ questionId: 'q-cc-1-follow-1' }),
         },
       },
@@ -431,6 +442,8 @@ describe('Schema validation gate', () => {
 
   it('hard-fails when followUpQuestion is missing required fields', async () => {
     const invalidOutput = {
+      researchOutcome: 'needs-follow-up-question',
+      researchSummary: 'Need more input.',
       followUpQuestion: { questionId: 'q-1' }, // missing prompt, options
     };
     const stateData = stateDataForExpansion();
@@ -486,7 +499,8 @@ describe('Error handling', () => {
       normalizedAnswers: [],
       pendingClarification: {
         sourceQuestionId: 'q-missing',
-        clarifyingQuestionText: 'Clarify this',
+        intent: 'clarifying-question',
+        customQuestionText: 'Clarify this',
       },
     };
     const { ctx, failSpy } = createMockContext();

@@ -264,7 +264,16 @@ describe('successful schema validation', () => {
   it('validates valid custom-prompt-classification-output (clarifying-question)', () => {
     const raw = JSON.stringify({
       intent: 'clarifying-question',
-      clarifyingQuestionText: 'What database should we use?',
+      customQuestionText: 'What database should we use?',
+    });
+    const result = validator.validate(raw, SCHEMA_IDS.customPromptClassificationOutput);
+    expect(result.ok).toBe(true);
+  });
+
+  it('validates valid custom-prompt-classification-output (unrelated-question)', () => {
+    const raw = JSON.stringify({
+      intent: 'unrelated-question',
+      customQuestionText: 'What existing auth implementation is already in the repo?',
     });
     const result = validator.validate(raw, SCHEMA_IDS.customPromptClassificationOutput);
     expect(result.ok).toBe(true);
@@ -281,12 +290,14 @@ describe('successful schema validation', () => {
 
   it('validates valid clarification-follow-up-output', () => {
     const raw = JSON.stringify({
+      researchOutcome: 'needs-follow-up-question',
+      researchSummary: 'Research found a remaining database choice to make.',
       followUpQuestion: {
         questionId: 'q-2',
         prompt: 'Which database engine?',
         options: [
-          { id: 1, label: 'PostgreSQL' },
-          { id: 2, label: 'SQLite' },
+          { id: 1, label: 'PostgreSQL', description: 'Pros: Reliable. Cons: Heavier.' },
+          { id: 2, label: 'SQLite', description: 'Pros: Simple. Cons: Limited scaling.' },
         ],
       },
     });
@@ -410,6 +421,8 @@ describe('bundleSchemaForExport', () => {
     const validate = ajv.compile(bundled);
 
     const valid = {
+      researchOutcome: 'needs-follow-up-question',
+      researchSummary: 'Research still needs a human choice.',
       followUpQuestion: {
         questionId: 'q-clarify-1',
         prompt: 'How should the widget handle offline mode?',
@@ -432,6 +445,8 @@ describe('bundleSchemaForExport', () => {
     // followUpQuestion missing required prompt
     expect(
       validate({
+        researchOutcome: 'needs-follow-up-question',
+        researchSummary: 'Need more input.',
         followUpQuestion: {
           questionId: 'q1',
           options: [
@@ -449,6 +464,8 @@ describe('bundleSchemaForExport', () => {
     const validate = ajv.compile(bundled);
 
     const data = {
+      researchOutcome: 'needs-follow-up-question',
+      researchSummary: 'Need a human caching choice.',
       followUpQuestion: {
         questionId: 'q-clarify-1',
         prompt: 'How should caching work?',

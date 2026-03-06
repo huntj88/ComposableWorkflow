@@ -114,17 +114,18 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** requires combinatorial coverage of classification outcomes across queue states.
 
 **Setup**
-- Configure copilot prompt stub to return `clarifying-question` or `custom-answer` intent for different responses.
-- Exercise both classification paths with queue items remaining and queue exhausted.
+- Configure copilot prompt stub to return `clarifying-question`, `unrelated-question`, or `custom-answer` intent for different responses.
+- Exercise all classification paths with queue items remaining and queue exhausted.
 
 **Assertions**
-- `clarifying-question` routes to `ExpandQuestionWithClarification` then back to `NumberedOptionsHumanRequest`.
+- `clarifying-question` and `unrelated-question` route to `ExpandQuestionWithClarification` then back to `NumberedOptionsHumanRequest`.
 - `custom-answer` buffers response and routes to `NumberedOptionsHumanRequest`.
 - Custom text classification takes precedence over direct queue self-loop evaluation.
 - Buffered custom-answers are present in accumulated answers at queue exhaustion.
+- Question intents defer the source question unless it already has a valid answer.
 - Classification uses schema-validated `structuredOutput.intent` as sole routing authority.
 
-**Related behaviors:** `B-SD-TRANS-005`, `B-SD-TRANS-008`, `B-SD-TRANS-009`, `B-SD-QUEUE-005`.
+**Related behaviors:** `B-SD-TRANS-005`, `B-SD-TRANS-008`, `B-SD-TRANS-009`, `B-SD-TRANS-013`, `B-SD-QUEUE-005`.
 
 ## ITX-SD-005: Clarification insertion ordering correctness
 **Why not E2E-only:** requires direct queue position inspection after insertion.
@@ -136,13 +137,31 @@ A behavior is integration-primary when one or more is true:
 
 **Assertions**
 - Q1-follow-up is inserted immediately after Q1 (becomes next item).
-- Queue order after insertion is [Q1 (answered), Q1-follow-up, Q2, Q3].
+- Queue order after insertion is [Q1 (answered or deferred), Q1-follow-up, Q2, Q3].
 - Q1-follow-up has a new `questionId` distinct from Q1.
 - Q1-follow-up conforms to server-owned base `numbered-question-item.schema.json`.
 - Q1-follow-up has `kind: "issue-resolution"`.
 - Original Q1 text/options are unchanged (immutability).
+- If Q1 was deferred rather than answered, it is revisited after the Q1-follow-up chain completes.
 
-**Related behaviors:** `B-SD-QUEUE-002`, `B-SD-QUEUE-003`, `B-SD-TRANS-010`, `B-SD-SCHEMA-005`.
+**Related behaviors:** `B-SD-QUEUE-002`, `B-SD-QUEUE-003`, `B-SD-TRANS-010`, `B-SD-TRANS-013`, `B-SD-SCHEMA-005`.
+
+## ITX-SD-004: Research-only clarification resolution
+**Why not E2E-only:** requires direct inspection of deferred-question state and absence of inserted follow-up items.
+
+**Setup**
+- Configure queue with items [Q1, Q2].
+- During Q1 processing, user provides clarifying or unrelated research text without answering Q1.
+- `ExpandQuestionWithClarification` returns a research summary and no `followUpQuestion`.
+
+**Assertions**
+- No new queue item is inserted.
+- A research log/observability entry is recorded.
+- Workflow transitions back to `NumberedOptionsHumanRequest`.
+- Q1 remains pending and is revisited before advancing permanently to Q2.
+- `structuredOutput.researchOutcome === "resolved-with-research"` is the sole branch selector.
+
+**Related behaviors:** `B-SD-TRANS-010`, `B-SD-TRANS-014`.
 
 ## ITX-SD-006: Completion confirmation validation permutations
 **Why not E2E-only:** requires combinatorial coverage of valid/invalid completion responses.
@@ -214,7 +233,7 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** requires direct state inspection to verify question text/options are unchanged.
 
 **Setup**
-- Issue a question, receive a clarifying-question classification.
+- Issue a question, receive a question intent classification that produces a follow-up.
 - Verify original question after `ExpandQuestionWithClarification` creates a follow-up.
 
 **Assertions**
@@ -331,7 +350,7 @@ Integration suite is complete when:
 2. Schema validation failure tests cover all FSM states that delegate to copilot prompt.
 3. Question queue manipulation tests verify ordering, insertion, immutability, and recovery.
 4. Loop counter boundary tests are exact and reproducible.
-5. Custom prompt classification routing covers both intents with queue in various states.
+5. Custom prompt classification routing covers all three intents with queue in various states.
 6. Every integration-primary test maps to one or more `B-SD-*` behavior IDs from `spec-doc-behaviors.md`.
 
 ---

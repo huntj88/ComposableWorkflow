@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in numeric order (`SDB-00` -> `SDB-12`).
+1. Execute tasks in numeric order (`SDB-00` -> `SDB-14`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -33,6 +33,8 @@ This folder contains the ordered implementation plan for:
 - `SDB-10` -> `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`, `SDB-08`, `SDB-09`
 - `SDB-11` -> `SDB-10`
 - `SDB-12` -> `SDB-05`, `SDB-06`
+- `SDB-13` -> `SDB-05`, `SDB-06`, `SDB-08`, `SDB-12`
+- `SDB-14` -> `SDB-09`, `SDB-10`, `SDB-11`, `SDB-13`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
@@ -51,6 +53,8 @@ No dependency points to a numerically later prerequisite outside this graph.
 - `SDB-10` [10-integration-suite-spec-doc.md](./10-integration-suite-spec-doc.md)
 - `SDB-11` [11-e2e-golden-scenarios-spec-doc.md](./11-e2e-golden-scenarios-spec-doc.md)
 - `SDB-12` [12-custom-answer-queue-exhaustion-routing.md](./12-custom-answer-queue-exhaustion-routing.md)
+- `SDB-13` [13-research-backed-clarification-and-deferral.md](./13-research-backed-clarification-and-deferral.md)
+- `SDB-14` [14-post-spec-update-integration-coverage.md](./14-post-spec-update-integration-coverage.md)
 
 ## Full Coverage Ownership
 
@@ -65,13 +69,16 @@ No dependency points to a numerically later prerequisite outside this graph.
 - Feedback cancellation lifecycle (`B-SD-FAIL-002`) -> `SDB-11`
 - Integrate input normalization (`B-SD-INPUT-001..003`) -> `SDB-03`, `SDB-10`
 - Observability (`B-SD-OBS-001..002`) -> `SDB-08`, `SDB-10`, `SDB-11`
+- Post-spec-update clarification research + deferred revisit deltas -> `SDB-13`, `SDB-14`
 
 ### Integration Coverage (`ITX-SD-*`)
 - Harness prerequisites in `ITX` section 3 -> `SDB-09`
 - `ITX-SD-001..014` implementation -> `SDB-10`
+- Post-spec-update `ITX-SD-003/004/005/012/014` deltas -> `SDB-14`
 
 ### Golden Scenario Coverage (`GS-SD-*`)
 - `GS-SD-001..005` -> `SDB-11`
+- Post-spec-update `GS-SD-003` delta -> `SDB-14`
 
 ## Task Document Contract (Mandatory Sections)
 

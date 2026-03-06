@@ -236,9 +236,17 @@ describe('CustomPromptClassificationOutput', () => {
   it('represents clarifying-question intent', () => {
     const output: CustomPromptClassificationOutput = {
       intent: 'clarifying-question',
-      clarifyingQuestionText: 'What database should we use?',
+      customQuestionText: 'What database should we use?',
     };
     expect(output.intent).toBe('clarifying-question');
+  });
+
+  it('represents unrelated-question intent', () => {
+    const output: CustomPromptClassificationOutput = {
+      intent: 'unrelated-question',
+      customQuestionText: 'What does the repository already implement for auth?',
+    };
+    expect(output.intent).toBe('unrelated-question');
   });
 
   it('represents custom-answer intent', () => {
@@ -253,6 +261,8 @@ describe('CustomPromptClassificationOutput', () => {
 describe('ClarificationFollowUpOutput', () => {
   it('wraps a base numbered question item', () => {
     const output: ClarificationFollowUpOutput = {
+      researchOutcome: 'needs-follow-up-question',
+      researchSummary: 'Research found an unresolved database decision.',
       followUpQuestion: {
         questionId: 'q-2',
         prompt: 'Which database engine?',
@@ -263,6 +273,14 @@ describe('ClarificationFollowUpOutput', () => {
       },
     };
     expect(output.followUpQuestion.questionId).toBe('q-2');
+  });
+
+  it('supports research-only resolution without a follow-up question', () => {
+    const output: ClarificationFollowUpOutput = {
+      researchOutcome: 'resolved-with-research',
+      researchSummary: 'The current spec already requires PostgreSQL.',
+    };
+    expect(output.researchOutcome).toBe('resolved-with-research');
   });
 });
 

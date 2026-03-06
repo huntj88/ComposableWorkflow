@@ -65,7 +65,8 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-001',
-        clarifyingQuestionText: 'Can you clarify the boundary?',
+        intent: 'clarifying-question',
+        customQuestionText: 'Can you clarify the boundary?',
       },
     };
 
@@ -117,7 +118,8 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-source',
-        clarifyingQuestionText: 'Clarify this',
+        intent: 'clarifying-question',
+        customQuestionText: 'Clarify this',
       },
     };
 
@@ -155,7 +157,8 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-kind-test',
-        clarifyingQuestionText: 'What kind?',
+        intent: 'clarifying-question',
+        customQuestionText: 'What kind?',
       },
     };
 
@@ -194,7 +197,8 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-immut',
-        clarifyingQuestionText: 'What about immutability?',
+        intent: 'clarifying-question',
+        customQuestionText: 'What about immutability?',
       },
     };
 
@@ -235,7 +239,8 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-unanswered',
-        clarifyingQuestionText: 'Is it answered?',
+        intent: 'clarifying-question',
+        customQuestionText: 'Is it answered?',
       },
     };
 
@@ -273,7 +278,8 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
       artifacts: { specPath: 'docs/generated-spec.md' },
       pendingClarification: {
         sourceQuestionId: 'q-clear',
-        clarifyingQuestionText: 'Clear this?',
+        intent: 'clarifying-question',
+        customQuestionText: 'Clear this?',
       },
     };
 

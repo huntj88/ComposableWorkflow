@@ -61,7 +61,7 @@ function clarifyingClassificationOutput(
 ): CustomPromptClassificationOutput {
   return {
     intent: 'clarifying-question',
-    clarifyingQuestionText: 'Do you mean REST-first with GraphQL as a secondary interface?',
+    customQuestionText: 'Do you mean REST-first with GraphQL as a secondary interface?',
     ...overrides,
   };
 }
@@ -289,12 +289,12 @@ describe('SD-CUSTOM-003-CustomAnswerBuffering', () => {
 // ===========================================================================
 
 describe('Clarifying-question routing to ExpandQuestionWithClarification', () => {
-  it('carries pendingClarification with sourceQuestionId and clarifyingQuestionText', async () => {
+  it('carries pendingClarification with sourceQuestionId and customQuestionText', async () => {
     const stateData = stateDataForClassification();
     const { ctx, transitionSpy } = createMockContext({
       childOutput: {
         structuredOutput: clarifyingClassificationOutput({
-          clarifyingQuestionText: 'Should the API be RESTful or RPC?',
+          customQuestionText: 'Should the API be RESTful or RPC?',
         }),
       },
     });
@@ -305,9 +305,10 @@ describe('Clarifying-question routing to ExpandQuestionWithClarification', () =>
     const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
     expect(updatedState.pendingClarification).toBeDefined();
     expect(updatedState.pendingClarification!.sourceQuestionId).toBe('q-cc-1');
-    expect(updatedState.pendingClarification!.clarifyingQuestionText).toBe(
+    expect(updatedState.pendingClarification!.customQuestionText).toBe(
       'Should the API be RESTful or RPC?',
     );
+    expect(updatedState.pendingClarification!.intent).toBe('clarifying-question');
   });
 
   it('does not buffer answers for clarifying-question intent', async () => {
@@ -366,7 +367,7 @@ describe('Schema validation gate', () => {
     expect(error.message).toContain('schema validation failed');
   });
 
-  it('hard-fails when clarifying-question intent lacks clarifyingQuestionText', async () => {
+  it('hard-fails when clarifying-question intent lacks customQuestionText', async () => {
     const invalidOutput = { intent: 'clarifying-question' };
     const stateData = stateDataForClassification();
     const { ctx, failSpy } = createMockContext({
