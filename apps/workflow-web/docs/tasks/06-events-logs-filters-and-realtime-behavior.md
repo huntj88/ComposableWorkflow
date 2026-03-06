@@ -1,9 +1,9 @@
-# TWEB06 - Events/Logs Filters, Correlation, and Realtime List Behavior
+# WEB-06 - Events/Logs Filters, Correlation, and Realtime List Behavior
 
 ## Depends On
-- `TWEB02`
-- `TWEB03`
-- `TWEB04`
+- `WEB-02`
+- `WEB-03`
+- `WEB-04`
 
 ## Objective
 Implement event timeline and logs panel filtering semantics, explicit link-mode synchronization constraints, and realtime append/auto-follow behavior with scroll preservation and jump-to-latest UX.

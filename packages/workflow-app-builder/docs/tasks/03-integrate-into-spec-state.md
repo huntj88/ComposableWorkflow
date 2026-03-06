@@ -1,7 +1,7 @@
-# TSD03 - IntegrateIntoSpec State Implementation
+# SDB-03 - IntegrateIntoSpec State Implementation
 
 ## Depends On
-- `TSD02`
+- `SDB-02`
 
 ## Objective
 Implement `IntegrateIntoSpec` state execution including initial-pass and feedback-pass normalization, schema-validated output handling, and spec path carry-forward.

@@ -1,7 +1,7 @@
-# T07 - Child Workflow Composition and Run Tree Lineage
+# WS-05 - Child Workflow Composition and Run Tree Lineage
 
 ## Depends On
-- `T04`, `T05`
+- `WS-02`, `WS-03`
 
 ## Objective
 Implement parent/child launch, linkage persistence, await semantics, failure propagation defaults, and tree visibility.

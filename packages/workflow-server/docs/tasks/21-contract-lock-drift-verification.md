@@ -1,8 +1,8 @@
-# T27 - Contract Lock Drift Verification
+# WS-21 - Contract Lock Drift Verification
 
 ## Depends On
-- `T24`
-- `T25`
+- `API-00`
+- `WS-19`
 
 ## Objective
 Implement automated CI-verifiable contract lock drift tests between the endpoint contract lock table in `workflow-api-types-spec.md` §2 and the web spec endpoint matrix in `apps/workflow-web/docs/workflow-web-spec.md` Section 6.2. This ensures method, path, and shared contract names remain exactly synchronized across both documents.

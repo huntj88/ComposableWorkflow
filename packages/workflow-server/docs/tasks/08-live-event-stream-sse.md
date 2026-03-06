@@ -1,7 +1,7 @@
-# T10 - Live Event Stream (SSE)
+# WS-08 - Live Event Stream (SSE)
 
 ## Depends On
-- `T03`, `T05`
+- `WS-01`, `WS-03`
 
 ## Objective
 Implement near-real-time run event streaming via SSE.

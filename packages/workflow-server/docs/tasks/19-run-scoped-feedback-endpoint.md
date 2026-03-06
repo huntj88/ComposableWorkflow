@@ -1,9 +1,9 @@
-# T25 - Run-Scoped Feedback Requests Endpoint
+# WS-19 - Run-Scoped Feedback Requests Endpoint
 
 ## Depends On
-- `T24`
-- `T22`
-- `T23`
+- `API-00`
+- `WS-17`
+- `WS-18`
 
 ## Objective
 Implement `GET /api/v1/workflows/runs/{runId}/feedback-requests` as a run-scoped, paginated, filterable endpoint that returns feedback requests associated with a specific run lineage. Reads from the `human_feedback_requests` projection keyed by `parent_run_id`. This endpoint is required for deterministic feedback discovery in run dashboards without prior `feedbackRunId` knowledge.

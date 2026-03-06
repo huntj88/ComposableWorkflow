@@ -1,18 +1,18 @@
-# T28 - Golden Scenarios: Human Feedback E2E
+# WS-22 - Golden Scenarios: Human Feedback E2E
 
 ## Depends On
-- `T12`
-- `T22`
-- `T23`
-- `T25`
+- `REF-00`
+- `WS-17`
+- `WS-18`
+- `WS-19`
 
 ## Objective
-Implement the two remaining E2E golden scenarios for human feedback: GS-006 (request-response round trip) and GS-007 (feedback cancellation propagation). These scenarios validate multiple behavior families at once and require the run-scoped feedback endpoint (B-API-009) from T25.
+Implement the two remaining E2E golden scenarios for human feedback: GS-006 (request-response round trip) and GS-007 (feedback cancellation propagation). These scenarios validate multiple behavior families at once and require the run-scoped feedback endpoint (B-API-009) from WS-19.
 
 ## Fixed Implementation Decisions
 - Golden scenarios use the same harness infrastructure as GS-001 through GS-005.
 - GS-006 requires the `reference.human-feedback-roundtrip.v1` workflow from `packages/workflow-package-reference`.
-- GS-006 step 4 requires `GET /api/v1/workflows/runs/{runId}/feedback-requests` (B-API-009, implemented in T25).
+- GS-006 step 4 requires `GET /api/v1/workflows/runs/{runId}/feedback-requests` (B-API-009, implemented in WS-19).
 - GS-007 tests cancellation propagation to feedback child runs using the same reference workflow.
 - Both scenarios assert all required dimensions: API contract, persistence, event stream, and parent/child linkage.
 

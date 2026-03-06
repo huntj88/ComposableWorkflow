@@ -1,12 +1,12 @@
-# T23 - Human Feedback API, CLI Commands, and Coverage Expansion
+# WS-18 - Human Feedback API, CLI Commands, and Coverage Expansion
 
 ## Depends On
-- `T11`
-- `T13`
-- `T22`
+- `CLI-00`
+- `WS-09`
+- `WS-17`
 
 ## Sequencing Gate
-- Begin implementation only after `T22` foundational runtime/projection schema is merged, because API/CLI behavior depends on the server-owned feedback runtime contract and projection persistence introduced in `T22`.
+- Begin implementation only after `WS-17` foundational runtime/projection schema is merged, because API/CLI behavior depends on the server-owned feedback runtime contract and projection persistence introduced in `WS-17`.
 
 ## Objective
 Implement strict feedback response/status API semantics and minimal operator CLI support (`feedback list`, `feedback respond`) with complete integration/E2E coverage for validation, idempotency, and wait/resume behavior, including canonical `human-feedback.received -> responded` terminalization.

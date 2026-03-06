@@ -1,14 +1,14 @@
-# T08 - Workflow Command Runner, Policy, and Redaction
+# WS-06 - Workflow Command Runner, Policy, and Redaction
 
 ## Depends On
-- `T04`, `T05`
+- `WS-02`, `WS-03`
 
 ## Objective
 Implement controlled command execution from workflow steps with policy enforcement, timeout handling, and structured output capture.
 
 ## Implementation Tasks
 - [x] Implement command runner adapter abstraction (real process + test double).
-- [x] Implement cooperative safe points around execution paths moved from `T06`:
+- [x] Implement cooperative safe points around execution paths moved from `WS-04`:
   - before/after child launch
   - before/after command execution
 - [x] Implement policy engine:

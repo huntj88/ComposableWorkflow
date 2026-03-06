@@ -1,7 +1,7 @@
-# T13 - Integration Test Harness and Determinism Controls
+# WS-09 - Integration Test Harness and Determinism Controls
 
 ## Depends On
-- `T05`, `T09`, `T12`
+- `WS-03`, `WS-07`, `REF-00`
 
 ## Objective
 Build integration harness infrastructure required to deterministically test race conditions, crash windows, and instrumentation contracts.

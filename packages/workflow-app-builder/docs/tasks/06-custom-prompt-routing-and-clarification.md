@@ -1,8 +1,8 @@
-# TSD06 - Custom Prompt Routing and Clarification Expansion
+# SDB-06 - Custom Prompt Routing and Clarification Expansion
 
 ## Depends On
-- `TSD02`
-- `TSD05`
+- `SDB-02`
+- `SDB-05`
 
 ## Objective
 Implement `ClassifyCustomPrompt` and `ExpandQuestionWithClarification` routing, including intent-priority handling and immediate-next queue insertion.

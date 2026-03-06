@@ -1,7 +1,7 @@
-# T03 - Dynamic Package Loader and Workflow Registry
+# WS-01 - Dynamic Package Loader and Workflow Registry
 
 ## Depends On
-- `T00`, `T01`, `T02`
+- `TC-00`, `WL-00`, `WS-00`
 
 ## Objective
 Implement runtime package discovery/loading, manifest validation, registry population, collision handling, and persisted metadata snapshots.

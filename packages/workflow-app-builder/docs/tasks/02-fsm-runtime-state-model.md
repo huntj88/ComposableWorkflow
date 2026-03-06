@@ -1,8 +1,8 @@
-# TSD02 - FSM Runtime Skeleton and State Data Model
+# SDB-02 - FSM Runtime Skeleton and State Data Model
 
 ## Depends On
-- `TSD00`
-- `TSD01`
+- `SDB-00`
+- `SDB-01`
 
 ## Objective
 Create `app-builder.spec-doc.v1` as a declarative FSM workflow with canonical states, transition guards, and persistent state data structures.

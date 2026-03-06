@@ -4,8 +4,8 @@ Tasks that span multiple packages or concern monorepo-wide infrastructure.
 
 | Task | Document | Scope |
 |---|---|---|
-| `T00` | [00-monorepo-foundation.md](./00-monorepo-foundation.md) | All packages — monorepo scaffold |
-| `T17` | [17-ci-quality-gates.md](./17-ci-quality-gates.md) | All packages — CI pipeline |
+| `TC-00` | [00-monorepo-foundation.md](./00-monorepo-foundation.md) | All packages — monorepo scaffold |
+| `TC-01` | [01-ci-quality-gates.md](01-ci-quality-gates.md) | All packages — CI pipeline |
 
 ## Package-Specific Task Indexes
 

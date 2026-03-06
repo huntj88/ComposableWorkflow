@@ -2,7 +2,7 @@
 
 > Canonical specification for `packages/workflow-lib` — the shared runtime contracts, execution context, event types, instrumentation hooks, and command execution helpers used by all workflow packages.
 >
-> Cross-cutting architecture: [docs/architecture.md](../../../docs/architecture.md)
+> Cross-cutting architecture: [architecture.md](../../../docs/architecture.md)
 > Server implementation: [typescript-server-workflow-spec.md](../../workflow-server/docs/typescript-server-workflow-spec.md)
 
 ---

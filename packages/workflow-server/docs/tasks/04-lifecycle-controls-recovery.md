@@ -1,7 +1,7 @@
-# T06 - Lifecycle Controls: Pause, Resume, Cancel, Recovery
+# WS-04 - Lifecycle Controls: Pause, Resume, Cancel, Recovery
 
 ## Depends On
-- `T04`, `T05`
+- `WS-02`, `WS-03`
 
 ## Objective
 Implement exact lifecycle machine transitions and control endpoints with cooperative safe-point semantics and startup/manual reconciliation.
@@ -16,8 +16,8 @@ Implement exact lifecycle machine transitions and control endpoints with coopera
 - [x] Enforce 409 behavior for invalid pause/resume states.
 - [x] Implement cooperative safe points:
   - between transitions
-  - before/after child launch (**moved to `T08`**)
-  - before/after command execution (**moved to `T08`**)
+  - before/after child launch (**moved to `WS-06`**)
+  - before/after command execution (**moved to `WS-06`**)
 - [x] Implement startup reconciliation before accepting new execution work.
 - [x] Ensure recovery is idempotent and lock-protected.
 - [x] Emit exact lifecycle checkpoint events:

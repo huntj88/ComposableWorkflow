@@ -1,7 +1,7 @@
-# T15 - Integration Suite B: Lifecycle, Command, Observability
+# WS-11 - Integration Suite B: Lifecycle, Command, Observability
 
 ## Depends On
-- `T06`, `T08`, `T09`, `T13`
+- `WS-04`, `WS-06`, `WS-07`, `WS-09`
 
 ## Objective
 Implement the remaining integration-primary and shared tests for lifecycle control, command policy paths, and instrumentation contracts.

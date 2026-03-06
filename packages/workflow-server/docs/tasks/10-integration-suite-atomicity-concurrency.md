@@ -1,7 +1,7 @@
-# T14 - Integration Suite A: Atomicity, Ordering, Concurrency
+# WS-10 - Integration Suite A: Atomicity, Ordering, Concurrency
 
 ## Depends On
-- `T06`, `T07`, `T08`, `T13`
+- `WS-04`, `WS-05`, `WS-06`, `WS-09`
 
 ## Objective
 Implement integration-primary tests focused on transactional correctness and concurrency races.

@@ -1,8 +1,8 @@
-# TWEB07 - Layout Architecture, Tokens/Theme, and Accessibility
+# WEB-07 - Layout Architecture, Tokens/Theme, and Accessibility
 
 ## Depends On
-- `TWEB01`
-- `TWEB02`
+- `WEB-01`
+- `WEB-02`
 
 ## Objective
 Implement required `/runs/:runId` information architecture across breakpoints, shared lifecycle/health token consistency, dark-default theme parity, keyboard-only interaction support, and deterministic accessibility announcement/focus rules.

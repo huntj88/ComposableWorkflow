@@ -287,8 +287,8 @@ Tasks that span multiple packages are tracked here. Package-specific tasks live 
 
 | Task | Document | Scope |
 |---|---|---|
-| `T00` | [00-monorepo-foundation.md](./tasks/00-monorepo-foundation.md) | All packages — monorepo scaffold |
-| `T17` | [17-ci-quality-gates.md](./tasks/17-ci-quality-gates.md) | All packages — CI pipeline |
+| `TC-00` | [00-monorepo-foundation.md](./tasks/00-monorepo-foundation.md) | All packages — monorepo scaffold |
+| `TC-01` | [01-ci-quality-gates.md](tasks/01-ci-quality-gates.md) | All packages — CI pipeline |
 
 ### Package-Specific Task Indexes
 

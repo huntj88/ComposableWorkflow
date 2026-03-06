@@ -1,7 +1,7 @@
-# T17 - CI Quality Gates, Coverage Accounting, and Delivery Controls
+# TC-01 - CI Quality Gates, Coverage Accounting, and Delivery Controls
 
 ## Depends On
-- `T10`, `T14`, `T15`, `T16`
+- `WS-08`, `WS-10`, `WS-11`, `WS-12`
 
 ## Objective
 Operationalize deterministic quality gates so implementation completeness is provable and regressions are blocked.
@@ -12,7 +12,7 @@ Operationalize deterministic quality gates so implementation completeness is pro
   2) unit tests
   3) integration tests
   4) E2E tests
-  5) SSE stream tests (`T10`)
+  5) SSE stream tests (`WS-08`)
 - [x] Add hermetic test environment setup:
   - test-local Postgres container
   - seeded reference workflows

@@ -1,7 +1,7 @@
-# T18 - Spec Drift Corrections and Contract Alignment
+# WS-13 - Spec Drift Corrections and Contract Alignment
 
 ## Depends On
-- `T17`
+- `TC-01`
 
 ## Objective
 Close implementation drift between `docs/typescript-server-workflow-spec.md` and current runtime/API/CLI behavior, with explicit contract alignment and regression coverage.

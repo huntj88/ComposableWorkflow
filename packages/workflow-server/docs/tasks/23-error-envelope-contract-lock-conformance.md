@@ -1,9 +1,9 @@
-# T29 - Error Envelope Contract Lock Conformance
+# WS-23 - Error Envelope Contract Lock Conformance
 
 ## Depends On
-- `T23`
-- `T24`
-- `T27`
+- `WS-18`
+- `API-00`
+- `WS-21`
 
 ## Objective
 Implement CI-verifiable conformance for shared transport error contracts introduced/clarified in `workflow-api-types-spec.md` §4 and server spec Section 4.10, including cross-spec lock checks against `apps/workflow-web/docs/workflow-web-spec.md` Section 6.8 and runtime contract assertions for `ErrorEnvelope` and `SubmitHumanFeedbackResponseConflict` handling.

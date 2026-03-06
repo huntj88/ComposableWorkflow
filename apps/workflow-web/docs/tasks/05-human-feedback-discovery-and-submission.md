@@ -1,9 +1,9 @@
-# TWEB05 - Human Feedback Discovery, Prioritization, and Submission
+# WEB-05 - Human Feedback Discovery, Prioritization, and Submission
 
 ## Depends On
-- `TWEB02`
-- `TWEB03`
-- `TWEB04`
+- `WEB-02`
+- `WEB-03`
+- `WEB-04`
 
 ## Objective
 Implement run-scoped human feedback discovery, awaiting-first prioritization, in-context detail expansion, validation-aware submission UX, and stable pagination/order semantics for feedback requests.

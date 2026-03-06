@@ -1,9 +1,9 @@
-# T26 - Integration Suite: Feedback Pagination and Contract Conformance
+# WS-20 - Integration Suite: Feedback Pagination and Contract Conformance
 
 ## Depends On
-- `T13`
-- `T24`
-- `T25`
+- `WS-09`
+- `API-00`
+- `WS-19`
 
 ## Objective
 Implement integration tests for run-scoped feedback discovery pagination/filter behavior (`ITX-030`) and endpoint handler type conformance against `workflow-api-types` (`ITX-031`). These are integration-primary because they require controlled insertion during pagination (ITX-030) and compile-time/structural type conformance assertions (ITX-031).

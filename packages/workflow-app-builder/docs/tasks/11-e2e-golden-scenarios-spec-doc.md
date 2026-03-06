@@ -1,7 +1,7 @@
-# TSD11 - E2E Golden Scenarios and Production Parity
+# SDB-11 - E2E Golden Scenarios and Production Parity
 
 ## Depends On
-- `TSD10`
+- `SDB-10`
 
 ## Objective
 Deliver black-box E2E coverage for all documented spec-doc golden scenarios (`GS-SD-001..005`) using the production server process and HTTP-only assertions.

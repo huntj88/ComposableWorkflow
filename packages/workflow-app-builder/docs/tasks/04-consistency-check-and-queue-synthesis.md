@@ -1,8 +1,8 @@
-# TSD04 - Consistency Check and Queue Synthesis
+# SDB-04 - Consistency Check and Queue Synthesis
 
 ## Depends On
-- `TSD02`
-- `TSD03`
+- `SDB-02`
+- `SDB-03`
 
 ## Objective
 Implement `LogicalConsistencyCheckCreateFollowUpQuestions` with deterministic output validation, queue ordering, and completion-confirmation synthesis.

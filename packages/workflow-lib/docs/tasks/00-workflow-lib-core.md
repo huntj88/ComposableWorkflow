@@ -1,7 +1,7 @@
-# T01 - Workflow Library Core Contracts and Runtime
+# WL-00 - Workflow Library Core Contracts and Runtime
 
 ## Depends On
-- `T00`
+- `TC-00`
 
 ## Objective
 Implement `packages/workflow-lib` as the server-agnostic runtime contract and execution primitive layer.

@@ -1,8 +1,8 @@
-# TWEB08 - FSM Graph Projection, Layout, Overlay, and Performance Mode
+# WEB-08 - FSM Graph Projection, Layout, Overlay, and Performance Mode
 
 ## Depends On
-- `TWEB02`
-- `TWEB03`
+- `WEB-02`
+- `WEB-03`
 
 ## Objective
 Implement deterministic FSM graph rendering from workflow definitions with stable IDs, role/legend semantics, dagre layout rules, runtime overlay composition, mismatch/invariant surfacing, selection details, and large-graph performance mode behavior.

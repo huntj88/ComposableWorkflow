@@ -1,10 +1,10 @@
-# TSD09 - Spec-Doc Integration Harness Components
+# SDB-09 - Spec-Doc Integration Harness Components
 
 ## Depends On
-- `TSD02`
-- `TSD05`
-- `TSD06`
-- `TSD08`
+- `SDB-02`
+- `SDB-05`
+- `SDB-06`
+- `SDB-08`
 
 ## Objective
 Build deterministic harness components required by the integration plan: copilot double, feedback controller, queue inspector, and observability capture sink.

@@ -1,7 +1,7 @@
-# TWEB03 - Typed Transport Contracts, Endpoint Semantics, and Error Contracts
+# WEB-03 - Typed Transport Contracts, Endpoint Semantics, and Error Contracts
 
 ## Depends On
-- `TWEB00`
+- `WEB-00`
 
 ## Objective
 Implement the web transport layer with strict shared DTO authority, absolute `/api/v1` endpoint correctness, query-key/serialization conformance, and panel-scoped error handling aligned to shared error contracts.

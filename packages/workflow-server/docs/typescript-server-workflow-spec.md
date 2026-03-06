@@ -2,7 +2,7 @@
 
 > Server-specific specification for `packages/workflow-server` — dynamic package loading, orchestration, persistence, API endpoints, lifecycle controls, and observability.
 >
-> Cross-cutting architecture and goals: [docs/architecture.md](../../../docs/architecture.md)
+> Cross-cutting architecture and goals: [architecture.md](../../../docs/architecture.md)
 > Runtime library contracts: [workflow-lib-spec.md](../../workflow-lib/docs/workflow-lib-spec.md)
 > Shared API transport types: [workflow-api-types-spec.md](../../workflow-api-types/docs/workflow-api-types-spec.md)
 > CLI spec: [workflow-cli-spec.md](../../../apps/workflow-cli/docs/workflow-cli-spec.md)
@@ -16,12 +16,12 @@ The following sections from the original monolithic spec have been extracted int
 
 | Original Section | Now Lives In |
 |---|---|
-| §1–5 (Summary, Goals, Architecture) | [docs/architecture.md](../../../docs/architecture.md) |
+| §1–5 (Summary, Goals, Architecture) | [architecture.md](../../../docs/architecture.md) |
 | §6.1–6.6, §6.8 (Library contracts, events, commands, human feedback contract) | [workflow-lib-spec.md](../../workflow-lib/docs/workflow-lib-spec.md) |
 | §6.7 (CLI tooling) | [workflow-cli-spec.md](../../../apps/workflow-cli/docs/workflow-cli-spec.md) |
 | §6.9 (Shared API contract package, endpoint lock, error envelope) | [workflow-api-types-spec.md](../../workflow-api-types/docs/workflow-api-types-spec.md) |
 | §10 (Graph data contracts) | [workflow-api-types-spec.md §5](../../workflow-api-types/docs/workflow-api-types-spec.md#5-data-contracts-for-flowchart-rendering) |
-| §13–16 (Security, Testing, Delivery, Acceptance) | [docs/architecture.md](../../../docs/architecture.md) |
+| §13–16 (Security, Testing, Delivery, Acceptance) | [architecture.md](../../../docs/architecture.md) |
 
 ---
 

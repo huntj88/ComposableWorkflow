@@ -1,10 +1,10 @@
-# T22 - Server-Owned Human Feedback Runtime and Projection
+# WS-17 - Server-Owned Human Feedback Runtime and Projection
 
 ## Depends On
-- `T02`
-- `T04`
-- `T05`
-- `T07`
+- `WS-00`
+- `WS-02`
+- `WS-03`
+- `WS-05`
 
 ## Objective
 Implement the locked MVP server-owned human-feedback workflow contract (`server.human-feedback.v1`), request/cancel lifecycle runtime semantics, and transactional projection materialization in `human_feedback_requests`.
@@ -21,7 +21,7 @@ Implement the locked MVP server-owned human-feedback workflow contract (`server.
 - [x] Keep canonical source-of-truth in `workflow_events`; ensure projection derivation matches runtime-owned event progression.
 
 Ownership note:
-- `human-feedback.received -> responded` is API response handling and is owned by `T23` to avoid circular dependency between runtime contract setup and response endpoint implementation.
+- `human-feedback.received -> responded` is API response handling and is owned by `WS-18` to avoid circular dependency between runtime contract setup and response endpoint implementation.
 
 ## Required Artifacts
 - `packages/workflow-server/src/internal-workflows/human-feedback/*`
@@ -38,7 +38,7 @@ Ownership note:
 - Runtime-owned canonical event progression and projection status remain consistent:
   - `requested -> awaiting_response`
   - `cancelled -> cancelled`.
- - Response-owned progression is completed in `T23`:
+ - Response-owned progression is completed in `WS-18`:
   - `received -> responded`.
 
 ## Spec/Behavior Links
@@ -91,4 +91,4 @@ Ownership note:
 | HFB-Core-003-PayloadEnvelopeStability | `src/internal-workflows/human-feedback/workflow.ts` | runtime-owned feedback lifecycle metadata is emitted through `payload` envelope only. |
 | HFB-Core-004-ProjectionTransactionalWrite | `src/persistence/human-feedback-projection-repository.ts` | projection writes occur with corresponding feedback event append transaction boundary. |
 | HFB-Core-005-FirstTerminalOutcomeWins | `src/persistence/human-feedback-projection-repository.ts` | competing terminal writes are no-ops after first terminalization. |
-| HFB-Core-006-ReceivedResponseOwnershipBoundary | `docs/tasks/23-feedback-api-cli-and-coverage.md` | `human-feedback.received -> responded` ownership is explicitly assigned to T23. |
+| HFB-Core-006-ReceivedResponseOwnershipBoundary | `18-feedback-api-cli-and-coverage.md` | `human-feedback.received -> responded` ownership is explicitly assigned to WS-18. |

@@ -1,8 +1,8 @@
-# T30 - Graph Contract Lock and Overlay Conformance
+# WS-24 - Graph Contract Lock and Overlay Conformance
 
 ## Depends On
-- `T24`
-- `T27`
+- `API-00`
+- `WS-21`
 
 ## Objective
 Implement CI-verifiable graph contract alignment and runtime overlay conformance for the `workflow-api-types-spec.md` §5 requirements, including cross-spec lock checks against `apps/workflow-web/docs/workflow-web-spec.md`, shared-contract lock checks against `packages/workflow-api-types`, and deterministic runtime reference validation for graph overlays.

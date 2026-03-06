@@ -1,8 +1,8 @@
-# TWEB12 - E2E Happy Paths, Coverage Ledger, and CI Quality Gates
+# WEB-12 - E2E Happy Paths, Coverage Ledger, and CI Quality Gates
 
 ## Depends On
-- `TWEB10`
-- `TWEB11`
+- `WEB-10`
+- `WEB-11`
 
 ## Objective
 Close the plan with representative browser E2E happy paths, deterministic integration gate execution in CI, and a full behavior/integration ownership ledger that proves no spec coverage gaps remain.
@@ -56,9 +56,9 @@ Close the plan with representative browser E2E happy paths, deterministic integr
 ## One-to-One Requirement Mapping
 | Requirement ID | Primary Artifact | Verification Assertion |
 |---|---|---|
-| TWEB12-GATE-001 | `packages/workflow-server/docs/testing/coverage-matrix.md` | Coverage ledger contains complete ownership entries for `B-WEB-001..056` and `ITX-WEB-001..043`; missing ownership fails CI. |
-| TWEB12-GATE-002 | `.github/workflows/ci.yml` | CI runs targeted definitions-route and unsupported-`eventType` stream integration checks defined by TWEB12 verification commands. |
-| TWEB12-GATE-003 | `.github/workflows/ci.yml` | CI runs spec-lock checks for API-types export-set and contract-evolution-order conformance. |
-| TWEB12-GATE-004 | `.github/workflows/ci.yml` | CI includes integration checks that cover free-text/filter-link semantics and defaults/max ordering semantics through targeted integration jobs. |
-| TWEB12-GATE-005 | `apps/workflow-web/test/e2e/web-runs-dashboard-happy-path.spec.ts` | Representative `/runs` + `/runs/:runId` dashboard happy-path E2E coverage is present and gated in CI. |
-| TWEB12-GATE-006 | `apps/workflow-web/test/e2e/web-feedback-happy-path.spec.ts` | Representative feedback submit success and terminal status-update E2E coverage is present and gated in CI. |
+| WEB-12-GATE-001 | `packages/workflow-server/docs/testing/coverage-matrix.md` | Coverage ledger contains complete ownership entries for `B-WEB-001..056` and `ITX-WEB-001..043`; missing ownership fails CI. |
+| WEB-12-GATE-002 | `.github/workflows/ci.yml` | CI runs targeted definitions-route and unsupported-`eventType` stream integration checks defined by WEB-12 verification commands. |
+| WEB-12-GATE-003 | `.github/workflows/ci.yml` | CI runs spec-lock checks for API-types export-set and contract-evolution-order conformance. |
+| WEB-12-GATE-004 | `.github/workflows/ci.yml` | CI includes integration checks that cover free-text/filter-link semantics and defaults/max ordering semantics through targeted integration jobs. |
+| WEB-12-GATE-005 | `apps/workflow-web/test/e2e/web-runs-dashboard-happy-path.spec.ts` | Representative `/runs` + `/runs/:runId` dashboard happy-path E2E coverage is present and gated in CI. |
+| WEB-12-GATE-006 | `apps/workflow-web/test/e2e/web-feedback-happy-path.spec.ts` | Representative feedback submit success and terminal status-update E2E coverage is present and gated in CI. |

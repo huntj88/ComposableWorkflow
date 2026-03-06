@@ -1,8 +1,8 @@
-# TSD12 - NumberedOptionsHumanRequest Queue-Exhaustion on Re-Entry
+# SDB-12 - NumberedOptionsHumanRequest Queue-Exhaustion on Re-Entry
 
 ## Depends On
-- `TSD05`
-- `TSD06`
+- `SDB-05`
+- `SDB-06`
 
 ## Objective
 Fix a bug where `NumberedOptionsHumanRequest` hard-fails when re-entered with an already-exhausted queue. After `ClassifyCustomPrompt` (custom-answer) buffers the supplementary answer and transitions back to `NumberedOptionsHumanRequest`, the handler's bounds-check guard (`queueIndex >= queue.length`) must evaluate queue-exhaustion transitions (Done / IntegrateIntoSpec) instead of calling `ctx.fail()`.

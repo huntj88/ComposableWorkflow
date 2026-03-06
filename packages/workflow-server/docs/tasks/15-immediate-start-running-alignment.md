@@ -1,7 +1,7 @@
-# T20 - Immediate Start Execution and `running` Lifecycle Alignment
+# WS-15 - Immediate Start Execution and `running` Lifecycle Alignment
 
 ## Depends On
-- `T19`
+- `WS-14`
 
 ## Objective
 Align runtime and API start semantics with the lifecycle decision that `POST /api/v1/workflows/start` begins execution immediately, with no operational `pending` queue state, and with `workflow.started` emitted at execution-start checkpoint.

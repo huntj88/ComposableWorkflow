@@ -1,8 +1,8 @@
-# T21 - Recovery Reconcile Progress-Gating Semantics
+# WS-16 - Recovery Reconcile Progress-Gating Semantics
 
 ## Depends On
-- `T06`
-- `T20`
+- `WS-04`
+- `WS-15`
 
 ## Objective
 Align reconciliation behavior to allow repeat recovery only when new workflow progression occurred after the latest recovery boundary, while preserving idempotence and duplicate-side-effect prevention.

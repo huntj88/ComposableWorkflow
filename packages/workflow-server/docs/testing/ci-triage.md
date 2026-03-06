@@ -1,6 +1,6 @@
 # CI Triage and Flake Control
 
-This document defines required triage controls for CI quality gates in T17.
+This document defines required triage controls for CI quality gates in TC-01.
 
 ## 1) Gate Model
 

@@ -1,7 +1,7 @@
-# T09 - Observability: Logging, Metrics, Tracing
+# WS-07 - Observability: Logging, Metrics, Tracing
 
 ## Depends On
-- `T04`
+- `WS-02`
 
 ## Objective
 Implement server-injected instrumentation for workflow events, metrics, and trace trees with guaranteed field coverage and failure isolation.

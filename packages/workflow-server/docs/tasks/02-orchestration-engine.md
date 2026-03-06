@@ -1,7 +1,7 @@
-# T04 - Orchestration Engine Core
+# WS-02 - Orchestration Engine Core
 
 ## Depends On
-- `T01`, `T02`, `T03`
+- `WL-00`, `WS-00`, `WS-01`
 
 ## Objective
 Build `workflow-server` execution engine with single-runner semantics, event append flow, and deterministic state progression.

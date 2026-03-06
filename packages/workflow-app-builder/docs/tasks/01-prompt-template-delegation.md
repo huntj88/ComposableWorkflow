@@ -1,7 +1,7 @@
-# TSD01 - Prompt Template Catalog and Delegation Plumbing
+# SDB-01 - Prompt Template Catalog and Delegation Plumbing
 
 ## Depends On
-- `TSD00`
+- `SDB-00`
 
 ## Objective
 Implement the fixed, versioned prompt-template catalog and one delegation path to `app-builder.copilot.prompt.v1` that always supplies state-specific `outputSchema`.

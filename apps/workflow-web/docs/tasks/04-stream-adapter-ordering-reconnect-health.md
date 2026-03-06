@@ -1,8 +1,8 @@
-# TWEB04 - SSE Stream Adapter, Ordering, Reconnect, and Health
+# WEB-04 - SSE Stream Adapter, Ordering, Reconnect, and Health
 
 ## Depends On
-- `TWEB02`
-- `TWEB03`
+- `WEB-02`
+- `WEB-03`
 
 ## Objective
 Implement typed SSE streaming for run dashboards with deterministic incremental updates, strict dedup/non-regression ordering, cursor resume semantics, reconnect policy constants, and visible non-blocking stream health.

@@ -1,7 +1,7 @@
-# T12 - Reference Workflow Packages for Validation
+# REF-00 - Reference Workflow Packages for Validation
 
 ## Depends On
-- `T01`
+- `WL-00`
 
 ## Objective
 Create workflow packages used by integration and E2E suites to validate behavior families with deterministic outcomes.

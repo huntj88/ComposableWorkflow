@@ -2,7 +2,7 @@
 
 > Canonical specification for `apps/workflow-cli` — the user-facing operator/developer CLI application.
 >
-> Cross-cutting architecture: [docs/architecture.md](../../../docs/architecture.md)
+> Cross-cutting architecture: [architecture.md](../../../docs/architecture.md)
 > Server API: [typescript-server-workflow-spec.md](../../../packages/workflow-server/docs/typescript-server-workflow-spec.md)
 > Shared transport contracts: [workflow-api-types-spec.md](../../../packages/workflow-api-types/docs/workflow-api-types-spec.md)
 

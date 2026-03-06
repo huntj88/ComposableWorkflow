@@ -1,7 +1,7 @@
-# T02 - Postgres Persistence and Migration Baseline
+# WS-00 - Postgres Persistence and Migration Baseline
 
 ## Depends On
-- `T00`
+- `TC-00`
 
 ## Objective
 Implement durable persistence for workflow definitions, runs, events, and optional snapshot optimization tables with migration safety.

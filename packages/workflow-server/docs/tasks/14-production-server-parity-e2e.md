@@ -1,7 +1,7 @@
-# T19 - Production Server Entrypoint and Test/Prod Parity Guarantees
+# WS-14 - Production Server Entrypoint and Test/Prod Parity Guarantees
 
 ## Depends On
-- `T18`
+- `WS-13`
 
 ## Objective
 Introduce a persistent production server entrypoint and enforce architectural parity so test and production execution paths share the same runtime code, producing identical workflow outcomes for identical inputs/events.

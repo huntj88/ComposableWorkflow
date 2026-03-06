@@ -1,12 +1,12 @@
-# TSD08 - Observability and Prompt Traceability
+# SDB-08 - Observability and Prompt Traceability
 
 ## Depends On
-- `TSD02`
-- `TSD03`
-- `TSD04`
-- `TSD05`
-- `TSD06`
-- `TSD07`
+- `SDB-02`
+- `SDB-03`
+- `SDB-04`
+- `SDB-05`
+- `SDB-06`
+- `SDB-07`
 
 ## Objective
 Emit required run/state/question/prompt observability events with stable ordering and prompt-template traceability metadata.

@@ -1,10 +1,10 @@
-# TSD07 - Terminal Output, Loop Enforcement, and Failure Propagation
+# SDB-07 - Terminal Output, Loop Enforcement, and Failure Propagation
 
 ## Depends On
-- `TSD03`
-- `TSD04`
-- `TSD05`
-- `TSD06`
+- `SDB-03`
+- `SDB-04`
+- `SDB-05`
+- `SDB-06`
 
 ## Objective
 Implement terminal semantics (`Done` and `failed`) including completion confirmation cardinality, output contract emission, loop-limit failure, and child failure propagation with stage context.

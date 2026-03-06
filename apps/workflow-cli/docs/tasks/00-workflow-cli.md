@@ -1,7 +1,7 @@
-# T11 - User-Facing Workflow CLI
+# CLI-00 - User-Facing Workflow CLI
 
 ## Depends On
-- `T05`
+- `WS-03`
 
 ## Objective
 Implement `apps/workflow-cli` as operator/developer tooling independent from in-workflow command execution.

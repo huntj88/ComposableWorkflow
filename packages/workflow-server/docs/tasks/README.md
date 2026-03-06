@@ -15,95 +15,95 @@ Integration tests: [integration-tests.md](../integration-tests.md)
 
 > Tasks marked ↗ have been moved to their owning package. Follow cross-links.
 
-- `T00` ↗ [docs/tasks](../../../../docs/tasks/00-monorepo-foundation.md) -> none
-- `T01` ↗ [workflow-lib/docs/tasks](../../../workflow-lib/docs/tasks/01-workflow-lib-core.md) -> `T00`
-- `T02` -> `T00`
-- `T03` -> `T00`, `T01`↗, `T02`
-- `T04` -> `T01`↗, `T02`, `T03`
-- `T05` -> `T04`
-- `T06` -> `T04`, `T05`
-- `T07` -> `T04`, `T05`
-- `T08` -> `T04`, `T05`
-- `T09` -> `T04`
-- `T10` -> `T03`, `T05`
-- `T11` ↗ [workflow-cli/docs/tasks](../../../../apps/workflow-cli/docs/tasks/11-workflow-cli.md) -> `T05`
-- `T12` ↗ [workflow-package-reference/docs/tasks](../../../workflow-package-reference/docs/tasks/12-reference-workflow-packages.md) -> `T01`↗
-- `T13` -> `T05`, `T09`, `T12`↗
-- `T14` -> `T06`, `T07`, `T08`, `T13`
-- `T15` -> `T06`, `T08`, `T09`, `T13`
-- `T16` -> `T06`, `T07`, `T08`, `T11`↗, `T12`↗
-- `T17` ↗ [docs/tasks](../../../../docs/tasks/17-ci-quality-gates.md) -> `T10`, `T14`, `T15`, `T16`
-- `T18` -> `T17`↗
-- `T19` -> `T18`
-- `T20` -> `T19`
-- `T21` -> `T06`, `T20`
-- `T22` -> `T02`, `T04`, `T05`, `T07`
-- `T23` -> `T11`↗, `T13`, `T22`
-- `T24` ↗ [workflow-api-types/docs/tasks](../../../workflow-api-types/docs/tasks/24-shared-api-contract-package.md) -> `T05`, `T10`, `T22`, `T23`
-- `T25` -> `T24`↗, `T22`, `T23`
-- `T26` -> `T13`, `T24`↗, `T25`
-- `T27` -> `T24`↗, `T25`
-- `T28` -> `T12`↗, `T22`, `T23`, `T25`
-- `T29` -> `T23`, `T24`↗, `T27`
-- `T30` -> `T24`↗, `T27`
+- `TC-00` ↗ [docs/tasks](../../../../docs/tasks/00-monorepo-foundation.md) -> none
+- `WL-00` ↗ [workflow-lib/docs/tasks](../../../workflow-lib/docs/tasks/00-workflow-lib-core.md) -> `TC-00`
+- `WS-00` -> `TC-00`
+- `WS-01` -> `TC-00`, `WL-00`↗, `WS-00`
+- `WS-02` -> `WL-00`↗, `WS-00`, `WS-01`
+- `WS-03` -> `WS-02`
+- `WS-04` -> `WS-02`, `WS-03`
+- `WS-05` -> `WS-02`, `WS-03`
+- `WS-06` -> `WS-02`, `WS-03`
+- `WS-07` -> `WS-02`
+- `WS-08` -> `WS-01`, `WS-03`
+- `CLI-00` ↗ [workflow-cli/docs/tasks](../../../../apps/workflow-cli/docs/tasks/00-workflow-cli.md) -> `WS-03`
+- `REF-00` ↗ [workflow-package-reference/docs/tasks](../../../workflow-package-reference/docs/tasks/00-reference-workflow-packages.md) -> `WL-00`↗
+- `WS-09` -> `WS-03`, `WS-07`, `REF-00`↗
+- `WS-10` -> `WS-04`, `WS-05`, `WS-06`, `WS-09`
+- `WS-11` -> `WS-04`, `WS-06`, `WS-07`, `WS-09`
+- `WS-12` -> `WS-04`, `WS-05`, `WS-06`, `CLI-00`↗, `REF-00`↗
+- `TC-01` ↗ [docs/tasks](../../../../docs/tasks/01-ci-quality-gates.md) -> `WS-08`, `WS-10`, `WS-11`, `WS-12`
+- `WS-13` -> `TC-01`↗
+- `WS-14` -> `WS-13`
+- `WS-15` -> `WS-14`
+- `WS-16` -> `WS-04`, `WS-15`
+- `WS-17` -> `WS-00`, `WS-02`, `WS-03`, `WS-05`
+- `WS-18` -> `CLI-00`↗, `WS-09`, `WS-17`
+- `API-00` ↗ [workflow-api-types/docs/tasks](../../../workflow-api-types/docs/tasks/00-shared-api-contract-package.md) -> `WS-03`, `WS-08`, `WS-17`, `WS-18`
+- `WS-19` -> `API-00`↗, `WS-17`, `WS-18`
+- `WS-20` -> `WS-09`, `API-00`↗, `WS-19`
+- `WS-21` -> `API-00`↗, `WS-19`
+- `WS-22` -> `REF-00`↗, `WS-17`, `WS-18`, `WS-19`
+- `WS-23` -> `WS-18`, `API-00`↗, `WS-21`
+- `WS-24` -> `API-00`↗, `WS-21`
 
 ## Server Task Index
 
 Tasks owned by `workflow-server`:
 
-- `T02` [02-postgres-persistence.md](./02-postgres-persistence.md)
-- `T03` [03-package-loader-registry.md](./03-package-loader-registry.md)
-- `T04` [04-orchestration-engine.md](./04-orchestration-engine.md)
-- `T05` [05-api-surface-read-write.md](./05-api-surface-read-write.md)
-- `T06` [06-lifecycle-controls-recovery.md](./06-lifecycle-controls-recovery.md)
-- `T07` [07-child-workflow-composition.md](./07-child-workflow-composition.md)
-- `T08` [08-command-runner-policy.md](./08-command-runner-policy.md)
-- `T09` [09-observability-instrumentation.md](./09-observability-instrumentation.md)
-- `T10` [10-live-event-stream-sse.md](./10-live-event-stream-sse.md)
-- `T13` [13-integration-harness.md](./13-integration-harness.md)
-- `T14` [14-integration-suite-atomicity-concurrency.md](./14-integration-suite-atomicity-concurrency.md)
-- `T15` [15-integration-suite-lifecycle-command-observability.md](./15-integration-suite-lifecycle-command-observability.md)
-- `T16` [16-e2e-suite-golden-scenarios.md](./16-e2e-suite-golden-scenarios.md)
-- `T18` [18-spec-drift-corrections.md](./18-spec-drift-corrections.md)
-- `T19` [19-production-server-parity-e2e.md](./19-production-server-parity-e2e.md)
-- `T20` [20-immediate-start-running-alignment.md](./20-immediate-start-running-alignment.md)
-- `T21` [21-recovery-progress-aware-reconcile.md](./21-recovery-progress-aware-reconcile.md)
-- `T22` [22-server-human-feedback-runtime.md](./22-server-human-feedback-runtime.md)
-- `T23` [23-feedback-api-cli-and-coverage.md](./23-feedback-api-cli-and-coverage.md)
-- `T25` [25-run-scoped-feedback-endpoint.md](./25-run-scoped-feedback-endpoint.md)
-- `T26` [26-integration-feedback-pagination-contract-conformance.md](./26-integration-feedback-pagination-contract-conformance.md)
-- `T27` [27-contract-lock-drift-verification.md](./27-contract-lock-drift-verification.md)
-- `T28` [28-golden-scenarios-human-feedback.md](./28-golden-scenarios-human-feedback.md)
-- `T29` [29-error-envelope-contract-lock-conformance.md](./29-error-envelope-contract-lock-conformance.md)
-- `T30` [30-graph-contract-lock-overlay-conformance.md](./30-graph-contract-lock-overlay-conformance.md)
+- `WS-00` [00-postgres-persistence.md](00-postgres-persistence.md)
+- `WS-01` [01-package-loader-registry.md](01-package-loader-registry.md)
+- `WS-02` [02-orchestration-engine.md](02-orchestration-engine.md)
+- `WS-03` [03-api-surface-read-write.md](03-api-surface-read-write.md)
+- `WS-04` [04-lifecycle-controls-recovery.md](04-lifecycle-controls-recovery.md)
+- `WS-05` [05-child-workflow-composition.md](05-child-workflow-composition.md)
+- `WS-06` [06-command-runner-policy.md](06-command-runner-policy.md)
+- `WS-07` [07-observability-instrumentation.md](07-observability-instrumentation.md)
+- `WS-08` [08-live-event-stream-sse.md](08-live-event-stream-sse.md)
+- `WS-09` [09-integration-harness.md](09-integration-harness.md)
+- `WS-10` [10-integration-suite-atomicity-concurrency.md](10-integration-suite-atomicity-concurrency.md)
+- `WS-11` [11-integration-suite-lifecycle-command-observability.md](11-integration-suite-lifecycle-command-observability.md)
+- `WS-12` [12-e2e-suite-golden-scenarios.md](12-e2e-suite-golden-scenarios.md)
+- `WS-13` [13-spec-drift-corrections.md](13-spec-drift-corrections.md)
+- `WS-14` [14-production-server-parity-e2e.md](14-production-server-parity-e2e.md)
+- `WS-15` [15-immediate-start-running-alignment.md](15-immediate-start-running-alignment.md)
+- `WS-16` [16-recovery-progress-aware-reconcile.md](16-recovery-progress-aware-reconcile.md)
+- `WS-17` [17-server-human-feedback-runtime.md](17-server-human-feedback-runtime.md)
+- `WS-18` [18-feedback-api-cli-and-coverage.md](18-feedback-api-cli-and-coverage.md)
+- `WS-19` [19-run-scoped-feedback-endpoint.md](19-run-scoped-feedback-endpoint.md)
+- `WS-20` [20-integration-feedback-pagination-contract-conformance.md](20-integration-feedback-pagination-contract-conformance.md)
+- `WS-21` [21-contract-lock-drift-verification.md](21-contract-lock-drift-verification.md)
+- `WS-22` [22-golden-scenarios-human-feedback.md](22-golden-scenarios-human-feedback.md)
+- `WS-23` [23-error-envelope-contract-lock-conformance.md](23-error-envelope-contract-lock-conformance.md)
+- `WS-24` [24-graph-contract-lock-overlay-conformance.md](24-graph-contract-lock-overlay-conformance.md)
 
 ## Tasks in Other Packages
 
-- `T00` [00-monorepo-foundation.md](../../../../docs/tasks/00-monorepo-foundation.md) — cross-cutting
-- `T01` [01-workflow-lib-core.md](../../../workflow-lib/docs/tasks/01-workflow-lib-core.md) — `workflow-lib`
-- `T11` [11-workflow-cli.md](../../../../apps/workflow-cli/docs/tasks/11-workflow-cli.md) — `workflow-cli`
-- `T12` [12-reference-workflow-packages.md](../../../workflow-package-reference/docs/tasks/12-reference-workflow-packages.md) — `workflow-package-reference`
-- `T17` [17-ci-quality-gates.md](../../../../docs/tasks/17-ci-quality-gates.md) — cross-cutting
-- `T24` [24-shared-api-contract-package.md](../../../workflow-api-types/docs/tasks/24-shared-api-contract-package.md) — `workflow-api-types`
+- `TC-00` [00-monorepo-foundation.md](../../../../docs/tasks/00-monorepo-foundation.md) — cross-cutting
+- `WL-00` [00-workflow-lib-core.md](../../../workflow-lib/docs/tasks/00-workflow-lib-core.md) — `workflow-lib`
+- `CLI-00` [00-workflow-cli.md](../../../../apps/workflow-cli/docs/tasks/00-workflow-cli.md) — `workflow-cli`
+- `REF-00` [00-reference-workflow-packages.md](../../../workflow-package-reference/docs/tasks/00-reference-workflow-packages.md) — `workflow-package-reference`
+- `TC-01` [01-ci-quality-gates.md](../../../../docs/tasks/01-ci-quality-gates.md) — cross-cutting
+- `API-00` [00-shared-api-contract-package.md](../../../workflow-api-types/docs/tasks/00-shared-api-contract-package.md) — `workflow-api-types`
 
 ## Phase Alignment
 
 | Phase | Primary Task Owners | Notes |
 |---|---|---|
-| Phase 1 (MVP core) | `T00`↗-`T09`, `T12`↗ | Core runtime/server APIs, required persistence model, child composition, command policy, and baseline observability. |
-| Phase 2 (operator UX) | `T10`, `T11`↗ | Live SSE stream and initial user-facing CLI commands. |
-| Phase 3 (drift remediation) | `T18` | Post-delivery spec-to-implementation drift correction and contract alignment across runtime, API, observability, and CLI surfaces. |
-| Phase 4 (prod parity hardening) | `T19` | Introduce persistent production launcher and enforce black-box E2E parity guarantees with shared composition root. |
-| Phase 5 (immediate-start lifecycle alignment) | `T20` | Align start path/runtime/API semantics to immediate execution with no operational `pending` queue state. |
-| Phase 6 (recovery progress gating) | `T21` | Enforce repeat-recovery gating on observed post-boundary progression and skip duplicate reconcile side effects. |
-| Phase 7 (human feedback runtime) | `T22` | Deliver server-owned default human feedback workflow contract, event semantics, and transactional projection. |
-| Phase 8 (feedback API and operator UX) | `T23` | Deliver strict feedback API validation/conflict semantics, CLI feedback commands, and expanded integration/E2E coverage. |
-| Phase 9 (shared contracts and feedback endpoint) | `T24`↗, `T25` | Shared API contract package (`workflow-api-types`) and run-scoped feedback requests endpoint. |
-| Phase 10 (contract verification and golden scenarios) | `T26`, `T27`, `T28` | Integration suite for feedback pagination/contract conformance, contract lock drift verification, and golden scenarios for human feedback E2E. |
-| Phase 11 (error envelope contract lock alignment) | `T29` | Error-envelope and conflict-contract lock verification with runtime conformance checks. |
-| Phase 12 (graph contract lock alignment) | `T30` | Graph identity/overlay contract lock verification and deterministic overlay reference conformance tests. |
+| Phase 1 (MVP core) | `TC-00`↗-`WS-07`, `REF-00`↗ | Core runtime/server APIs, required persistence model, child composition, command policy, and baseline observability. |
+| Phase 2 (operator UX) | `WS-08`, `CLI-00`↗ | Live SSE stream and initial user-facing CLI commands. |
+| Phase 3 (drift remediation) | `WS-13` | Post-delivery spec-to-implementation drift correction and contract alignment across runtime, API, observability, and CLI surfaces. |
+| Phase 4 (prod parity hardening) | `WS-14` | Introduce persistent production launcher and enforce black-box E2E parity guarantees with shared composition root. |
+| Phase 5 (immediate-start lifecycle alignment) | `WS-15` | Align start path/runtime/API semantics to immediate execution with no operational `pending` queue state. |
+| Phase 6 (recovery progress gating) | `WS-16` | Enforce repeat-recovery gating on observed post-boundary progression and skip duplicate reconcile side effects. |
+| Phase 7 (human feedback runtime) | `WS-17` | Deliver server-owned default human feedback workflow contract, event semantics, and transactional projection. |
+| Phase 8 (feedback API and operator UX) | `WS-18` | Deliver strict feedback API validation/conflict semantics, CLI feedback commands, and expanded integration/E2E coverage. |
+| Phase 9 (shared contracts and feedback endpoint) | `API-00`↗, `WS-19` | Shared API contract package (`workflow-api-types`) and run-scoped feedback requests endpoint. |
+| Phase 10 (contract verification and golden scenarios) | `WS-20`, `WS-21`, `WS-22` | Integration suite for feedback pagination/contract conformance, contract lock drift verification, and golden scenarios for human feedback E2E. |
+| Phase 11 (error envelope contract lock alignment) | `WS-23` | Error-envelope and conflict-contract lock verification with runtime conformance checks. |
+| Phase 12 (graph contract lock alignment) | `WS-24` | Graph identity/overlay contract lock verification and deterministic overlay reference conformance tests. |
 | Phase 13 (future optimization) | _future task(s)_ | Snapshots/replay optimizations and advanced retry/cancellation policies beyond baseline. |
-| Cross-phase verification/gates | `T13`-`T17`↗ | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
+| Cross-phase verification/gates | `WS-09`-`TC-01`↗ | Integration harness, integration suites, E2E suite, and CI quality gates validating all required behaviors. |
 
 ## Coverage Expectations
 

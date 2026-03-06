@@ -1,10 +1,10 @@
-# TWEB11 - Integration Suite: Stream, Transport, Graph, and Contract Conformance
+# WEB-11 - Integration Suite: Stream, Transport, Graph, and Contract Conformance
 
 ## Depends On
-- `TWEB09`
-- `TWEB03`
-- `TWEB04`
-- `TWEB08`
+- `WEB-09`
+- `WEB-03`
+- `WEB-04`
+- `WEB-08`
 
 ## Objective
 Implement deterministic integration coverage for stream ordering/reconnect semantics, transport contract conformance, graph projection/layout/overlay/performance invariants, and spec-lock contract drift gates.

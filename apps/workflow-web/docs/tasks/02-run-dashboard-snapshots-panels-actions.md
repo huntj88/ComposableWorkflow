@@ -1,8 +1,8 @@
-# TWEB02 - Run Dashboard Snapshot Boot, Panels, and Actions
+# WEB-02 - Run Dashboard Snapshot Boot, Panels, and Actions
 
 ## Depends On
-- `TWEB00`
-- `TWEB01`
+- `WEB-00`
+- `WEB-01`
 
 ## Objective
 Implement `/runs/:runId` dashboard snapshot boot sequencing, six required panels, panel isolation/retry behavior, run-not-found handling, and run actions (refresh/cancel) with metadata-complete summary/timeline rendering.

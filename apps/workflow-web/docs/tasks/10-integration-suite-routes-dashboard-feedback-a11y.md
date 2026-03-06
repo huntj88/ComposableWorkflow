@@ -1,14 +1,14 @@
-# TWEB10 - Integration Suite: Routes, Dashboard, Feedback, Filters, Accessibility
+# WEB-10 - Integration Suite: Routes, Dashboard, Feedback, Filters, Accessibility
 
 ## Depends On
-- `TWEB09`
-- `TWEB01`
-- `TWEB02`
-- `TWEB03`
-- `TWEB04`
-- `TWEB05`
-- `TWEB06`
-- `TWEB07`
+- `WEB-09`
+- `WEB-01`
+- `WEB-02`
+- `WEB-03`
+- `WEB-04`
+- `WEB-05`
+- `WEB-06`
+- `WEB-07`
 
 ## Objective
 Implement deterministic integration coverage for route semantics, dashboard boot/isolation behavior, feedback and filtering behavior, metadata completeness, keyboard/accessibility rules, and panel interaction coupling scenarios.

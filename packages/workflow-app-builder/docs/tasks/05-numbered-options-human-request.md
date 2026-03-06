@@ -1,8 +1,8 @@
-# TSD05 - NumberedOptionsHumanRequest Queue Processor
+# SDB-05 - NumberedOptionsHumanRequest Queue Processor
 
 ## Depends On
-- `TSD02`
-- `TSD04`
+- `SDB-02`
+- `SDB-04`
 
 ## Objective
 Implement deterministic per-question queue execution in `NumberedOptionsHumanRequest` with one feedback child run per item and normalized answer accumulation.
@@ -24,7 +24,7 @@ Implement deterministic per-question queue execution in `NumberedOptionsHumanReq
 - Queue processor asks one question at a time and preserves per-question immutability.
 - Answer records include `questionId`, `selectedOptionIds`, optional `text`, `answeredAt`.
 - Invalid feedback submissions produce no answer mutation in workflow state.
-- Queue exhaustion routes either to `Done` candidate path (handled in `TSD07`) or `IntegrateIntoSpec` updates path.
+- Queue exhaustion routes either to `Done` candidate path (handled in `SDB-07`) or `IntegrateIntoSpec` updates path.
 
 ## Spec/Behavior Links
 - Spec: sections 6.2, 6.3, 6.4, 8.

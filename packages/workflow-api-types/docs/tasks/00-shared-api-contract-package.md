@@ -1,10 +1,10 @@
-# T24 - Shared API Contract Package (`workflow-api-types`)
+# API-00 - Shared API Contract Package (`workflow-api-types`)
 
 ## Depends On
-- `T05`
-- `T10`
-- `T22`
-- `T23`
+- `WS-03`
+- `WS-08`
+- `WS-17`
+- `WS-18`
 
 ## Objective
 Create `packages/workflow-api-types` as the canonical shared transport contract package consumed by `workflow-server`, `workflow-cli`, and `workflow-web`. Extract all Section 4 endpoint request/response/query/event types into this package and wire all three consumers to import from `@composable-workflow/workflow-api-types`, eliminating local DTO redefinitions for covered endpoints.

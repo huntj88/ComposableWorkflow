@@ -1,7 +1,7 @@
-# T05 - API Surface: Start, Query, Tree, Events, Logs, Definitions
+# WS-03 - API Surface: Start, Query, Tree, Events, Logs, Definitions
 
 ## Depends On
-- `T04`
+- `WS-02`
 
 ## Objective
 Implement REST API endpoints and response contracts required for run control, runtime introspection, and graph metadata.

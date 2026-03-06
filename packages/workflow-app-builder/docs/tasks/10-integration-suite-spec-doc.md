@@ -1,13 +1,13 @@
-# TSD10 - Integration Suite for Spec-Doc Workflow (`ITX-SD-001..014`)
+# SDB-10 - Integration Suite for Spec-Doc Workflow (`ITX-SD-001..014`)
 
 ## Depends On
-- `TSD03`
-- `TSD04`
-- `TSD05`
-- `TSD06`
-- `TSD07`
-- `TSD08`
-- `TSD09`
+- `SDB-03`
+- `SDB-04`
+- `SDB-05`
+- `SDB-06`
+- `SDB-07`
+- `SDB-08`
+- `SDB-09`
 
 ## Objective
 Implement deterministic integration coverage for all integration-primary and shared items in `spec-doc-integration-tests.md`, including recovery/ordering/failure matrices.

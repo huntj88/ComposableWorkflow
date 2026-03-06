@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in numeric order (`TSD00` -> `TSD11`).
+1. Execute tasks in numeric order (`SDB-00` -> `SDB-12`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -20,57 +20,58 @@ This folder contains the ordered implementation plan for:
 
 ## Dependency Graph (Acyclic)
 
-- `TSD00` -> none
-- `TSD01` -> `TSD00`
-- `TSD02` -> `TSD00`, `TSD01`
-- `TSD03` -> `TSD02`
-- `TSD04` -> `TSD02`, `TSD03`
-- `TSD05` -> `TSD02`, `TSD04`
-- `TSD06` -> `TSD02`, `TSD05`
-- `TSD07` -> `TSD03`, `TSD04`, `TSD05`, `TSD06`
-- `TSD08` -> `TSD02`, `TSD03`, `TSD04`, `TSD05`, `TSD06`, `TSD07`
-- `TSD09` -> `TSD02`, `TSD05`, `TSD06`, `TSD08`
-- `TSD10` -> `TSD03`, `TSD04`, `TSD05`, `TSD06`, `TSD07`, `TSD08`, `TSD09`
-- `TSD11` -> `TSD10`
+- `SDB-00` -> none
+- `SDB-01` -> `SDB-00`
+- `SDB-02` -> `SDB-00`, `SDB-01`
+- `SDB-03` -> `SDB-02`
+- `SDB-04` -> `SDB-02`, `SDB-03`
+- `SDB-05` -> `SDB-02`, `SDB-04`
+- `SDB-06` -> `SDB-02`, `SDB-05`
+- `SDB-07` -> `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`
+- `SDB-08` -> `SDB-02`, `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`
+- `SDB-09` -> `SDB-02`, `SDB-05`, `SDB-06`, `SDB-08`
+- `SDB-10` -> `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`, `SDB-08`, `SDB-09`
+- `SDB-11` -> `SDB-10`
+- `SDB-12` -> `SDB-05`, `SDB-06`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
 ## Task Index
 
-- `TSD00` [00-spec-doc-foundation-contracts.md](./00-spec-doc-foundation-contracts.md)
-- `TSD01` [01-prompt-template-delegation.md](./01-prompt-template-delegation.md)
-- `TSD02` [02-fsm-runtime-state-model.md](./02-fsm-runtime-state-model.md)
-- `TSD03` [03-integrate-into-spec-state.md](./03-integrate-into-spec-state.md)
-- `TSD04` [04-consistency-check-and-queue-synthesis.md](./04-consistency-check-and-queue-synthesis.md)
-- `TSD05` [05-numbered-options-human-request.md](./05-numbered-options-human-request.md)
-- `TSD06` [06-custom-prompt-routing-and-clarification.md](./06-custom-prompt-routing-and-clarification.md)
-- `TSD07` [07-terminal-output-loop-failures.md](./07-terminal-output-loop-failures.md)
-- `TSD08` [08-observability-and-traceability.md](./08-observability-and-traceability.md)
-- `TSD09` [09-integration-harness-spec-doc.md](./09-integration-harness-spec-doc.md)
-- `TSD10` [10-integration-suite-spec-doc.md](./10-integration-suite-spec-doc.md)
-- `TSD11` [11-e2e-golden-scenarios-spec-doc.md](./11-e2e-golden-scenarios-spec-doc.md)
-- `TSD12` [12-custom-answer-queue-exhaustion-routing.md](./12-custom-answer-queue-exhaustion-routing.md)
+- `SDB-00` [00-spec-doc-foundation-contracts.md](./00-spec-doc-foundation-contracts.md)
+- `SDB-01` [01-prompt-template-delegation.md](./01-prompt-template-delegation.md)
+- `SDB-02` [02-fsm-runtime-state-model.md](./02-fsm-runtime-state-model.md)
+- `SDB-03` [03-integrate-into-spec-state.md](./03-integrate-into-spec-state.md)
+- `SDB-04` [04-consistency-check-and-queue-synthesis.md](./04-consistency-check-and-queue-synthesis.md)
+- `SDB-05` [05-numbered-options-human-request.md](./05-numbered-options-human-request.md)
+- `SDB-06` [06-custom-prompt-routing-and-clarification.md](./06-custom-prompt-routing-and-clarification.md)
+- `SDB-07` [07-terminal-output-loop-failures.md](./07-terminal-output-loop-failures.md)
+- `SDB-08` [08-observability-and-traceability.md](./08-observability-and-traceability.md)
+- `SDB-09` [09-integration-harness-spec-doc.md](./09-integration-harness-spec-doc.md)
+- `SDB-10` [10-integration-suite-spec-doc.md](./10-integration-suite-spec-doc.md)
+- `SDB-11` [11-e2e-golden-scenarios-spec-doc.md](./11-e2e-golden-scenarios-spec-doc.md)
+- `SDB-12` [12-custom-answer-queue-exhaustion-routing.md](./12-custom-answer-queue-exhaustion-routing.md)
 
 ## Full Coverage Ownership
 
 ### Behavior Coverage (`B-SD-*`)
-- FSM transitions (`B-SD-TRANS-001..011`) -> `TSD02`, `TSD03`, `TSD04`, `TSD05`, `TSD06`, `TSD07`
-- Human feedback integration (`B-SD-HFB-001..004`) -> `TSD05`, `TSD10`
-- Schema validation (`B-SD-SCHEMA-001..006`) -> `TSD00`, `TSD03`, `TSD04`, `TSD06`, `TSD10`
-- Copilot delegation (`B-SD-COPILOT-001..003`) -> `TSD01`, `TSD07`, `TSD08`, `TSD10`
-- Queue processing (`B-SD-QUEUE-001..005`) -> `TSD04`, `TSD05`, `TSD06`, `TSD10`
-- Done/terminal (`B-SD-DONE-001..003`) -> `TSD02`, `TSD07`, `TSD10`, `TSD11`
-- Loop/failure (`B-SD-LOOP-001..002`, `B-SD-FAIL-001`) -> `TSD07`, `TSD10`, `TSD11`
-- Feedback cancellation lifecycle (`B-SD-FAIL-002`) -> `TSD11`
-- Integrate input normalization (`B-SD-INPUT-001..003`) -> `TSD03`, `TSD10`
-- Observability (`B-SD-OBS-001..002`) -> `TSD08`, `TSD10`, `TSD11`
+- FSM transitions (`B-SD-TRANS-001..011`) -> `SDB-02`, `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`
+- Human feedback integration (`B-SD-HFB-001..004`) -> `SDB-05`, `SDB-10`
+- Schema validation (`B-SD-SCHEMA-001..006`) -> `SDB-00`, `SDB-03`, `SDB-04`, `SDB-06`, `SDB-10`
+- Copilot delegation (`B-SD-COPILOT-001..003`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-10`
+- Queue processing (`B-SD-QUEUE-001..005`) -> `SDB-04`, `SDB-05`, `SDB-06`, `SDB-10`
+- Done/terminal (`B-SD-DONE-001..003`) -> `SDB-02`, `SDB-07`, `SDB-10`, `SDB-11`
+- Loop/failure (`B-SD-LOOP-001..002`, `B-SD-FAIL-001`) -> `SDB-07`, `SDB-10`, `SDB-11`
+- Feedback cancellation lifecycle (`B-SD-FAIL-002`) -> `SDB-11`
+- Integrate input normalization (`B-SD-INPUT-001..003`) -> `SDB-03`, `SDB-10`
+- Observability (`B-SD-OBS-001..002`) -> `SDB-08`, `SDB-10`, `SDB-11`
 
 ### Integration Coverage (`ITX-SD-*`)
-- Harness prerequisites in `ITX` section 3 -> `TSD09`
-- `ITX-SD-001..014` implementation -> `TSD10`
+- Harness prerequisites in `ITX` section 3 -> `SDB-09`
+- `ITX-SD-001..014` implementation -> `SDB-10`
 
 ### Golden Scenario Coverage (`GS-SD-*`)
-- `GS-SD-001..005` -> `TSD11`
+- `GS-SD-001..005` -> `SDB-11`
 
 ## Task Document Contract (Mandatory Sections)
 

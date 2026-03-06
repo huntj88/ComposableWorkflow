@@ -1,7 +1,7 @@
-# T16 - E2E Suite and Golden Scenario Validation
+# WS-12 - E2E Suite and Golden Scenario Validation
 
 ## Depends On
-- `T06`, `T07`, `T08`, `T11`, `T12`
+- `WS-04`, `WS-05`, `WS-06`, `CLI-00`, `REF-00`
 
 ## Objective
 Implement E2E acceptance suite that validates externally visible contracts and full-stack behavior across API, persistence, events, and observability outputs.

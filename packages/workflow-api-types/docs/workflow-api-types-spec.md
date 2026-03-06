@@ -2,7 +2,7 @@
 
 > Canonical specification for `packages/workflow-api-types` — the shared HTTP/SSE API schemas and TypeScript types consumed by server and all clients.
 >
-> Cross-cutting architecture: [docs/architecture.md](../../../docs/architecture.md)
+> Cross-cutting architecture: [architecture.md](../../../docs/architecture.md)
 > Server endpoints: [typescript-server-workflow-spec.md](../../workflow-server/docs/typescript-server-workflow-spec.md)
 > Web client: [workflow-web-spec.md](../../../apps/workflow-web/docs/workflow-web-spec.md)
 
