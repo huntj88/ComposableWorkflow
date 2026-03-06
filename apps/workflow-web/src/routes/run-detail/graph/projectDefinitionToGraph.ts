@@ -27,6 +27,18 @@ export type FsmNodeData = {
   workflowType: string;
   /** child-launch annotation metadata attached to this state (B-WEB-034). */
   childLaunchAnnotations: Record<string, unknown>[];
+  isOrphan: boolean;
+  isUnreachable: boolean;
+  isTerminal: boolean;
+  isDimmed?: boolean;
+  isSelected?: boolean;
+  isNeighborhood?: boolean;
+  drilldownActions?: Array<{
+    key: string;
+    label: string;
+    childWorkflowType: string;
+    onActivate: () => void;
+  }>;
 };
 
 export type FsmEdgeData = {
@@ -35,6 +47,9 @@ export type FsmEdgeData = {
   transitionName: string | undefined;
   ordinal: number;
   workflowType: string;
+  isParallel: boolean;
+  parallelIndex: number;
+  parallelCount: number;
 };
 
 export type FsmNode = Node<FsmNodeData>;
@@ -45,6 +60,15 @@ export type ProjectionResult = {
   edges: FsmEdge[];
   /** Invariant violations detected during projection (B-WEB-033). */
   invariantViolations: InvariantViolation[];
+  summary: ProjectionSummary;
+};
+
+export type ProjectionSummary = {
+  stateCount: number;
+  transitionCount: number;
+  unreachableStateCount: number;
+  terminalStateCount: number;
+  orphanStateCount: number;
 };
 
 export type InvariantViolation = {
@@ -85,8 +109,16 @@ export function projectDefinitionToGraph(definition: WorkflowDefinitionResponse)
 
   // --- Compute outbound counts (for role classification) -------------------
   const outboundCount = new Map<string, number>();
+  const inboundCount = new Map<string, number>();
   for (const t of transitions) {
     outboundCount.set(t.from, (outboundCount.get(t.from) ?? 0) + 1);
+    inboundCount.set(t.to, (inboundCount.get(t.to) ?? 0) + 1);
+  }
+
+  const parallelCounts = new Map<string, number>();
+  for (const transition of transitions) {
+    const key = `${transition.from}::${transition.to}`;
+    parallelCounts.set(key, (parallelCounts.get(key) ?? 0) + 1);
   }
 
   // --- Build per-transition ordinal counters (for deterministic edge IDs) --
@@ -112,6 +144,16 @@ export function projectDefinitionToGraph(definition: WorkflowDefinitionResponse)
 
   // --- Determine initial state (first in states array) --------------------
   const initialStateId = states.length > 0 ? states[0] : undefined;
+  const reachableStates = collectReachableStates(initialStateId, transitions);
+  const terminalStates = new Set(
+    states.filter((stateId) => (outboundCount.get(stateId) ?? 0) === 0),
+  );
+  const orphanStates = new Set(
+    states.filter(
+      (stateId) =>
+        (outboundCount.get(stateId) ?? 0) === 0 && (inboundCount.get(stateId) ?? 0) === 0,
+    ),
+  );
 
   // --- Build nodes ---------------------------------------------------------
   const nodes: FsmNode[] = [];
@@ -131,6 +173,9 @@ export function projectDefinitionToGraph(definition: WorkflowDefinitionResponse)
         role,
         workflowType,
         childLaunchAnnotations: annotationsByState.get(stateId) ?? [],
+        isOrphan: orphanStates.has(stateId),
+        isUnreachable: stateId !== initialStateId && !reachableStates.has(stateId),
+        isTerminal: terminalStates.has(stateId),
       },
     });
   }
@@ -153,6 +198,8 @@ export function projectDefinitionToGraph(definition: WorkflowDefinitionResponse)
     }
 
     const ordinal = ordinalForTransition(t.from, t.to);
+    const pairKey = `${t.from}::${t.to}`;
+    const parallelCount = parallelCounts.get(pairKey) ?? 1;
     const edgeId = toEdgeId(workflowType, t.from, t.to, ordinal);
 
     edges.push({
@@ -167,11 +214,25 @@ export function projectDefinitionToGraph(definition: WorkflowDefinitionResponse)
         transitionName: t.name,
         ordinal,
         workflowType,
+        isParallel: parallelCount > 1,
+        parallelIndex: ordinal,
+        parallelCount,
       },
     });
   }
 
-  return { nodes, edges, invariantViolations: violations };
+  return {
+    nodes,
+    edges,
+    invariantViolations: violations,
+    summary: {
+      stateCount: nodes.length,
+      transitionCount: edges.length,
+      unreachableStateCount: nodes.filter((node) => node.data.isUnreachable).length,
+      terminalStateCount: nodes.filter((node) => node.data.isTerminal).length,
+      orphanStateCount: nodes.filter((node) => node.data.isOrphan).length,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -201,4 +262,39 @@ function roleToNodeType(role: NodeRole): string {
     case 'standard':
       return 'fsmStandard';
   }
+}
+
+function collectReachableStates(
+  initialStateId: string | undefined,
+  transitions: WorkflowDefinitionResponse['transitions'],
+): Set<string> {
+  if (!initialStateId) {
+    return new Set<string>();
+  }
+
+  const adjacency = new Map<string, string[]>();
+  for (const transition of transitions) {
+    const neighbors = adjacency.get(transition.from) ?? [];
+    neighbors.push(transition.to);
+    adjacency.set(transition.from, neighbors);
+  }
+
+  const visited = new Set<string>([initialStateId]);
+  const queue = [initialStateId];
+
+  while (queue.length > 0) {
+    const stateId = queue.shift();
+    if (!stateId) {
+      continue;
+    }
+
+    for (const nextState of adjacency.get(stateId) ?? []) {
+      if (!visited.has(nextState)) {
+        visited.add(nextState);
+        queue.push(nextState);
+      }
+    }
+  }
+
+  return visited;
 }

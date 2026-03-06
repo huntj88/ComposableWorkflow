@@ -21,12 +21,12 @@ Extend the FSM graph with child-run drill-down, ancestor breadcrumbs, browser-hi
 - `RunSummaryResponse`
 
 ## Implementation Tasks
-- [ ] Add child-launch affordances to graph nodes/edges with keyboard-accessible activation targets.
-- [ ] Resolve drill-down targets to runtime child runs or static definitions using definition annotations + `RunTreeResponse`.
-- [ ] Render ancestor breadcrumbs above the graph and push browser-history entries so back/forward restores prior graph context.
-- [ ] Add iteration selection for repeated child-launch visits using matching `child.started` events ordered by `sequence ASC`.
-- [ ] Render full transition-edge parity with distinct visual handling for orphan states, unreachable states, and parallel transitions.
-- [ ] Highlight directly connected neighborhoods on state selection and surface graph summary counts for states, transitions, unreachable states, and terminal states.
+- [x] Add child-launch affordances to graph nodes/edges with keyboard-accessible activation targets.
+- [x] Resolve drill-down targets to runtime child runs or static definitions using definition annotations + `RunTreeResponse`.
+- [x] Render ancestor breadcrumbs above the graph and push browser-history entries so back/forward restores prior graph context.
+- [x] Add iteration selection for repeated child-launch visits using matching `child.started` events ordered by `sequence ASC`.
+- [x] Render full transition-edge parity with distinct visual handling for orphan states, unreachable states, and parallel transitions.
+- [x] Highlight directly connected neighborhoods on state selection and surface graph summary counts for states, transitions, unreachable states, and terminal states.
 
 ## Required Artifacts
 - `apps/workflow-web/src/routes/run-detail/components/FsmGraphPanel.tsx`

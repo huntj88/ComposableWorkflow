@@ -5,24 +5,36 @@
  * B-WEB-041: Layout failures surface retryable error state with no silent fallback.
  * B-WEB-042: Graph legend and required visual encoding semantics.
  * B-WEB-044: Node selection reveals metadata and linked transitions.
+ * B-WEB-061/B-WEB-063: Child drill-down, breadcrumb, history, and iteration selection.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactElement,
+} from 'react';
 import ReactFlow, {
-  MiniMap,
-  Controls,
   Background,
   BackgroundVariant,
+  Controls,
+  MarkerType,
+  MiniMap,
   useReactFlow,
-  type Node,
   type Edge,
-  type NodeTypes,
+  type Node,
   type NodeProps,
+  type NodeTypes,
 } from 'reactflow';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
   Button,
+  ButtonBase,
   Chip,
   Collapse,
   Paper,
@@ -36,152 +48,260 @@ import 'reactflow/dist/style.css';
 import type {
   RunEventsResponse,
   RunSummaryResponse,
+  RunTreeResponse,
   WorkflowDefinitionResponse,
   WorkflowStreamFrame,
 } from '@composable-workflow/workflow-api-types';
 
+import { applyOverlay, type OverlayMismatch } from '../graph/applyOverlay';
+import { layoutGraph, resolveLayoutDirection, type LayoutDirection } from '../graph/layoutGraph';
 import {
   projectDefinitionToGraph,
-  type FsmNodeData,
   type FsmEdgeData,
+  type FsmNodeData,
   type InvariantViolation,
 } from '../graph/projectDefinitionToGraph';
-import { layoutGraph, resolveLayoutDirection, type LayoutDirection } from '../graph/layoutGraph';
-import { applyOverlay, type OverlayMismatch } from '../graph/applyOverlay';
-
-// ---------------------------------------------------------------------------
-// Performance mode thresholds (B-WEB-035)
-// ---------------------------------------------------------------------------
+import {
+  asChildLaunchAnnotation,
+  collectChildLaunchIterations,
+  resolveChildDrilldownTarget,
+  type ChildDrilldownTarget,
+  type ChildLaunchIteration,
+} from '../graph/resolveChildDrilldownTarget';
+import { FsmGraphBreadcrumbs, type FsmGraphBreadcrumbItem } from './FsmGraphBreadcrumbs';
+import { IterationSelectorDialog } from './IterationSelectorDialog';
 
 const PERF_NODE_THRESHOLD = 120;
 const PERF_EDGE_THRESHOLD = 200;
 const EDGE_LABEL_ZOOM_THRESHOLD = 0.85;
 const ACTIVE_PATH_HOP_LIMIT = 2;
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+export type GraphDrilldownAncestor = {
+  runId: string;
+  workflowType: string | null;
+  label: string;
+};
 
 export type FsmGraphPanelProps = {
+  runId: string;
   definition: WorkflowDefinitionResponse | null;
+  tree: RunTreeResponse | null;
   summary: RunSummaryResponse | null;
   events: RunEventsResponse | null;
   streamFrames: WorkflowStreamFrame[];
+  navigationContext: {
+    ancestors: GraphDrilldownAncestor[];
+    current: GraphDrilldownAncestor;
+    breadcrumbs: FsmGraphBreadcrumbItem[];
+  };
   isLoading: boolean;
   errorMessage: string | null;
   onRetry: () => Promise<void>;
 };
 
-// ---------------------------------------------------------------------------
-// Custom node components (B-WEB-042 role → shape semantics)
-// ---------------------------------------------------------------------------
-
-const FsmInitialNode = ({ data }: NodeProps<FsmNodeData>): ReactElement => (
-  <Tooltip title={`Initial state: ${data.stateId}`}>
-    <Box
-      data-testid={`graph-node-${data.stateId}`}
-      data-role="initial"
-      sx={{
-        px: 2,
-        py: 1,
-        borderRadius: '50%',
-        border: '3px solid #1976d2',
-        background: 'inherit',
-        minWidth: 60,
-        textAlign: 'center',
-        fontSize: '0.8rem',
-        fontWeight: 700,
-      }}
-    >
-      {data.stateId}
-      {data.childLaunchAnnotations.length > 0 && (
-        <ChildLaunchBadge count={data.childLaunchAnnotations.length} />
-      )}
-    </Box>
-  </Tooltip>
-);
-
-const FsmTerminalNode = ({ data }: NodeProps<FsmNodeData>): ReactElement => (
-  <Tooltip title={`Terminal state: ${data.stateId}`}>
-    <Box
-      data-testid={`graph-node-${data.stateId}`}
-      data-role="terminal"
-      sx={{
-        px: 2,
-        py: 1,
-        borderRadius: 1,
-        border: '3px double #d32f2f',
-        background: 'inherit',
-        minWidth: 60,
-        textAlign: 'center',
-        fontSize: '0.8rem',
-        fontWeight: 600,
-      }}
-    >
-      {data.stateId}
-    </Box>
-  </Tooltip>
-);
-
-const FsmDecisionNode = ({ data }: NodeProps<FsmNodeData>): ReactElement => (
-  <Tooltip title={`Decision state: ${data.stateId}`}>
-    <Box
-      data-testid={`graph-node-${data.stateId}`}
-      data-role="decision"
-      sx={{
-        px: 2,
-        py: 1,
-        transform: 'rotate(45deg)',
-        border: '2px solid #ed6c02',
-        background: 'inherit',
-        minWidth: 40,
-        textAlign: 'center',
-        fontSize: '0.75rem',
-        '& > span': { display: 'inline-block', transform: 'rotate(-45deg)' },
-      }}
-    >
-      <span>
-        {data.stateId}
-        {data.childLaunchAnnotations.length > 0 && (
-          <ChildLaunchBadge count={data.childLaunchAnnotations.length} />
-        )}
-      </span>
-    </Box>
-  </Tooltip>
-);
-
-const FsmStandardNode = ({ data }: NodeProps<FsmNodeData>): ReactElement => (
-  <Tooltip title={`State: ${data.stateId}`}>
-    <Box
-      data-testid={`graph-node-${data.stateId}`}
-      data-role="standard"
-      sx={{
-        px: 2,
-        py: 1,
-        borderRadius: 1,
-        border: '2px solid #90a4ae',
-        background: 'inherit',
-        minWidth: 60,
-        textAlign: 'center',
-        fontSize: '0.8rem',
-      }}
-    >
-      {data.stateId}
-      {data.childLaunchAnnotations.length > 0 && (
-        <ChildLaunchBadge count={data.childLaunchAnnotations.length} />
-      )}
-    </Box>
-  </Tooltip>
-);
+const buildNodeSurfaceSx = (
+  data: FsmNodeData,
+  base: Record<string, unknown>,
+): Record<string, unknown> => ({
+  ...base,
+  opacity: data.isDimmed ? 0.35 : 1,
+  filter: data.isUnreachable ? 'saturate(0.35)' : undefined,
+  boxShadow: data.isSelected
+    ? '0 0 0 3px rgba(144, 202, 249, 0.95)'
+    : data.isNeighborhood
+      ? '0 0 0 2px rgba(77, 182, 172, 0.85)'
+      : undefined,
+  borderStyle: data.isOrphan ? 'dashed' : undefined,
+  transition: 'opacity 140ms ease, box-shadow 140ms ease, filter 140ms ease',
+});
 
 const ChildLaunchBadge = ({ count }: { count: number }): ReactElement => (
   <Chip
     size="small"
     label={`🚀 ${count}`}
     color="info"
-    sx={{ ml: 0.5, height: 18, fontSize: '0.65rem' }}
+    sx={{ height: 18, fontSize: '0.65rem' }}
     data-testid="child-launch-badge"
   />
+);
+
+const NodeRelationshipBadges = ({ data }: { data: FsmNodeData }): ReactElement | null => {
+  const showBadges = data.childLaunchAnnotations.length > 0 || data.isOrphan || data.isUnreachable;
+
+  if (!showBadges) {
+    return null;
+  }
+
+  return (
+    <Stack direction="row" spacing={0.5} justifyContent="center" flexWrap="wrap" useFlexGap>
+      {data.childLaunchAnnotations.length > 0 ? (
+        <ChildLaunchBadge count={data.childLaunchAnnotations.length} />
+      ) : null}
+      {data.isOrphan ? <Chip size="small" label="Orphan" color="warning" /> : null}
+      {data.isUnreachable ? <Chip size="small" label="Unreachable" color="default" /> : null}
+    </Stack>
+  );
+};
+
+const ChildLaunchButtons = ({ data }: { data: FsmNodeData }): ReactElement | null => {
+  if (!data.drilldownActions || data.drilldownActions.length === 0) {
+    return null;
+  }
+
+  const handleActivate = (
+    event: ReactMouseEvent<HTMLButtonElement>,
+    onActivate: () => void,
+  ): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    onActivate();
+  };
+
+  return (
+    <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+      {data.drilldownActions.map((action) => (
+        <ButtonBase
+          key={action.key}
+          className="nodrag nopan"
+          onClick={(event) => handleActivate(event, action.onActivate)}
+          sx={{
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: 'info.main',
+            px: 0.75,
+            py: 0.35,
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            color: 'info.main',
+            backgroundColor: 'rgba(2, 136, 209, 0.08)',
+            '&.Mui-focusVisible': {
+              outline: '2px solid #90caf9',
+              outlineOffset: 2,
+            },
+          }}
+          aria-label={`Open child workflow ${action.childWorkflowType} from ${data.stateId}`}
+          data-testid={`graph-drilldown-${data.stateId}-${action.childWorkflowType}`}
+        >
+          ↗ {action.label}
+        </ButtonBase>
+      ))}
+    </Stack>
+  );
+};
+
+const FsmInitialNode = ({ data }: NodeProps<FsmNodeData>): ReactElement => (
+  <Tooltip title={`Initial state: ${data.stateId}`}>
+    <Stack
+      alignItems="center"
+      spacing={0.75}
+      data-testid={`graph-node-${data.stateId}`}
+      data-role="initial"
+    >
+      <Box
+        sx={buildNodeSurfaceSx(data, {
+          px: 2,
+          py: 1,
+          borderRadius: '50%',
+          border: '3px solid #1976d2',
+          background: 'inherit',
+          minWidth: 72,
+          textAlign: 'center',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+        })}
+      >
+        {data.stateId}
+      </Box>
+      <NodeRelationshipBadges data={data} />
+      <ChildLaunchButtons data={data} />
+    </Stack>
+  </Tooltip>
+);
+
+const FsmTerminalNode = ({ data }: NodeProps<FsmNodeData>): ReactElement => (
+  <Tooltip title={`Terminal state: ${data.stateId}`}>
+    <Stack
+      alignItems="center"
+      spacing={0.75}
+      data-testid={`graph-node-${data.stateId}`}
+      data-role="terminal"
+    >
+      <Box
+        sx={buildNodeSurfaceSx(data, {
+          px: 2,
+          py: 1,
+          borderRadius: 1,
+          border: '3px double #d32f2f',
+          background: 'inherit',
+          minWidth: 72,
+          textAlign: 'center',
+          fontSize: '0.8rem',
+          fontWeight: 600,
+        })}
+      >
+        {data.stateId}
+      </Box>
+      <NodeRelationshipBadges data={data} />
+      <ChildLaunchButtons data={data} />
+    </Stack>
+  </Tooltip>
+);
+
+const FsmDecisionNode = ({ data }: NodeProps<FsmNodeData>): ReactElement => (
+  <Tooltip title={`Decision state: ${data.stateId}`}>
+    <Stack
+      alignItems="center"
+      spacing={0.75}
+      data-testid={`graph-node-${data.stateId}`}
+      data-role="decision"
+    >
+      <Box
+        sx={buildNodeSurfaceSx(data, {
+          px: 2,
+          py: 1,
+          transform: 'rotate(45deg)',
+          border: '2px solid #ed6c02',
+          background: 'inherit',
+          minWidth: 44,
+          textAlign: 'center',
+          fontSize: '0.75rem',
+          '& > span': { display: 'inline-block', transform: 'rotate(-45deg)' },
+        })}
+      >
+        <span>{data.stateId}</span>
+      </Box>
+      <NodeRelationshipBadges data={data} />
+      <ChildLaunchButtons data={data} />
+    </Stack>
+  </Tooltip>
+);
+
+const FsmStandardNode = ({ data }: NodeProps<FsmNodeData>): ReactElement => (
+  <Tooltip title={`State: ${data.stateId}`}>
+    <Stack
+      alignItems="center"
+      spacing={0.75}
+      data-testid={`graph-node-${data.stateId}`}
+      data-role="standard"
+    >
+      <Box
+        sx={buildNodeSurfaceSx(data, {
+          px: 2,
+          py: 1,
+          borderRadius: 1,
+          border: '2px solid #90a4ae',
+          background: 'inherit',
+          minWidth: 72,
+          textAlign: 'center',
+          fontSize: '0.8rem',
+        })}
+      >
+        {data.stateId}
+      </Box>
+      <NodeRelationshipBadges data={data} />
+      <ChildLaunchButtons data={data} />
+    </Stack>
+  </Tooltip>
 );
 
 const nodeTypes: NodeTypes = {
@@ -191,14 +311,10 @@ const nodeTypes: NodeTypes = {
   fsmStandard: FsmStandardNode,
 };
 
-// ---------------------------------------------------------------------------
-// Legend (B-WEB-042)
-// ---------------------------------------------------------------------------
-
 const GraphLegend = (): ReactElement => (
   <Paper
     variant="outlined"
-    sx={{ p: 1, position: 'absolute', top: 8, right: 8, zIndex: 10, opacity: 0.92 }}
+    sx={{ p: 1, position: 'absolute', top: 8, right: 8, zIndex: 10, opacity: 0.95 }}
     data-testid="graph-legend"
   >
     <Typography variant="caption" fontWeight={600} gutterBottom>
@@ -209,10 +325,11 @@ const GraphLegend = (): ReactElement => (
       <LegendEntry shape="square" color="#90a4ae" label="Standard" />
       <LegendEntry shape="diamond" color="#ed6c02" label="Decision" />
       <LegendEntry shape="double-border" color="#d32f2f" label="Terminal" />
-      <LegendEntry shape="line-solid" color="#2e7d32" label="Traversed" />
-      <LegendEntry shape="line-dashed" color="#d32f2f" label="Failed" />
-      <LegendEntry shape="line-solid" color="#90a4ae" label="Default" />
       <LegendEntry shape="badge" color="#0288d1" label="Child launch" />
+      <LegendEntry shape="line-dashed" color="#f57c00" label="Orphan" />
+      <LegendEntry shape="square-muted" color="#90a4ae" label="Unreachable" />
+      <LegendEntry shape="line-solid" color="#2e7d32" label="Traversed" />
+      <LegendEntry shape="line-parallel" color="#546e7a" label="Parallel transition" />
     </Stack>
   </Paper>
 );
@@ -224,6 +341,8 @@ type LegendShape =
   | 'double-border'
   | 'line-solid'
   | 'line-dashed'
+  | 'line-parallel'
+  | 'square-muted'
   | 'badge';
 
 const LegendEntry = ({
@@ -242,23 +361,28 @@ const LegendEntry = ({
       case 'square':
         return { width: 12, height: 12, borderRadius: 2, border: `2px solid ${color}` };
       case 'diamond':
-        return {
-          width: 10,
-          height: 10,
-          border: `2px solid ${color}`,
-          transform: 'rotate(45deg)',
-        };
+        return { width: 10, height: 10, border: `2px solid ${color}`, transform: 'rotate(45deg)' };
       case 'double-border':
-        return {
-          width: 12,
-          height: 12,
-          borderRadius: 2,
-          border: `3px double ${color}`,
-        };
+        return { width: 12, height: 12, borderRadius: 2, border: `3px double ${color}` };
       case 'line-solid':
         return { width: 18, height: 0, borderTop: `2px solid ${color}` };
       case 'line-dashed':
         return { width: 18, height: 0, borderTop: `2px dashed ${color}` };
+      case 'line-parallel':
+        return {
+          width: 18,
+          height: 8,
+          borderTop: `2px solid ${color}`,
+          borderBottom: `2px solid ${color}`,
+        };
+      case 'square-muted':
+        return {
+          width: 12,
+          height: 12,
+          borderRadius: 2,
+          border: `2px solid ${color}`,
+          opacity: 0.45,
+        };
       case 'badge':
         return {
           width: 14,
@@ -285,9 +409,46 @@ const LegendEntry = ({
   );
 };
 
-// ---------------------------------------------------------------------------
-// Selection detail panel (B-WEB-044)
-// ---------------------------------------------------------------------------
+const GraphSummaryIndicator = ({
+  stateCount,
+  transitionCount,
+  unreachableStateCount,
+  terminalStateCount,
+  orphanStateCount,
+}: {
+  stateCount: number;
+  transitionCount: number;
+  unreachableStateCount: number;
+  terminalStateCount: number;
+  orphanStateCount: number;
+}): ReactElement => (
+  <Paper
+    variant="outlined"
+    sx={{ p: 1, position: 'absolute', top: 48, left: 8, zIndex: 10, opacity: 0.95, maxWidth: 340 }}
+    data-testid="graph-summary"
+  >
+    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+      <Chip size="small" label={`States ${stateCount}`} data-testid="graph-summary-states" />
+      <Chip
+        size="small"
+        label={`Transitions ${transitionCount}`}
+        data-testid="graph-summary-transitions"
+      />
+      <Chip
+        size="small"
+        label={`Unreachable ${unreachableStateCount}`}
+        color={unreachableStateCount > 0 ? 'warning' : 'default'}
+        data-testid="graph-summary-unreachable"
+      />
+      <Chip
+        size="small"
+        label={`Terminal ${terminalStateCount}`}
+        data-testid="graph-summary-terminal"
+      />
+      {orphanStateCount > 0 ? <Chip size="small" label={`Orphans ${orphanStateCount}`} /> : null}
+    </Stack>
+  </Paper>
+);
 
 const NodeSelectionDetail = ({
   node,
@@ -296,13 +457,13 @@ const NodeSelectionDetail = ({
   node: Node<FsmNodeData>;
   edges: Edge<FsmEdgeData>[];
 }): ReactElement => {
-  const inbound = edges.filter((e) => e.target === node.id);
-  const outbound = edges.filter((e) => e.source === node.id);
+  const inbound = edges.filter((edge) => edge.target === node.id);
+  const outbound = edges.filter((edge) => edge.source === node.id);
 
   return (
     <Paper
       variant="outlined"
-      sx={{ p: 1.5, position: 'absolute', bottom: 8, left: 8, zIndex: 10, maxWidth: 300 }}
+      sx={{ p: 1.5, position: 'absolute', bottom: 8, left: 8, zIndex: 10, maxWidth: 320 }}
       data-testid="node-selection-detail"
     >
       <Typography variant="subtitle2" gutterBottom>
@@ -311,197 +472,285 @@ const NodeSelectionDetail = ({
       <Typography variant="caption" color="text.secondary">
         Role: {node.data.role} · Type: {node.data.workflowType}
       </Typography>
-      {node.data.childLaunchAnnotations.length > 0 && (
+      {node.data.isOrphan || node.data.isUnreachable ? (
+        <Typography variant="caption" display="block" color="warning.main">
+          {node.data.isOrphan ? 'Orphan state' : null}
+          {node.data.isOrphan && node.data.isUnreachable ? ' · ' : null}
+          {node.data.isUnreachable ? 'Unreachable from initial state' : null}
+        </Typography>
+      ) : null}
+      {node.data.childLaunchAnnotations.length > 0 ? (
         <Typography variant="caption" display="block" color="info.main">
           Child launches: {node.data.childLaunchAnnotations.length}
         </Typography>
-      )}
-      {inbound.length > 0 && (
-        <Box mt={0.5}>
+      ) : null}
+      {inbound.length > 0 ? (
+        <Box mt={0.75}>
           <Typography variant="caption" fontWeight={600}>
-            Inbound ({inbound.length}):
+            Inbound ({inbound.length})
           </Typography>
-          {inbound.map((e) => (
-            <Typography key={e.id} variant="caption" display="block" sx={{ pl: 1 }}>
-              ← {e.data?.fromState}
-              {e.data?.transitionName ? ` (${e.data.transitionName})` : ''}
+          {inbound.map((edge) => (
+            <Typography key={edge.id} variant="caption" display="block" sx={{ pl: 1 }}>
+              ← {edge.data?.fromState}
+              {edge.data?.transitionName ? ` (${edge.data.transitionName})` : ''}
             </Typography>
           ))}
         </Box>
-      )}
-      {outbound.length > 0 && (
-        <Box mt={0.5}>
+      ) : null}
+      {outbound.length > 0 ? (
+        <Box mt={0.75}>
           <Typography variant="caption" fontWeight={600}>
-            Outbound ({outbound.length}):
+            Outbound ({outbound.length})
           </Typography>
-          {outbound.map((e) => (
-            <Typography key={e.id} variant="caption" display="block" sx={{ pl: 1 }}>
-              → {e.data?.toState}
-              {e.data?.transitionName ? ` (${e.data.transitionName})` : ''}
+          {outbound.map((edge) => (
+            <Typography key={edge.id} variant="caption" display="block" sx={{ pl: 1 }}>
+              → {edge.data?.toState}
+              {edge.data?.transitionName ? ` (${edge.data.transitionName})` : ''}
             </Typography>
           ))}
         </Box>
-      )}
+      ) : null}
     </Paper>
   );
 };
 
-// ---------------------------------------------------------------------------
-// Internal graph renderer (needs useReactFlow context)
-// ---------------------------------------------------------------------------
-
 type InternalGraphProps = {
+  runId: string;
   definition: WorkflowDefinitionResponse;
+  tree: RunTreeResponse | null;
   summary: RunSummaryResponse | null;
   events: RunEventsResponse | null;
   streamFrames: WorkflowStreamFrame[];
+  navigationContext: FsmGraphPanelProps['navigationContext'];
 };
 
 const InternalGraph = ({
+  runId,
   definition,
+  tree,
   summary,
   events,
   streamFrames,
+  navigationContext,
 }: InternalGraphProps): ReactElement => {
   const { fitView } = useReactFlow();
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>('LR');
   const [layoutError, setLayoutError] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState('');
-  const layoutKeyRef = useRef<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(1);
+  const [iterationDialog, setIterationDialog] = useState<{
+    stateId: string;
+    childWorkflowType: string;
+    iterations: ChildLaunchIteration[];
+  } | null>(null);
+  const layoutKeyRef = useRef<string | null>(null);
 
-  // --- Projection (deterministic, only changes when definition changes) ----
   const projection = useMemo(() => projectDefinitionToGraph(definition), [definition]);
 
   const isPerformanceMode =
     projection.nodes.length > PERF_NODE_THRESHOLD || projection.edges.length > PERF_EDGE_THRESHOLD;
 
-  // --- Layout (only on definition or direction change, NOT on overlay) ------
-  const layoutResult = useMemo(() => {
-    const result = layoutGraph(projection.nodes, projection.edges, layoutDirection);
-    if (!result.ok) {
-      setLayoutError(result.error);
-    } else {
-      setLayoutError(null);
-    }
-    return result;
-  }, [projection.nodes, projection.edges, layoutDirection]);
+  const layoutResult = useMemo(
+    () => layoutGraph(projection.nodes, projection.edges, layoutDirection),
+    [layoutDirection, projection.edges, projection.nodes],
+  );
 
-  // Track layout key for viewport preservation (B-WEB-031)
+  useEffect(() => {
+    setLayoutError(layoutResult.ok ? null : layoutResult.error);
+  }, [layoutResult]);
+
   const layoutKey = `${definition.workflowType}::${definition.workflowVersion}::${layoutDirection}`;
   useEffect(() => {
     if (layoutKeyRef.current !== null && layoutKeyRef.current !== layoutKey) {
-      // Definition or direction changed → fit view
       void fitView({ duration: isPerformanceMode ? 0 : 200 });
     }
     layoutKeyRef.current = layoutKey;
-  }, [layoutKey, fitView, isPerformanceMode]);
+  }, [fitView, isPerformanceMode, layoutKey]);
 
-  // --- Overlay (changes on summary/events/stream, does NOT relayout) -------
-  const overlayResult = useMemo(() => {
-    if (!layoutResult.ok) return null;
-    return applyOverlay(layoutResult.nodes, layoutResult.edges, {
-      workflowType: definition.workflowType,
-      summary,
-      events,
-      streamFrames,
-    });
-  }, [layoutResult, definition.workflowType, summary, events, streamFrames]);
-
-  // --- Direction responsive to viewport width (B-WEB-031) ------------------
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setLayoutDirection(resolveLayoutDirection(entry.contentRect.width));
       }
     });
-    observer.observe(el);
+
+    observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
-  // --- Performance mode: active-path 2-hop focus (B-WEB-035) ---------------
-  const visibleNodes = useMemo(() => {
-    if (!overlayResult) return [];
-    let filtered = overlayResult.nodes;
-
-    // Search filter
-    if (searchFilter.trim()) {
-      const q = searchFilter.trim().toLowerCase();
-      filtered = filtered.filter((n) => n.data.stateId.toLowerCase().includes(q));
+  const structuredLayout = useMemo(() => {
+    if (!layoutResult.ok) {
+      return null;
     }
 
-    // Active-path focus in performance mode
+    return {
+      nodes: groupOrphanNodes(layoutResult.nodes, layoutDirection),
+      edges: applyStructuralEdgeStyling(layoutResult.edges),
+    };
+  }, [layoutDirection, layoutResult]);
+
+  const overlayResult = useMemo(() => {
+    if (!structuredLayout) {
+      return null;
+    }
+
+    return applyOverlay(structuredLayout.nodes, structuredLayout.edges, {
+      workflowType: definition.workflowType,
+      summary,
+      events,
+      streamFrames,
+    });
+  }, [definition.workflowType, events, streamFrames, structuredLayout, summary]);
+
+  const filteredNodes = useMemo(() => {
+    if (!overlayResult) {
+      return [] as Node<FsmNodeData>[];
+    }
+
+    let nextNodes = overlayResult.nodes;
+
+    if (searchFilter.trim()) {
+      const query = searchFilter.trim().toLowerCase();
+      nextNodes = nextNodes.filter((node) => node.data.stateId.toLowerCase().includes(query));
+    }
+
     if (isPerformanceMode && !searchFilter.trim()) {
-      const activeNodeId = overlayResult.nodes.find((n) => n.style?.background === '#1976d2')?.id;
+      const activeNodeId = overlayResult.nodes.find(
+        (node) => node.style?.background === '#1976d2',
+      )?.id;
       if (activeNodeId) {
         const reachable = collectHopNeighbors(
           activeNodeId,
           overlayResult.edges,
           ACTIVE_PATH_HOP_LIMIT,
         );
-        filtered = filtered.filter((n) => reachable.has(n.id));
+        nextNodes = nextNodes.filter((node) => reachable.has(node.id));
       }
     }
 
-    return filtered;
-  }, [overlayResult, searchFilter, isPerformanceMode]);
+    return nextNodes;
+  }, [isPerformanceMode, overlayResult, searchFilter]);
 
-  const visibleEdges = useMemo(() => {
-    if (!overlayResult) return [];
-    const nodeIds = new Set(visibleNodes.map((n) => n.id));
-    let filtered = overlayResult.edges.filter(
-      (e) => nodeIds.has(e.source) && nodeIds.has(e.target),
-    );
-
-    // Performance mode: hide edge labels below zoom threshold (B-WEB-035)
-    if (isPerformanceMode && currentZoom < EDGE_LABEL_ZOOM_THRESHOLD) {
-      filtered = filtered.map((e) => ({ ...e, label: undefined }));
+  const filteredEdges = useMemo(() => {
+    if (!overlayResult) {
+      return [] as Edge<FsmEdgeData>[];
     }
 
-    return filtered;
-  }, [overlayResult, visibleNodes, isPerformanceMode, currentZoom]);
+    const nodeIds = new Set(filteredNodes.map((node) => node.id));
+    let nextEdges = overlayResult.edges.filter(
+      (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target),
+    );
 
-  // --- Selection (B-WEB-044) -----------------------------------------------
-  const selectedNode = useMemo(
-    () => visibleNodes.find((n) => n.id === selectedNodeId) ?? null,
-    [visibleNodes, selectedNodeId],
+    if (isPerformanceMode && currentZoom < EDGE_LABEL_ZOOM_THRESHOLD) {
+      nextEdges = nextEdges.map((edge) => ({ ...edge, label: undefined }));
+    }
+
+    return nextEdges;
+  }, [currentZoom, filteredNodes, isPerformanceMode, overlayResult]);
+
+  const nextNavigationState = useMemo(
+    () => ({ graphAncestors: [...navigationContext.ancestors, navigationContext.current] }),
+    [navigationContext.ancestors, navigationContext.current],
   );
 
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node<FsmNodeData>) => {
-    setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
+  const navigateToTarget = useCallback(
+    (target: ChildDrilldownTarget) => {
+      navigate(target.path, { state: nextNavigationState });
+    },
+    [navigate, nextNavigationState],
+  );
+
+  const handleChildLaunchActivate = useCallback(
+    (stateId: string, annotationRecord: Record<string, unknown>) => {
+      const annotation = asChildLaunchAnnotation(annotationRecord);
+      if (!annotation) {
+        return;
+      }
+
+      const iterations = collectChildLaunchIterations({ annotation, tree, events });
+      if (iterations.length > 1) {
+        setIterationDialog({
+          stateId,
+          childWorkflowType: annotation.childWorkflowType,
+          iterations,
+        });
+        return;
+      }
+
+      navigateToTarget(resolveChildDrilldownTarget({ annotation, tree, events }));
+    },
+    [events, navigateToTarget, tree],
+  );
+
+  const graphWithNeighborhood = useMemo(() => {
+    const nodesWithActions = filteredNodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        drilldownActions: node.data.childLaunchAnnotations
+          .map((annotation, index) => {
+            const parsed = asChildLaunchAnnotation(annotation);
+            if (!parsed) {
+              return null;
+            }
+
+            return {
+              key: `${node.id}-${index}`,
+              label: parsed.childWorkflowType,
+              childWorkflowType: parsed.childWorkflowType,
+              onActivate: () => handleChildLaunchActivate(node.data.stateId, annotation),
+            };
+          })
+          .filter(
+            (action): action is NonNullable<FsmNodeData['drilldownActions']>[number] =>
+              action !== null,
+          ),
+      },
+    }));
+
+    return applyNeighborhoodHighlight(nodesWithActions, filteredEdges, selectedNodeId);
+  }, [filteredEdges, filteredNodes, handleChildLaunchActivate, selectedNodeId]);
+
+  useEffect(() => {
+    if (selectedNodeId && !graphWithNeighborhood.nodes.some((node) => node.id === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [graphWithNeighborhood.nodes, selectedNodeId]);
+
+  const selectedNode = useMemo(
+    () => graphWithNeighborhood.nodes.find((node) => node.id === selectedNodeId) ?? null,
+    [graphWithNeighborhood.nodes, selectedNodeId],
+  );
+
+  const onNodeClick = useCallback((_: ReactMouseEvent, node: Node<FsmNodeData>) => {
+    setSelectedNodeId((previous) => (previous === node.id ? null : node.id));
   }, []);
 
-  const onPaneClick = useCallback(() => {
-    setSelectedNodeId(null);
-  }, []);
-
-  // --- Layout retry (B-WEB-041) --------------------------------------------
   const handleLayoutRetry = useCallback(() => {
     setLayoutError(null);
-    // Force relayout by toggling direction
-    setLayoutDirection((prev) => {
-      const next = prev === 'LR' ? 'TB' : 'LR';
-      // Switch back on next tick
-      setTimeout(() => setLayoutDirection(prev), 0);
+    setLayoutDirection((previous) => {
+      const next = previous === 'LR' ? 'TB' : 'LR';
+      setTimeout(() => setLayoutDirection(previous), 0);
       return next;
     });
   }, []);
 
-  // --- Invariant / mismatch diagnostics (B-WEB-033) ------------------------
   const allViolations = projection.invariantViolations;
   const allMismatches = overlayResult?.mismatches ?? [];
   const hasDiagnostics = allViolations.length > 0 || allMismatches.length > 0;
 
   if (import.meta.env.DEV && hasDiagnostics) {
-    console.warn('[FsmGraphPanel] diagnostics', { allViolations, allMismatches });
+    console.warn('[FsmGraphPanel] diagnostics', { allViolations, allMismatches, runId });
   }
 
-  // --- Layout error state (B-WEB-041) --------------------------------------
   if (layoutError) {
     return (
       <Box ref={containerRef} sx={{ height: '100%', minHeight: 200 }}>
@@ -521,14 +770,11 @@ const InternalGraph = ({
   }
 
   return (
-    <Box ref={containerRef} sx={{ height: '100%', minHeight: 400, position: 'relative' }}>
-      {/* Diagnostics banner (B-WEB-033) */}
-      {hasDiagnostics && (
+    <Box ref={containerRef} sx={{ height: '100%', minHeight: 420, position: 'relative' }}>
+      {hasDiagnostics ? (
         <DiagnosticsBanner violations={allViolations} mismatches={allMismatches} />
-      )}
-
-      {/* Performance mode indicator */}
-      {isPerformanceMode && (
+      ) : null}
+      {isPerformanceMode ? (
         <Chip
           size="small"
           label="Performance mode"
@@ -536,50 +782,53 @@ const InternalGraph = ({
           sx={{ position: 'absolute', top: 8, left: 8, zIndex: 10 }}
           data-testid="performance-mode-indicator"
         />
-      )}
-
-      {/* Search/filter (B-WEB-035) */}
-      {isPerformanceMode && (
+      ) : null}
+      {isPerformanceMode ? (
         <TextField
           size="small"
           placeholder="Filter states…"
           value={searchFilter}
-          onChange={(e) => setSearchFilter(e.target.value)}
-          sx={{ position: 'absolute', top: 8, left: 160, zIndex: 10, width: 180 }}
+          onChange={(event) => setSearchFilter(event.target.value)}
+          sx={{ position: 'absolute', top: 8, left: 160, zIndex: 10, width: 190 }}
           data-testid="graph-search-filter"
         />
-      )}
-
+      ) : null}
+      <GraphSummaryIndicator {...projection.summary} />
       <GraphLegend />
-
       <ReactFlow
-        nodes={visibleNodes}
-        edges={visibleEdges}
+        nodes={graphWithNeighborhood.nodes}
+        edges={graphWithNeighborhood.edges}
         nodeTypes={nodeTypes}
         onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
+        onPaneClick={() => setSelectedNodeId(null)}
         onMove={(_event, viewport) => setCurrentZoom(viewport.zoom)}
         fitView
-        proOptions={{ hideAttribution: true }}
         minZoom={0.1}
         maxZoom={2}
-        // B-WEB-035: Disable animations in performance mode
+        proOptions={{ hideAttribution: true }}
         {...(isPerformanceMode ? { edgesUpdatable: false } : {})}
       >
         <Controls />
         <MiniMap nodeStrokeWidth={3} zoomable pannable />
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
       </ReactFlow>
-
-      {/* Selection detail (B-WEB-044) */}
-      {selectedNode && <NodeSelectionDetail node={selectedNode} edges={visibleEdges} />}
+      {selectedNode ? (
+        <NodeSelectionDetail node={selectedNode} edges={graphWithNeighborhood.edges} />
+      ) : null}
+      <IterationSelectorDialog
+        open={iterationDialog !== null}
+        stateId={iterationDialog?.stateId ?? ''}
+        childWorkflowType={iterationDialog?.childWorkflowType ?? ''}
+        iterations={iterationDialog?.iterations ?? []}
+        onClose={() => setIterationDialog(null)}
+        onSelect={(iteration) => {
+          setIterationDialog(null);
+          navigateToTarget(iteration.target);
+        }}
+      />
     </Box>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Diagnostics banner (B-WEB-033)
-// ---------------------------------------------------------------------------
 
 const DiagnosticsBanner = ({
   violations,
@@ -593,13 +842,13 @@ const DiagnosticsBanner = ({
 
   return (
     <Box
-      sx={{ position: 'absolute', bottom: 8, right: 8, zIndex: 10, maxWidth: 400 }}
+      sx={{ position: 'absolute', bottom: 8, right: 8, zIndex: 10, maxWidth: 420 }}
       data-testid="graph-diagnostics"
     >
       <Alert
         severity="warning"
         action={
-          <Button size="small" onClick={() => setExpanded((p) => !p)}>
+          <Button size="small" onClick={() => setExpanded((previous) => !previous)}>
             {expanded ? 'Hide' : 'Show'} ({total})
           </Button>
         }
@@ -607,15 +856,20 @@ const DiagnosticsBanner = ({
         {total} graph diagnostic{total !== 1 ? 's' : ''}
       </Alert>
       <Collapse in={expanded}>
-        <Paper variant="outlined" sx={{ p: 1, mt: 0.5, maxHeight: 200, overflow: 'auto' }}>
-          {violations.map((v, i) => (
-            <Typography key={`v-${i}`} variant="caption" display="block" color="error">
-              [{v.kind}] {v.message}
+        <Paper variant="outlined" sx={{ p: 1, mt: 0.5, maxHeight: 220, overflow: 'auto' }}>
+          {violations.map((violation, index) => (
+            <Typography key={`violation-${index}`} variant="caption" display="block" color="error">
+              [{violation.kind}] {violation.message}
             </Typography>
           ))}
-          {mismatches.map((m, i) => (
-            <Typography key={`m-${i}`} variant="caption" display="block" color="warning.main">
-              [{m.kind}] {m.message}
+          {mismatches.map((mismatch, index) => (
+            <Typography
+              key={`mismatch-${index}`}
+              variant="caption"
+              display="block"
+              color="warning.main"
+            >
+              [{mismatch.kind}] {mismatch.message}
             </Typography>
           ))}
         </Paper>
@@ -623,10 +877,6 @@ const DiagnosticsBanner = ({
     </Box>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Hop-neighbor collection (B-WEB-035 active-path focus)
-// ---------------------------------------------------------------------------
 
 function collectHopNeighbors(
   startId: string,
@@ -636,7 +886,7 @@ function collectHopNeighbors(
   const visited = new Set<string>([startId]);
   let frontier = new Set<string>([startId]);
 
-  for (let hop = 0; hop < maxHops; hop++) {
+  for (let hop = 0; hop < maxHops; hop += 1) {
     const next = new Set<string>();
     for (const edge of edges) {
       if (frontier.has(edge.source) && !visited.has(edge.target)) {
@@ -646,23 +896,148 @@ function collectHopNeighbors(
         next.add(edge.source);
       }
     }
-    for (const id of next) visited.add(id);
+
+    for (const nodeId of next) {
+      visited.add(nodeId);
+    }
+
     frontier = next;
-    if (frontier.size === 0) break;
+    if (frontier.size === 0) {
+      break;
+    }
   }
 
   return visited;
 }
 
-// ---------------------------------------------------------------------------
-// Public component
-// ---------------------------------------------------------------------------
+function groupOrphanNodes(
+  nodes: Node<FsmNodeData>[],
+  layoutDirection: LayoutDirection,
+): Node<FsmNodeData>[] {
+  const orphanNodes = nodes.filter((node) => node.data.isOrphan);
+  if (orphanNodes.length === 0) {
+    return nodes;
+  }
+
+  const connectedNodes = nodes.filter((node) => !node.data.isOrphan);
+  const bounds = connectedNodes.length > 0 ? getGraphBounds(connectedNodes) : getGraphBounds(nodes);
+
+  return nodes.map((node) => {
+    if (!node.data.isOrphan) {
+      return node;
+    }
+
+    const orphanIndex = orphanNodes.findIndex((candidate) => candidate.id === node.id);
+    return {
+      ...node,
+      position:
+        layoutDirection === 'LR'
+          ? { x: bounds.maxX + 260, y: bounds.minY + orphanIndex * 120 }
+          : { x: bounds.minX + orphanIndex * 220, y: bounds.maxY + 180 },
+    };
+  });
+}
+
+function getGraphBounds(nodes: Node<FsmNodeData>[]): {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+} {
+  return nodes.reduce(
+    (accumulator, node) => ({
+      minX: Math.min(accumulator.minX, node.position.x),
+      maxX: Math.max(accumulator.maxX, node.position.x),
+      minY: Math.min(accumulator.minY, node.position.y),
+      maxY: Math.max(accumulator.maxY, node.position.y),
+    }),
+    {
+      minX: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+      minY: Number.POSITIVE_INFINITY,
+      maxY: Number.NEGATIVE_INFINITY,
+    },
+  );
+}
+
+function applyStructuralEdgeStyling(edges: Edge<FsmEdgeData>[]): Edge<FsmEdgeData>[] {
+  return edges.map((edge) => {
+    const data = edge.data;
+
+    return {
+      ...edge,
+      type: data?.isParallel ? 'smoothstep' : edge.type,
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#607d8b' },
+      style: {
+        ...edge.style,
+        stroke: '#607d8b',
+        strokeWidth: data?.isParallel ? 1.75 : 1.35,
+        opacity: 0.95,
+        strokeDasharray: data?.isParallel && data.parallelIndex % 2 === 1 ? '4 2' : undefined,
+      },
+      zIndex: data?.isParallel ? data.parallelIndex + 1 : edge.zIndex,
+    };
+  });
+}
+
+function applyNeighborhoodHighlight(
+  nodes: Node<FsmNodeData>[],
+  edges: Edge<FsmEdgeData>[],
+  selectedNodeId: string | null,
+): { nodes: Node<FsmNodeData>[]; edges: Edge<FsmEdgeData>[] } {
+  if (!selectedNodeId) {
+    return {
+      nodes: nodes.map((node) => ({
+        ...node,
+        data: { ...node.data, isDimmed: false, isSelected: false, isNeighborhood: false },
+      })),
+      edges,
+    };
+  }
+
+  const relatedNodeIds = new Set<string>([selectedNodeId]);
+  const relatedEdgeIds = new Set<string>();
+
+  for (const edge of edges) {
+    if (edge.source === selectedNodeId || edge.target === selectedNodeId) {
+      relatedEdgeIds.add(edge.id);
+      relatedNodeIds.add(edge.source);
+      relatedNodeIds.add(edge.target);
+    }
+  }
+
+  return {
+    nodes: nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        isSelected: node.id === selectedNodeId,
+        isNeighborhood: node.id !== selectedNodeId && relatedNodeIds.has(node.id),
+        isDimmed: !relatedNodeIds.has(node.id),
+      },
+    })),
+    edges: edges.map((edge) => {
+      const currentStrokeWidth =
+        typeof edge.style?.strokeWidth === 'number' ? edge.style.strokeWidth : 1.35;
+      return relatedEdgeIds.has(edge.id)
+        ? {
+            ...edge,
+            style: { ...edge.style, opacity: 1, strokeWidth: currentStrokeWidth + 0.75 },
+            zIndex: 20,
+          }
+        : { ...edge, style: { ...edge.style, opacity: 0.16 } };
+    }),
+  };
+}
 
 export const FsmGraphPanel = ({
+  runId,
   definition,
+  tree,
   summary,
   events,
   streamFrames,
+  navigationContext,
   isLoading,
   errorMessage,
   onRetry,
@@ -670,6 +1045,7 @@ export const FsmGraphPanel = ({
   <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
     <Stack spacing={1.5} sx={{ height: '100%' }}>
       <Typography variant="h6">FSM Graph</Typography>
+      <FsmGraphBreadcrumbs items={navigationContext.breadcrumbs} />
       {isLoading ? (
         <Typography variant="body2" color="text.secondary">
           Loading definition graph…
@@ -688,12 +1064,15 @@ export const FsmGraphPanel = ({
         </Alert>
       ) : null}
       {!isLoading && !errorMessage && definition ? (
-        <Box sx={{ flex: 1, minHeight: 400 }}>
+        <Box sx={{ flex: 1, minHeight: 420 }}>
           <InternalGraph
+            runId={runId}
             definition={definition}
+            tree={tree}
             summary={summary}
             events={events}
             streamFrames={streamFrames}
+            navigationContext={navigationContext}
           />
         </Box>
       ) : null}
