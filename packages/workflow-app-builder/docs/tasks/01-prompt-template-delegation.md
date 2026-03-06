@@ -10,7 +10,7 @@ Implement the fixed, versioned prompt-template catalog and one delegation path t
 - [x] Add hardcoded prompt template constants for the four delegated states.
 - [x] Implement a single delegation helper that injects template ID, interpolation vars, output schema, and optional input schema.
 - [x] Enforce schema-required delegation calls (no call without `outputSchema`).
-- [x] Forward `copilotPromptOptions` from `SpecDocGenerationInput` (baseArgs, allowedDirs, timeoutMs, cwd) to all copilot delegation calls.
+- [x] Forward `copilotPromptOptions` from `SpecDocGenerationInput` (baseArgs, logDir, allowedDirs, timeoutMs, cwd) to all copilot delegation calls.
 - [x] Add tests verifying template IDs, interpolation, schema argument propagation, and `copilotPromptOptions` pass-through.
 
 ## Required Artifacts

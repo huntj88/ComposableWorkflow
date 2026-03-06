@@ -46,6 +46,7 @@ export interface SpecDocGenerationInput {
   constraints?: string[];
   copilotPromptOptions?: {
     baseArgs?: string[];
+    logDir?: string;
     allowedDirs?: string[];
     timeoutMs?: number; // default: 1_200_000 (20 minutes)
     cwd?: string;

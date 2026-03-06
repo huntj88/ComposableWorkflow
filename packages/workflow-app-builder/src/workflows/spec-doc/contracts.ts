@@ -14,6 +14,7 @@
 /** Options forwarded to `app-builder.copilot.prompt.v1` child runs. */
 export interface CopilotPromptOptions {
   baseArgs?: string[];
+  logDir?: string;
   allowedDirs?: string[];
   timeoutMs?: number;
   cwd?: string;

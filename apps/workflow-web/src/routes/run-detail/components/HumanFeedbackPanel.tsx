@@ -90,9 +90,7 @@ export const HumanFeedbackPanel = ({ runId }: HumanFeedbackPanelProps): ReactEle
       ? null
       : (submitFeedback.stateByFeedbackRunId[selectedItem.feedbackRunId] ?? null);
 
-  const isSelectionTerminal =
-    selectedItem !== null &&
-    (isTerminalStatus(selectedItem.status) || selectedSubmitState?.conflict !== null);
+  const isSelectionTerminal = selectedItem !== null && isTerminalStatus(selectedItem.status);
 
   const isValidSubmitDraft =
     selectedItem !== null &&

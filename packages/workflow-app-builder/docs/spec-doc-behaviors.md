@@ -236,6 +236,7 @@ Each behavior should validate all relevant dimensions:
 **When** the copilot ACP execution runs
 **Then** default timeout is 1,200,000 ms (20 minutes)
 **And** timeout is configurable via `copilotPromptOptions.timeoutMs` in `SpecDocGenerationInput`
+**And** copilot internal log output directory is configurable via `copilotPromptOptions.logDir` in `SpecDocGenerationInput`
 
 ---
 

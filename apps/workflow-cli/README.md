@@ -54,6 +54,7 @@ pnpm --filter @composable-workflow/workflow-cli run workflow run \
 ],
 "copilotPromptOptions": {
 "cwd": "/home/jameshunt/Projects/ComposableWorkflow",
+"logDir": "/home/jameshunt/Projects/ComposableWorkflow/devEnv/workspace/.copilot-logs",
 "allowedDirs": [
 "/home/jameshunt/Projects/ComposableWorkflow"
 ]

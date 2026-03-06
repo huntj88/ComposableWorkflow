@@ -125,6 +125,9 @@ export async function delegateToCopilot<T = unknown>(
     ...(request.copilotPromptOptions?.baseArgs && {
       baseArgs: request.copilotPromptOptions.baseArgs,
     }),
+    ...(request.copilotPromptOptions?.logDir && {
+      logDir: request.copilotPromptOptions.logDir,
+    }),
     ...(request.copilotPromptOptions?.allowedDirs && {
       allowedDirs: request.copilotPromptOptions.allowedDirs,
     }),
