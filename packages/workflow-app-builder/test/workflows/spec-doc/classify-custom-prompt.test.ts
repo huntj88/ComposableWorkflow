@@ -66,6 +66,16 @@ function clarifyingClassificationOutput(
   };
 }
 
+function unrelatedClassificationOutput(
+  overrides?: Partial<CustomPromptClassificationOutput>,
+): CustomPromptClassificationOutput {
+  return {
+    intent: 'unrelated-question',
+    customQuestionText: 'What auth implementation already exists in the repository?',
+    ...overrides,
+  };
+}
+
 /**
  * Build state data that simulates the context when ClassifyCustomPrompt is entered:
  * - A queue with at least one answered item
@@ -229,6 +239,22 @@ describe('SD-CUSTOM-002-IntentAsSingleTruth', () => {
       expect.any(Object),
     );
   });
+
+  it('routing depends only on validated structuredOutput.intent for unrelated-question', async () => {
+    const stateData = stateDataForClassification();
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        structuredOutput: unrelatedClassificationOutput(),
+      },
+    });
+
+    await handleClassifyCustomPrompt(ctx, stateData);
+
+    expect(transitionSpy).toHaveBeenCalledWith(
+      'ExpandQuestionWithClarification',
+      expect.any(Object),
+    );
+  });
 });
 
 // ===========================================================================
@@ -309,9 +335,11 @@ describe('Clarifying-question routing to ExpandQuestionWithClarification', () =>
       'Should the API be RESTful or RPC?',
     );
     expect(updatedState.pendingClarification!.intent).toBe('clarifying-question');
+    expect(updatedState.deferredQuestionIds).toEqual(['q-cc-1']);
+    expect(updatedState.queue[0].answered).toBe(false);
   });
 
-  it('does not buffer answers for clarifying-question intent', async () => {
+  it('rolls back the provisional numbered answer for clarifying-question intent', async () => {
     const stateData = stateDataForClassification();
     const { ctx, transitionSpy } = createMockContext({
       childOutput: {
@@ -322,8 +350,47 @@ describe('Clarifying-question routing to ExpandQuestionWithClarification', () =>
     await handleClassifyCustomPrompt(ctx, stateData);
 
     const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
-    // No additional answer was appended
-    expect(updatedState.normalizedAnswers.length).toBe(stateData.normalizedAnswers.length);
+    expect(updatedState.normalizedAnswers).toEqual([]);
+  });
+
+  it('reuses an existing deferred entry instead of pushing duplicates', async () => {
+    const stateData = {
+      ...stateDataForClassification(),
+      deferredQuestionIds: ['q-cc-1'],
+    } satisfies SpecDocStateData;
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        structuredOutput: clarifyingClassificationOutput(),
+      },
+    });
+
+    await handleClassifyCustomPrompt(ctx, stateData);
+
+    const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(updatedState.deferredQuestionIds).toEqual(['q-cc-1']);
+  });
+});
+
+describe('Unrelated-question routing to ExpandQuestionWithClarification', () => {
+  it('normalizes unrelated-question text into pendingClarification.customQuestionText', async () => {
+    const stateData = stateDataForClassification();
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        structuredOutput: unrelatedClassificationOutput({
+          customQuestionText: 'Which package already owns auth token validation?',
+        }),
+      },
+    });
+
+    await handleClassifyCustomPrompt(ctx, stateData);
+
+    const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(updatedState.pendingClarification).toEqual({
+      sourceQuestionId: 'q-cc-1',
+      intent: 'unrelated-question',
+      customQuestionText: 'Which package already owns auth token validation?',
+    });
+    expect(updatedState.normalizedAnswers).toEqual([]);
   });
 });
 
@@ -369,6 +436,23 @@ describe('Schema validation gate', () => {
 
   it('hard-fails when clarifying-question intent lacks customQuestionText', async () => {
     const invalidOutput = { intent: 'clarifying-question' };
+    const stateData = stateDataForClassification();
+    const { ctx, failSpy } = createMockContext({
+      childOutput: {
+        structuredOutput: invalidOutput,
+        structuredOutputRaw: JSON.stringify(invalidOutput),
+      },
+    });
+
+    await handleClassifyCustomPrompt(ctx, stateData);
+
+    expect(failSpy).toHaveBeenCalledTimes(1);
+    const error = failSpy.mock.calls[0][0] as Error;
+    expect(error.message).toContain('schema validation failed');
+  });
+
+  it('hard-fails when unrelated-question intent lacks customQuestionText', async () => {
+    const invalidOutput = { intent: 'unrelated-question' };
     const stateData = stateDataForClassification();
     const { ctx, failSpy } = createMockContext({
       childOutput: {

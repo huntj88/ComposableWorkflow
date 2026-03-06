@@ -30,7 +30,7 @@ import { emitDelegationStarted, emitClassificationOutcome } from '../observabili
 import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { createSpecDocValidator } from '../schema-validation.js';
 import { SCHEMA_IDS } from '../schemas.js';
-import { type SpecDocStateData, createInitialStateData } from '../state-data.js';
+import { deferQuestionId, type SpecDocStateData, createInitialStateData } from '../state-data.js';
 
 // ---------------------------------------------------------------------------
 // State name constant
@@ -53,6 +53,10 @@ export const CLASSIFY_CUSTOM_PROMPT_STATE = 'ClassifyCustomPrompt' as const;
  *
  * On success the handler inspects only `structuredOutput.intent`
  * (SD-CUSTOM-002) and routes accordingly.
+ *
+ * For question intents, the provisional answer captured by
+ * `NumberedOptionsHumanRequest` is rolled back so the source numbered question
+ * is deferred and revisited after the research detour completes.
  */
 export async function handleClassifyCustomPrompt(
   ctx: WorkflowContext<SpecDocGenerationInput, SpecDocGenerationOutput>,
@@ -183,9 +187,23 @@ export async function handleClassifyCustomPrompt(
   }
 
   if (output.intent === 'clarifying-question' || output.intent === 'unrelated-question') {
+    // Question intents defer the source question instead of treating the
+    // provisional selected-option response as a finalized answer.
+    const updatedQueue = stateData.queue.map((item, index) =>
+      index === sourceQueueIndex ? { ...item, answered: false } : item,
+    );
+
+    const updatedAnswers = stateData.normalizedAnswers.slice(0, -1);
+
     // SD-CUSTOM-004: route to ExpandQuestionWithClarification carrying normalized question text.
     const updatedStateData: SpecDocStateData = {
       ...stateData,
+      queue: updatedQueue,
+      normalizedAnswers: updatedAnswers,
+      deferredQuestionIds: deferQuestionId(
+        stateData.deferredQuestionIds,
+        sourceQuestion.questionId,
+      ),
       pendingClarification: {
         sourceQuestionId: sourceQuestion.questionId,
         intent: output.intent,

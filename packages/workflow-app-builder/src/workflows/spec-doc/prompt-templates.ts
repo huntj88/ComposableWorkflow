@@ -127,7 +127,7 @@ Classification policy:
 
 // -- 7.2.4 ExpandQuestionWithClarification ----------------------------------
 
-const EXPAND_CLARIFICATION_BODY = `Research the user's question against the current spec draft and relevant implementation context before deciding whether another human question is needed.
+const EXPAND_CLARIFICATION_BODY = `Research the user's question against the current spec draft and relevant repository implementation context before deciding whether another human question is needed.
 
 Input context:
 - request: {{request}}
@@ -140,7 +140,7 @@ Input context:
 
 Rules:
 1) Research first; do not merely restate the user's question.
-2) The delegated run must have access to the current workflow request, the spec draft at \`specPath\` when present, and workspace context reachable through the workflow's configured Copilot prompt options (\`cwd\`, \`allowedDirs\`).
+2) The delegated run must research the current workflow request, the spec draft at \`specPath\` when present, and workspace context reachable through the workflow's configured Copilot prompt options (\`cwd\`, \`allowedDirs\`).
 3) Always return \`researchOutcome\` and \`researchSummary\`.
 4) If research resolves the question without remaining ambiguity, set \`researchOutcome = resolved-with-research\` and omit \`followUpQuestion\`.
 5) If research finds a remaining decision or ambiguity that requires human input, set \`researchOutcome = needs-follow-up-question\` and create exactly one deterministic numbered \`followUpQuestion\` grounded in the research findings.

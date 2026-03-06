@@ -23,7 +23,12 @@ import {
 } from '../answers.js';
 import { emitQuestionGenerated, emitResponseReceived } from '../observability.js';
 import { COMPLETION_CONFIRMATION_QUESTION_ID } from '../queue.js';
-import { type SpecDocStateData, createInitialStateData } from '../state-data.js';
+import {
+  peekDeferredQuestionId,
+  popDeferredQuestionId,
+  type SpecDocStateData,
+  createInitialStateData,
+} from '../state-data.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -103,7 +108,34 @@ export async function handleNumberedOptionsHumanRequest(
   // ---------------------------------------------------------------------------
   // B-SD-TRANS-012: Re-entry with exhausted queue → evaluate routing
   // ---------------------------------------------------------------------------
+  const deferredQuestionId = peekDeferredQuestionId(stateData.deferredQuestionIds);
+
   if (queueIndex >= queue.length) {
+    if (deferredQuestionId) {
+      const deferredQueueIndex = queue.findIndex((item) => item.questionId === deferredQuestionId);
+      if (deferredQueueIndex >= 0) {
+        const updatedStateData: SpecDocStateData = {
+          ...stateData,
+          queueIndex: deferredQueueIndex,
+        };
+
+        ctx.log({
+          level: 'info',
+          message:
+            'Re-entry with exhausted queue: revisiting deferred source question before terminal routing',
+          payload: {
+            deferredQuestionId,
+            deferredQueueIndex,
+            queueIndex,
+            queueSize: queue.length,
+          },
+        });
+
+        ctx.transition(NUMBERED_OPTIONS_HUMAN_REQUEST_STATE, updatedStateData);
+        return;
+      }
+    }
+
     // Check if any normalized answer for the completion-confirmation question
     // selected the "done" option (option 1).
     const completionAnswer = [...stateData.normalizedAnswers]
@@ -267,6 +299,7 @@ export async function handleNumberedOptionsHumanRequest(
   // ---------------------------------------------------------------------------
   const nextIndex = queueIndex + 1;
   const hasMoreItems = nextIndex < updatedQueue.length;
+  const answeringDeferredQuestion = deferredQuestionId === currentItem.questionId;
 
   // Check if response includes custom prompt text → route to ClassifyCustomPrompt
   if (text !== undefined && text.trim().length > 0) {
@@ -287,6 +320,41 @@ export async function handleNumberedOptionsHumanRequest(
     return;
   }
 
+  const remainingDeferredQuestionIds = answeringDeferredQuestion
+    ? popDeferredQuestionId(stateData.deferredQuestionIds)
+    : [...(stateData.deferredQuestionIds ?? [])];
+  const nextDeferredQuestionId = peekDeferredQuestionId(remainingDeferredQuestionIds);
+
+  if (nextDeferredQuestionId) {
+    const deferredQueueIndex = updatedQueue.findIndex(
+      (item) => item.questionId === nextDeferredQuestionId,
+    );
+    if (deferredQueueIndex >= 0 && deferredQueueIndex !== nextIndex) {
+      const updatedStateData: SpecDocStateData = {
+        ...stateData,
+        queue: updatedQueue,
+        queueIndex: deferredQueueIndex,
+        normalizedAnswers: updatedAnswers,
+        deferredQuestionIds: remainingDeferredQuestionIds,
+      };
+
+      ctx.log({
+        level: 'info',
+        message: 'Revisiting deferred source question before advancing to older unresolved items',
+        payload: {
+          currentQuestionId: currentItem.questionId,
+          deferredQuestionId: nextDeferredQuestionId,
+          deferredQueueIndex,
+          nextIndex,
+          queueSize: updatedQueue.length,
+        },
+      });
+
+      ctx.transition(NUMBERED_OPTIONS_HUMAN_REQUEST_STATE, updatedStateData);
+      return;
+    }
+  }
+
   // Check for completion confirmation
   if (currentItem.questionId === COMPLETION_CONFIRMATION_QUESTION_ID) {
     // Completion confirmed with option 1 ("Yes, the spec is done")
@@ -296,6 +364,7 @@ export async function handleNumberedOptionsHumanRequest(
         queue: updatedQueue,
         queueIndex: nextIndex,
         normalizedAnswers: updatedAnswers,
+        deferredQuestionIds: remainingDeferredQuestionIds,
       };
 
       ctx.log({
@@ -314,6 +383,7 @@ export async function handleNumberedOptionsHumanRequest(
       queue: updatedQueue,
       queueIndex: nextIndex,
       normalizedAnswers: updatedAnswers,
+      deferredQuestionIds: remainingDeferredQuestionIds,
     };
 
     ctx.log({
@@ -333,6 +403,7 @@ export async function handleNumberedOptionsHumanRequest(
       queue: updatedQueue,
       queueIndex: nextIndex,
       normalizedAnswers: updatedAnswers,
+      deferredQuestionIds: remainingDeferredQuestionIds,
     };
 
     ctx.log({
@@ -351,6 +422,7 @@ export async function handleNumberedOptionsHumanRequest(
     queue: updatedQueue,
     queueIndex: nextIndex,
     normalizedAnswers: updatedAnswers,
+    deferredQuestionIds: remainingDeferredQuestionIds,
   };
 
   ctx.log({

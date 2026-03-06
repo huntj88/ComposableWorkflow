@@ -7,7 +7,12 @@
  * @module spec-doc/state-data
  */
 
-import type { NormalizedAnswer, QuestionQueueItem, SpecIntegrationOutput } from './contracts.js';
+import type {
+  ClarificationQuestionIntent,
+  NormalizedAnswer,
+  QuestionQueueItem,
+  SpecIntegrationOutput,
+} from './contracts.js';
 
 // ---------------------------------------------------------------------------
 // 6.2 Canonical State Identifiers
@@ -53,7 +58,7 @@ export interface PendingClarification {
   /** The questionId of the source question that triggered classification. */
   sourceQuestionId: string;
   /** The question intent extracted by classification. */
-  intent: 'clarifying-question' | 'unrelated-question';
+  intent: ClarificationQuestionIntent;
   /** The normalized question text extracted by classification. */
   customQuestionText: string;
 }
@@ -61,11 +66,19 @@ export interface PendingClarification {
 /** Research-only note persisted for auditability and observability. */
 export interface ResearchNote {
   sourceQuestionId: string;
-  intent: 'clarifying-question' | 'unrelated-question';
+  intent: ClarificationQuestionIntent;
   questionText: string;
   researchSummary: string;
   recordedAt: string;
 }
+
+/**
+ * LIFO stack of deferred source question ids awaiting revisit.
+ *
+ * The same question id is never added twice concurrently; repeated research
+ * detours reuse the existing stack entry.
+ */
+export type DeferredQuestionStack = string[];
 
 /**
  * Root state data model persisted across FSM transitions.
@@ -85,6 +98,8 @@ export interface SpecDocStateData {
   counters: SpecDocCounters;
   /** Working artifacts (spec draft path, integration metadata). */
   artifacts: SpecDocArtifacts;
+  /** LIFO stack of deferred source question ids awaiting revisit. */
+  deferredQuestionIds?: DeferredQuestionStack;
   /** Research-only outcomes recorded outside normalized integration answers. */
   researchNotes: ResearchNote[];
   /**
@@ -109,6 +124,31 @@ export function createInitialStateData(): SpecDocStateData {
       consistencyCheckPasses: 0,
     },
     artifacts: {},
+    deferredQuestionIds: [],
     researchNotes: [],
   };
+}
+
+/** Return the most recently deferred source question id, if any. */
+export function peekDeferredQuestionId(
+  deferredQuestionIds: readonly string[] | undefined,
+): string | undefined {
+  return deferredQuestionIds?.[deferredQuestionIds.length - 1];
+}
+
+/** Push a deferred question id unless it is already present in the stack. */
+export function deferQuestionId(
+  deferredQuestionIds: readonly string[] | undefined,
+  questionId: string,
+): DeferredQuestionStack {
+  const stack = deferredQuestionIds ?? [];
+  return stack.includes(questionId) ? [...stack] : [...stack, questionId];
+}
+
+/** Remove the most recently deferred question id. */
+export function popDeferredQuestionId(
+  deferredQuestionIds: readonly string[] | undefined,
+): DeferredQuestionStack {
+  const stack = deferredQuestionIds ?? [];
+  return stack.length === 0 ? [] : stack.slice(0, -1);
 }

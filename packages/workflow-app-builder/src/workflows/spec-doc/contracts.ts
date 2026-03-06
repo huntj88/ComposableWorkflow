@@ -143,8 +143,12 @@ export interface ConsistencyCheckOutput {
 // Custom Prompt Classification Output
 // ---------------------------------------------------------------------------
 
+export type ClarificationQuestionIntent = 'clarifying-question' | 'unrelated-question';
+
+export type CustomPromptIntent = ClarificationQuestionIntent | 'custom-answer';
+
 export interface CustomPromptClassificationOutput {
-  intent: 'clarifying-question' | 'unrelated-question' | 'custom-answer';
+  intent: CustomPromptIntent;
   customQuestionText?: string;
   customAnswerText?: string;
 }
@@ -164,8 +168,10 @@ export interface BaseNumberedQuestionItem {
   options: NumberedQuestionOption[];
 }
 
+export type ClarificationResearchOutcome = 'resolved-with-research' | 'needs-follow-up-question';
+
 export interface ClarificationFollowUpOutput {
-  researchOutcome: 'resolved-with-research' | 'needs-follow-up-question';
+  researchOutcome: ClarificationResearchOutcome;
   researchSummary: string;
   followUpQuestion?: BaseNumberedQuestionItem;
 }

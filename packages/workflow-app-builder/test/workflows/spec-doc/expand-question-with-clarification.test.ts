@@ -5,7 +5,6 @@ import type { WorkflowContext } from '@composable-workflow/workflow-lib/contract
 import type {
   BaseNumberedQuestionItem,
   ClarificationFollowUpOutput,
-  NormalizedAnswer,
   NumberedQuestionOption,
   QuestionQueueItem,
   SpecDocGenerationInput,
@@ -78,28 +77,20 @@ function stateDataForExpansion(
   customQuestionText = 'Do you mean REST or RPC?',
 ): SpecDocStateData {
   const queue: QuestionQueueItem[] = [
-    makeQueueItem(sourceQuestionId, { answered: true }),
+    makeQueueItem(sourceQuestionId, { answered: false }),
     makeQueueItem('q-cc-2'),
     makeQueueItem('q-cc-3'),
-  ];
-
-  const answers: NormalizedAnswer[] = [
-    {
-      questionId: sourceQuestionId,
-      selectedOptionIds: [1],
-      text: 'I want a REST API',
-      answeredAt: '2026-03-02T12:00:00.000Z',
-    },
   ];
 
   return {
     ...createInitialStateData(),
     queue,
     queueIndex: 1, // Pointing at q-cc-2 (past the answered question)
-    normalizedAnswers: answers,
+    normalizedAnswers: [],
     counters: {
       ...createInitialStateData().counters,
     },
+    deferredQuestionIds: [sourceQuestionId],
     pendingClarification: {
       sourceQuestionId,
       intent: 'clarifying-question',
@@ -205,6 +196,64 @@ describe('SD-CUSTOM-004-ImmediateClarificationInsertion', () => {
     await handleExpandQuestionWithClarification(ctx, stateData);
 
     expect(transitionSpy).toHaveBeenCalledWith('NumberedOptionsHumanRequest', expect.any(Object));
+  });
+});
+
+// ===========================================================================
+// Research-only clarification outcomes
+// ===========================================================================
+
+describe('Research-only clarification outcomes', () => {
+  it('records a researchNotes entry and resumes at the deferred source question', async () => {
+    const stateData = stateDataForExpansion('q-cc-1', 'What auth approach already exists?');
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        structuredOutput: {
+          researchOutcome: 'resolved-with-research',
+          researchSummary: 'The repository already centralizes auth in packages/workflow-lib.',
+        },
+      },
+    });
+
+    await handleExpandQuestionWithClarification(ctx, stateData);
+
+    expect(transitionSpy).toHaveBeenCalledWith('NumberedOptionsHumanRequest', expect.any(Object));
+    const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(updatedState.queueIndex).toBe(0);
+    expect(updatedState.researchNotes).toEqual([
+      {
+        sourceQuestionId: 'q-cc-1',
+        intent: 'clarifying-question',
+        questionText: 'What auth approach already exists?',
+        researchSummary: 'The repository already centralizes auth in packages/workflow-lib.',
+        recordedAt: '2026-03-02T12:00:00.000Z',
+      },
+    ]);
+    expect(updatedState.normalizedAnswers).toEqual([]);
+    expect(updatedState.pendingClarification).toBeUndefined();
+    expect(updatedState.deferredQuestionIds).toEqual(['q-cc-1']);
+  });
+
+  it('does not insert a follow-up question when research resolves the issue', async () => {
+    const stateData = stateDataForExpansion();
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        structuredOutput: {
+          researchOutcome: 'resolved-with-research',
+          researchSummary: 'No remaining ambiguity after reviewing the spec draft.',
+        },
+      },
+    });
+
+    await handleExpandQuestionWithClarification(ctx, stateData);
+
+    const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(updatedState.queue).toHaveLength(3);
+    expect(updatedState.queue.map((item) => item.questionId)).toEqual([
+      'q-cc-1',
+      'q-cc-2',
+      'q-cc-3',
+    ]);
   });
 });
 

@@ -17,6 +17,7 @@
 
 import type { WorkflowContext } from '@composable-workflow/workflow-lib/contracts';
 
+import type { ClarificationQuestionIntent, ClarificationResearchOutcome } from './contracts.js';
 import type { PromptTemplateId } from './prompt-templates.js';
 import type { SpecDocSchemaId } from './schemas.js';
 
@@ -131,8 +132,8 @@ export interface ClarificationGeneratedPayload extends ObsPayloadBase {
 export interface ResearchResultLoggedPayload extends ObsPayloadBase {
   observabilityType: typeof OBS_TYPES.researchResultLogged;
   sourceQuestionId: string;
-  intent: string;
-  researchOutcome: string;
+  intent: ClarificationQuestionIntent;
+  researchOutcome: ClarificationResearchOutcome;
   researchSummary: string;
   promptTemplateId: PromptTemplateId;
 }
@@ -373,8 +374,8 @@ export function emitResearchResultLogged(
   params: {
     state: string;
     sourceQuestionId: string;
-    intent: string;
-    researchOutcome: string;
+    intent: ClarificationQuestionIntent;
+    researchOutcome: ClarificationResearchOutcome;
     researchSummary: string;
     promptTemplateId: PromptTemplateId;
   },

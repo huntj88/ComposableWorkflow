@@ -34,7 +34,11 @@ import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { insertImmediateNext } from '../queue.js';
 import { createSpecDocValidator } from '../schema-validation.js';
 import { SCHEMA_IDS } from '../schemas.js';
-import { type SpecDocStateData, createInitialStateData } from '../state-data.js';
+import {
+  peekDeferredQuestionId,
+  type SpecDocStateData,
+  createInitialStateData,
+} from '../state-data.js';
 
 // ---------------------------------------------------------------------------
 // State name constant
@@ -113,7 +117,9 @@ export async function handleExpandQuestionWithClarification(
   const { sourceQuestionId, customQuestionText, intent } = pending;
 
   // Find the source question in the queue for context
-  const sourceQuestion = stateData.queue.find((q) => q.questionId === sourceQuestionId);
+  const sourceQuestionIndex = stateData.queue.findIndex((q) => q.questionId === sourceQuestionId);
+  const sourceQuestion =
+    sourceQuestionIndex >= 0 ? stateData.queue[sourceQuestionIndex] : undefined;
   if (!sourceQuestion) {
     ctx.fail(
       new Error(
@@ -187,8 +193,13 @@ export async function handleExpandQuestionWithClarification(
   const output = validation.value;
 
   if (output.researchOutcome === 'resolved-with-research') {
+    const deferredQuestionId = peekDeferredQuestionId(stateData.deferredQuestionIds);
+    const resumeIndex =
+      deferredQuestionId === sourceQuestionId ? sourceQuestionIndex : stateData.queueIndex;
+
     const updatedStateData: SpecDocStateData = {
       ...stateData,
+      queueIndex: resumeIndex,
       researchNotes: [
         ...stateData.researchNotes,
         {

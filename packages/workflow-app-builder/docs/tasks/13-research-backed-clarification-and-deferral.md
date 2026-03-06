@@ -10,13 +10,13 @@
 Implement the post-spec-update clarification model where question-like custom prompts trigger repository/spec research first, may resolve without emitting a new human follow-up, and defer the source numbered question until the research detour completes.
 
 ## Implementation Tasks
-- [ ] Extend custom prompt classification to support `unrelated-question` in addition to existing intents.
-- [ ] Normalize question-intent payloads into `customQuestionText` for handoff into clarification research.
-- [ ] Extend clarification output handling to require `researchOutcome` and `researchSummary`, with optional `followUpQuestion`.
-- [ ] Persist research-only outcomes separately from normalized answers as `researchNotes[]` entries with `sourceQuestionId`, `intent`, `questionText`, `researchSummary`, and `recordedAt`.
-- [ ] Add deferred-question stack handling so deferred source questions are revisited before older unresolved items or terminal queue exhaustion, while reusing an existing deferred entry instead of pushing duplicates.
-- [ ] Update the clarification prompt template contract so research runs receive `request`, optional `specPath`, normalized `customQuestionText`, intent, and workspace-context access instructions before deciding whether to emit a follow-up.
-- [ ] Emit observability for research-only outcomes.
+- [x] Extend custom prompt classification to support `unrelated-question` in addition to existing intents.
+- [x] Normalize question-intent payloads into `customQuestionText` for handoff into clarification research.
+- [x] Extend clarification output handling to require `researchOutcome` and `researchSummary`, with optional `followUpQuestion`.
+- [x] Persist research-only outcomes separately from normalized answers as `researchNotes[]` entries with `sourceQuestionId`, `intent`, `questionText`, `researchSummary`, and `recordedAt`.
+- [x] Add deferred-question stack handling so deferred source questions are revisited before older unresolved items or terminal queue exhaustion, while reusing an existing deferred entry instead of pushing duplicates.
+- [x] Update the clarification prompt template contract so research runs receive `request`, optional `specPath`, normalized `customQuestionText`, intent, and workspace-context access instructions before deciding whether to emit a follow-up.
+- [x] Emit observability for research-only outcomes.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/contracts.ts`

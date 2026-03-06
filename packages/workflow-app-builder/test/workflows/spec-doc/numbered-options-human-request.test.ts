@@ -868,6 +868,32 @@ describe('Error handling', () => {
 // ---------------------------------------------------------------------------
 
 describe('B-SD-TRANS-012-ExhaustedQueueReEntry', () => {
+  it('revisits the most recently deferred source question before terminal routing', async () => {
+    const stateData = stateDataWithQueue(
+      [
+        makeQueueItem('q-source', { answered: false }),
+        makeQueueItem('q-follow-up', { answered: true }),
+      ],
+      {
+        queueIndex: 2,
+        deferredQuestionIds: ['q-source'],
+        normalizedAnswers: [createNormalizedAnswer('q-follow-up', [1], '2026-03-03T12:00:00Z')],
+      },
+    );
+
+    const { ctx, failSpy, transitionSpy, launchChildSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(launchChildSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith('NumberedOptionsHumanRequest', {
+      ...stateData,
+      queueIndex: 0,
+    });
+  });
+
   it('routes to IntegrateIntoSpec when re-entered with exhausted queue (no completion-confirmation done)', async () => {
     // Simulate: single question answered, ClassifyCustomPrompt returned to us
     // with queueIndex already past end.
@@ -1016,6 +1042,65 @@ describe('B-SD-TRANS-012-ExhaustedQueueReEntry', () => {
 
     // Last answer selected option 2 → IntegrateIntoSpec, not Done
     expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', stateData);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deferred-question precedence during normal queue progression
+// ---------------------------------------------------------------------------
+
+describe('Deferred-question precedence', () => {
+  it('revisits a deferred source question before advancing to older unresolved items', async () => {
+    const stateData = stateDataWithQueue(
+      [
+        makeQueueItem('q-source', { answered: false }),
+        makeQueueItem('q-follow-up'),
+        makeQueueItem('q-older'),
+      ],
+      {
+        queueIndex: 1,
+        deferredQuestionIds: ['q-source'],
+      },
+    );
+
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-follow-up', selectedOptionIds: [2] },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    const updatedStateData = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(transitionSpy).toHaveBeenCalledWith('NumberedOptionsHumanRequest', expect.any(Object));
+    expect(updatedStateData.queueIndex).toBe(0);
+    expect(updatedStateData.deferredQuestionIds).toEqual(['q-source']);
+    expect(updatedStateData.normalizedAnswers[0].questionId).toBe('q-follow-up');
+  });
+
+  it('pops the deferred source question after it receives a real answer', async () => {
+    const stateData = stateDataWithQueue(
+      [makeQueueItem('q-source', { answered: false }), makeQueueItem('q-older')],
+      {
+        queueIndex: 0,
+        deferredQuestionIds: ['q-source'],
+      },
+    );
+
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-source', selectedOptionIds: [1] },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    const updatedStateData = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(updatedStateData.queueIndex).toBe(1);
+    expect(updatedStateData.deferredQuestionIds).toEqual([]);
+    expect(updatedStateData.normalizedAnswers[0].questionId).toBe('q-source');
   });
 });
 
