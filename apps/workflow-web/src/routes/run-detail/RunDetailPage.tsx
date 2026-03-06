@@ -17,7 +17,9 @@ import type { FsmGraphBreadcrumbItem } from './components/FsmGraphBreadcrumbs';
 import { HumanFeedbackPanel } from './components/HumanFeedbackPanel';
 import { LogsPanel } from './components/LogsPanel';
 import { RunSummaryPanel } from './components/RunSummaryPanel';
+import { TransitionHistoryPanel } from './components/TransitionHistoryPanel';
 import { RunDashboardLayout } from './layout/RunDashboardLayout';
+import { useTransitionHistoryStore } from './state/transitionHistoryStore';
 import { useRunDashboardQueries } from './useRunDashboardQueries';
 import {
   applyStreamFrame,
@@ -58,6 +60,7 @@ const toInitialStreamDashboardState = (params: {
 export const RunDetailPage = (): ReactElement => {
   const { runId } = useParams<{ runId: string }>();
   const location = useLocation();
+  const resetTransitionHistory = useTransitionHistoryStore((state) => state.reset);
 
   if (!runId) {
     return (
@@ -117,6 +120,10 @@ export const RunDetailPage = (): ReactElement => {
     dashboard.panels.summary.data,
     runId,
   ]);
+
+  useEffect(() => {
+    resetTransitionHistory();
+  }, [resetTransitionHistory, runId]);
 
   useEffect(() => {
     if (dashboard.isNotFound || !dashboard.streamOpenTriggered) {
@@ -360,6 +367,14 @@ export const RunDetailPage = (): ReactElement => {
           isLoading={dashboard.panels.definition.isLoading}
           errorMessage={dashboard.panels.definition.errorMessage}
           onRetry={() => dashboard.retryPanel('definition')}
+        />
+      }
+      transitionHistory={
+        <TransitionHistoryPanel
+          events={events}
+          isLoading={dashboard.panels.events.isLoading}
+          errorMessage={dashboard.panels.events.errorMessage}
+          onRetry={() => dashboard.retryPanel('events')}
         />
       }
       eventsTimeline={

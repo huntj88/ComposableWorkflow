@@ -22,12 +22,12 @@ Implement the Transition History panel as an ordered execution narrative with ne
 - Link-filter semantics from web spec Section 9.3
 
 ## Implementation Tasks
-- [ ] Derive ordered transition-history entries from snapshot + stream event sources in strict `sequence ASC`.
-- [ ] Render a Transition History panel with iteration counters for repeated state visits.
-- [ ] Render inline collapsible child-history sections with recursive nesting and summary rows for collapsed state.
-- [ ] Persist child-section expand/collapse state across live stream updates.
-- [ ] Coordinate history-entry selection with FSM graph highlighting and events-timeline scrolling.
-- [ ] Respect `since`/`until` synchronization only when explicit link-filters mode is enabled.
+- [x] Derive ordered transition-history entries from snapshot + stream event sources in strict `sequence ASC`.
+- [x] Render a Transition History panel with iteration counters for repeated state visits.
+- [x] Render inline collapsible child-history sections with recursive nesting and summary rows for collapsed state.
+- [x] Persist child-section expand/collapse state across live stream updates.
+- [x] Coordinate history-entry selection with FSM graph highlighting and events-timeline scrolling.
+- [x] Respect `since`/`until` synchronization only when explicit link-filters mode is enabled.
 
 ## Required Artifacts
 - `apps/workflow-web/src/routes/run-detail/components/TransitionHistoryPanel.tsx`

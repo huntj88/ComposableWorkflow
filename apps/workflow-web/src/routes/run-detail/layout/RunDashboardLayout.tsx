@@ -25,6 +25,8 @@ type RunDashboardLayoutProps = {
   executionTree: ReactNode;
   /** Zone 2B — primary analysis: FSM graph. */
   fsmGraph: ReactNode;
+  /** Zone 3A — operational details: transition history. */
+  transitionHistory: ReactNode;
   /** Zone 3A — operational details: events timeline. */
   eventsTimeline: ReactNode;
   /** Zone 3B — operational details: logs. */
@@ -64,6 +66,7 @@ export const RunDashboardLayout = ({
   summaryStrip,
   executionTree,
   fsmGraph,
+  transitionHistory,
   eventsTimeline,
   logs,
   feedback,
@@ -107,6 +110,7 @@ export const RunDashboardLayout = ({
         spacing={spacing.panelGap}
         sx={{ flex: 3, minWidth: 0 }}
       >
+        {transitionHistory}
         {eventsTimeline}
         {logs}
         {feedback}

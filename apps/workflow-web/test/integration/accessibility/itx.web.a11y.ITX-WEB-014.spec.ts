@@ -8,8 +8,7 @@
  *
  * Validates that:
  * - RunDashboardLayout is a valid React function component.
- * - Layout accepts 7 zone props (header, summaryStrip, executionTree, fsmGraph,
- *   eventsTimeline, logs, feedback).
+ * - Layout accepts 8 props covering header plus 7 dashboard zones.
  * - Layout uses correct landmark roles (main, section).
  * - Spacing tokens are consistent with layout requirements.
  * - Desktop breakpoint is 1280px.
@@ -47,39 +46,47 @@ describe('integration.accessibility.ITX-WEB-014', () => {
 
   it('route components for layout zones are importable function components', async () => {
     // All panel components used in zones are valid imports
-    const { RunSummaryPanel } =
-      await import('../../../src/routes/run-detail/components/RunSummaryPanel');
-    const { ExecutionTreePanel } =
-      await import('../../../src/routes/run-detail/components/ExecutionTreePanel');
-    const { EventsTimelinePanel } =
-      await import('../../../src/routes/run-detail/components/EventsTimelinePanel');
-    const { LogsPanel } = await import('../../../src/routes/run-detail/components/LogsPanel');
-    const { HumanFeedbackPanel } =
-      await import('../../../src/routes/run-detail/components/HumanFeedbackPanel');
-    const { FsmGraphPanel } =
-      await import('../../../src/routes/run-detail/components/FsmGraphPanel');
+    const [
+      { RunSummaryPanel },
+      { ExecutionTreePanel },
+      { EventsTimelinePanel },
+      { TransitionHistoryPanel },
+      { LogsPanel },
+      { HumanFeedbackPanel },
+      { FsmGraphPanel },
+    ] = await Promise.all([
+      import('../../../src/routes/run-detail/components/RunSummaryPanel'),
+      import('../../../src/routes/run-detail/components/ExecutionTreePanel'),
+      import('../../../src/routes/run-detail/components/EventsTimelinePanel'),
+      import('../../../src/routes/run-detail/components/TransitionHistoryPanel'),
+      import('../../../src/routes/run-detail/components/LogsPanel'),
+      import('../../../src/routes/run-detail/components/HumanFeedbackPanel'),
+      import('../../../src/routes/run-detail/components/FsmGraphPanel'),
+    ]);
 
     expect(typeof RunSummaryPanel).toBe('function');
     expect(typeof ExecutionTreePanel).toBe('function');
     expect(typeof EventsTimelinePanel).toBe('function');
+    expect(typeof TransitionHistoryPanel).toBe('function');
     expect(typeof LogsPanel).toBe('function');
     expect(typeof HumanFeedbackPanel).toBe('function');
     expect(typeof FsmGraphPanel).toBe('function');
-  });
+  }, 10_000);
 
-  it('panels have 6 required panel zones in layout architecture', () => {
+  it('panels have 7 required panel zones in layout architecture', () => {
     const requiredZones = [
       'summaryStrip',
       'executionTree',
       'fsmGraph',
+      'transitionHistory',
       'eventsTimeline',
       'logs',
       'feedback',
     ];
 
     // Verify all zones exist conceptually (documented props of RunDashboardLayout)
-    expect(requiredZones).toHaveLength(6);
-    expect(new Set(requiredZones).size).toBe(6);
+    expect(requiredZones).toHaveLength(7);
+    expect(new Set(requiredZones).size).toBe(7);
   });
 
   it('primary analysis zone contains tree and graph in defined order', () => {
@@ -88,10 +95,11 @@ describe('integration.accessibility.ITX-WEB-014', () => {
     expect(primaryAnalysisOrder[1]).toBe('fsmGraph');
   });
 
-  it('operational details zone contains events, logs, feedback in defined order', () => {
-    const operationalDetailsOrder = ['eventsTimeline', 'logs', 'feedback'];
-    expect(operationalDetailsOrder[0]).toBe('eventsTimeline');
-    expect(operationalDetailsOrder[1]).toBe('logs');
-    expect(operationalDetailsOrder[2]).toBe('feedback');
+  it('operational details zone contains transition history, events, logs, feedback in defined order', () => {
+    const operationalDetailsOrder = ['transitionHistory', 'eventsTimeline', 'logs', 'feedback'];
+    expect(operationalDetailsOrder[0]).toBe('transitionHistory');
+    expect(operationalDetailsOrder[1]).toBe('eventsTimeline');
+    expect(operationalDetailsOrder[2]).toBe('logs');
+    expect(operationalDetailsOrder[3]).toBe('feedback');
   });
 });

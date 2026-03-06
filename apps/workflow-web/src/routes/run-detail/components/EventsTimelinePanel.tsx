@@ -14,7 +14,9 @@ import {
 
 import type { RunEventsResponse } from '@composable-workflow/workflow-api-types';
 
+import { toTransitionHistorySelectionTarget } from '../history/buildTransitionHistory';
 import { matchesEventFreeText, useRunDetailFilterStore } from '../state/filterStore';
+import { useTransitionHistoryStore } from '../state/transitionHistoryStore';
 
 type EventsTimelinePanelProps = {
   events: RunEventsResponse | null;
@@ -101,6 +103,7 @@ export const EventsTimelinePanel = ({
   onRetry,
 }: EventsTimelinePanelProps): ReactElement => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const eventRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const previousVisibleCountRef = useRef(0);
   const [autoFollow, setAutoFollow] = useState(false);
   const [hasLatestInView, setHasLatestInView] = useState(true);
@@ -112,6 +115,8 @@ export const EventsTimelinePanel = ({
   const setEventFilters = useRunDetailFilterStore((state) => state.setEventsFilters);
   const resetEventFilters = useRunDetailFilterStore((state) => state.resetEventsFilters);
   const setCorrelationContext = useRunDetailFilterStore((state) => state.setCorrelationContext);
+  const selection = useTransitionHistoryStore((state) => state.selection);
+  const selectEntry = useTransitionHistoryStore((state) => state.selectEntry);
 
   const filteredEvents = useMemo(() => {
     const items = events?.items ?? [];
@@ -170,6 +175,19 @@ export const EventsTimelinePanel = ({
     setPendingUpdates(decision.nextPendingUpdates);
     setHasLatestInView(decision.nextHasLatestInView);
   }, [autoFollow, filteredEvents.length, hasLatestInView, pendingUpdates]);
+
+  useEffect(() => {
+    if (!selection?.eventId) {
+      return;
+    }
+
+    const row = eventRowRefs.current[selection.eventId];
+    if (!row) {
+      return;
+    }
+
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [filteredEvents, selection?.eventId, selection?.requestId]);
 
   const handleScroll = (event: UIEvent<HTMLDivElement>): void => {
     const latestVisible = isNearBottom(event.currentTarget);
@@ -297,11 +315,36 @@ export const EventsTimelinePanel = ({
               {filteredEvents.map((event) => (
                 <Stack
                   key={event.eventId}
+                  ref={(node: HTMLDivElement | null) => {
+                    eventRowRefs.current[event.eventId] = node;
+                  }}
                   spacing={0.5}
+                  sx={{
+                    p: 0.75,
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    backgroundColor:
+                      selection?.eventId === event.eventId && selection.runId === event.runId
+                        ? 'action.selected'
+                        : 'transparent',
+                    outline:
+                      selection?.eventId === event.eventId && selection.runId === event.runId
+                        ? '1px solid'
+                        : 'none',
+                    outlineColor: 'primary.main',
+                  }}
                   onClick={() => {
                     setCorrelationContext({
                       eventId: event.eventId,
                       correlationId: readCorrelationId(event.payload),
+                    });
+                    selectEntry({
+                      source: 'timeline',
+                      runId: event.runId,
+                      eventId: event.eventId,
+                      sequence: event.sequence,
+                      timestamp: event.timestamp,
+                      target: toTransitionHistorySelectionTarget(event),
                     });
                   }}
                 >
