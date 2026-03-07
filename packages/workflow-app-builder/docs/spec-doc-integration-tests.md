@@ -293,16 +293,19 @@ A behavior is integration-primary when one or more is true:
 **Setup**
 - Configure delegated child result variants with:
   - non-empty `actionableItems` and empty `followUpQuestions`,
+  - non-empty `actionableItems` and non-empty `followUpQuestions`,
   - empty `actionableItems` and non-empty `followUpQuestions`,
   - empty `actionableItems` and empty `followUpQuestions`.
 
 **Assertions**
 - Transition is to `IntegrateIntoSpec` when child output has non-empty `actionableItems`.
+- Transition is still to `IntegrateIntoSpec` when child output has both non-empty `actionableItems` and non-empty `followUpQuestions`.
+- Mixed aggregate follow-up questions are not enqueued for that pass.
 - Transition is to `NumberedOptionsHumanRequest` when child output has empty `actionableItems`.
 - No direct transition to `Done` or any other state.
 - If child output has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes one completion-confirmation question with explicit "spec is done" option.
 
-**Related behaviors:** `B-SD-TRANS-003`, `B-SD-TRANS-011`, `B-SD-DONE-001`.
+**Related behaviors:** `B-SD-TRANS-003`, `B-SD-TRANS-011`, `B-SD-CHILD-004`, `B-SD-DONE-001`.
 
 ## ITX-SD-015: Deferred revisit feedback attempts and idempotency keys
 **Why not E2E-only:** requires direct inspection of child-launch metadata across defer/revisit cycles.
@@ -320,22 +323,25 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-SD-HFB-001`, `B-SD-HFB-005`, `B-SD-TRANS-013`, `B-SD-TRANS-015`.
 
-## ITX-SD-016: Delegated child contract enforcement and short-circuit behavior
+## ITX-SD-016: Delegated child contract enforcement, mixed-aggregate preservation, and short-circuit behavior
 **Why not E2E-only:** requires controlled multi-layer child outputs and explicit contract-violation injection.
 
 **Setup**
 - Configure delegated child workflow layers to exercise:
   - early non-empty `actionableItems` followed by a later configured layer,
   - duplicate `itemId` or `questionId` across executed layers,
-  - mixed non-empty `actionableItems` and `followUpQuestions` in one layer or final aggregate.
+  - mixed non-empty `actionableItems` and `followUpQuestions` in one layer,
+  - earlier-stage `followUpQuestions` followed by later-stage `actionableItems` in the final aggregate.
 
 **Assertions**
 - When an early layer emits non-empty `actionableItems`, later layers are not executed and parent routing uses only the actionable result.
 - Duplicate ids across executed layers fail the child run before any parent transition is chosen.
-- Mixed actionable/question output fails the child run before any parent transition is chosen.
+- Mixed actionable/question output within a single stage fails the child run before any parent transition is chosen.
+- A final aggregate that contains earlier-stage `followUpQuestions` plus later-stage `actionableItems` does not fail solely for being mixed.
+- When that valid mixed aggregate occurs, the parent prioritizes `IntegrateIntoSpec` and does not enter `NumberedOptionsHumanRequest` for that pass.
 - Failure diagnostics identify the child contract violation and relevant stage context.
 
-**Related behaviors:** `B-SD-CHILD-001`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-FAIL-001`.
+**Related behaviors:** `B-SD-CHILD-001`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-CHILD-004`, `B-SD-FAIL-001`.
 
 ## ITX-SD-017: Delegated child explicit-state self-loop progression
 **Why not E2E-only:** requires inspection of child-workflow runtime state transitions or harness-visible child-state progression.

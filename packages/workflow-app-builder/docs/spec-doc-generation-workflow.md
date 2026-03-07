@@ -14,7 +14,7 @@ In scope:
 - one workflow: `app-builder.spec-doc.v1`
 - iterative clarification loop
 - spec integration and logical consistency checks
-- delegation from `LogicalConsistencyCheckCreateFollowUpQuestions` to an internal child workflow FSM that can return immediate actionable items or numbered follow-up questions
+- delegation from `LogicalConsistencyCheckCreateFollowUpQuestions` to an internal child workflow FSM that can return immediate actionable items, numbered follow-up questions, or an aggregate containing both across executed stages
 - completion when the spec is implementation-ready
 
 ### Non-Goals
@@ -30,6 +30,7 @@ In scope:
 - Parent-state branching is limited to: `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`, then `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` when immediate actionable items exist, otherwise `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest`.
 - The parent FSM change surface is intentionally minimal: prompt-layer execution, issue splitting, and follow-up generation remain child-owned implementation details rather than new parent states or parent-managed prompt sequencing.
 - Immediate actionable items are integration directives that do not require a new human decision and must be applied before asking more numbered questions.
+- A single scoped prompt layer must emit at most one of `actionableItems` or `followUpQuestions`, but the merged child aggregate may contain both when earlier executed stages emitted follow-up questions and a later executed stage emitted actionable items.
 - If the child returns no actionable items, existing numbered-options behavior remains authoritative, including workflow-synthesized completion confirmation when no follow-up questions remain.
 
 ## 3) Planned Workflow Series (initial)
@@ -155,9 +156,11 @@ Contract rules:
 - A stage-specific schema must expose only that layer's owned `readinessChecklist` keys and must not require unrelated checklist fields from other layers.
 - Parent state transition logic after delegation must use only this child output contract; it must not branch from raw model text.
 - The child is solely responsible for classifying each surfaced issue as either an immediate actionable item, a human follow-up question, or already-resolved/no-output for that pass.
-- `actionableItems` and `followUpQuestions` are mutually exclusive in the aggregate child result. If `actionableItems.length > 0`, `followUpQuestions` must be empty.
+- `actionableItems` and `followUpQuestions` must be mutually exclusive within a single `ConsistencyStageOutput` emitted by one scoped prompt layer.
+- The merged `ConsistencyCheckOutput` aggregate may contain both non-empty `actionableItems` and non-empty `followUpQuestions` when a later executed stage emits actionable items after one or more earlier executed stages already emitted follow-up questions.
 - `actionableItems` is ordered and must contain only edits that `IntegrateIntoSpec` can apply without asking the human for another decision.
 - `followUpQuestions` is ordered and must contain only questions that require human input through `NumberedOptionsHumanRequest`.
+- If aggregate `actionableItems` is non-empty, parent routing must prioritize `IntegrateIntoSpec` for that pass even when aggregate `followUpQuestions` is also non-empty; `NumberedOptionsHumanRequest` must not be entered until a later consistency pass returns zero `actionableItems`.
 - An empty `actionableItems` array and empty `followUpQuestions` array means no new integration work or human decision is required; parent workflow logic then synthesizes a completion-confirmation numbered question.
 - Duplicate `itemId` or `questionId` values anywhere in one child run across all executed stages are contract violations and must fail the run rather than being silently deduplicated.
 - `blockingIssues` is an ordered diagnostic/audit surface for the executed child run; the parent may persist or log it, but parent routing is driven only by `actionableItems` vs `followUpQuestions`.
@@ -222,7 +225,7 @@ Done : terminal\nstatus=completed
    - Delegates to child workflow `app-builder.spec-doc.consistency-follow-up.v1`.
    - Consumes only the child workflow aggregate result contract (`actionableItems[]`, `followUpQuestions[]`, `blockingIssues[]`, `readinessChecklist`).
    - Must not inspect per-layer prompt output or sequence prompt layers itself; those responsibilities stay inside the child FSM.
-   - Routes to `IntegrateIntoSpec` when the child returns immediate actionable items.
+  - Routes to `IntegrateIntoSpec` when the child returns immediate actionable items, including aggregate results that also retain follow-up questions from earlier executed stages.
    - Routes to `NumberedOptionsHumanRequest` when the child returns no actionable items; returned numbered questions are asked as-is, and empty question output still triggers synthesized completion confirmation.
 
 3. `NumberedOptionsHumanRequest`
@@ -268,12 +271,13 @@ The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions
 6. `start` performs initialization only and transitions immediately to `ExecutePromptLayer`.
 7. `ExecutePromptLayer` becomes the only looping child state and persists `stageIndex`, the aggregate result, and duplicate-detection sets across self-loop transitions.
 8. The child evaluates stages in array order and aggregates `blockingIssues` plus readiness-checklist failures from every executed stage into the full `ConsistencyCheckOutput` result.
-9. If any executed stage returns one or more `actionableItems`, the child stops before running later stages, transitions to `Done`, returns the accumulated actionable items in stage order, and returns an empty `followUpQuestions` array.
-10. If no executed stage returns actionable items, the child self-loops `ExecutePromptLayer` until the last configured stage completes, then transitions to `Done` and returns the aggregate `followUpQuestions` in stage order with an empty `actionableItems` array.
-11. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` or `-> NumberedOptionsHumanRequest` transition.
-12. The child must fail explicitly on duplicate `itemId` or `questionId` values across executed stages.
-13. Appending another prompt layer to `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` must require only appending a new layer entry, prompt template, and matching narrow stage schema; it must not require any parent-FSM transition changes.
-14. `ExecutePromptLayer` transitions to `Done` when `actionableItems` is non-empty or the current stage is the last configured stage, or back to `ExecutePromptLayer(stageIndex + 1)` when additional stages remain.
+9. If any executed stage returns one or more `actionableItems`, the child stops before running later stages, transitions to `Done`, and returns the accumulated actionable items in stage order.
+10. When the child stops on a later actionable stage, it preserves any follow-up questions already aggregated from earlier executed stages; those follow-up questions remain part of the aggregate result for diagnostics and later-pass regeneration, but the parent still prioritizes immediate integration for the current pass.
+11. If no executed stage returns actionable items, the child self-loops `ExecutePromptLayer` until the last configured stage completes, then transitions to `Done` and returns the aggregate `followUpQuestions` in stage order with an empty `actionableItems` array.
+12. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` or `-> NumberedOptionsHumanRequest` transition.
+13. The child must fail explicitly on duplicate `itemId` or `questionId` values across executed stages.
+14. Appending another prompt layer to `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` must require only appending a new layer entry, prompt template, and matching narrow stage schema; it must not require any parent-FSM transition changes.
+15. `ExecutePromptLayer` transitions to `Done` when `actionableItems` is non-empty or the current stage is the last configured stage, or back to `ExecutePromptLayer(stageIndex + 1)` when additional stages remain.
 
 ## 6.3 Transition Rules and Guards
 
@@ -305,7 +309,7 @@ The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions
 Execution model:
 - This state is implemented as a deterministic question queue processor.
 - Input queue is created from the delegated child workflow result returned by `LogicalConsistencyCheckCreateFollowUpQuestions` when `actionableItems` is empty and stored in workflow context/state data.
-- The state must not be entered for a consistency-check pass that returned `actionableItems`; that pass goes directly to `IntegrateIntoSpec`.
+- The state must not be entered for a consistency-check pass that returned `actionableItems`, even if that same child aggregate also retained earlier `followUpQuestions`; that pass goes directly to `IntegrateIntoSpec`.
 - Each queue item is a numbered-options question with stable `questionId`, `prompt`, and `options[]`.
 - Within each question, option IDs are unique contiguous integers starting at `1`.
 
@@ -460,7 +464,8 @@ Minimum usage contract by FSM state:
   - after stage outputs are merged, the child aggregate result must satisfy `consistency-check-output.schema.json` before the parent consumes it.
   - the child aggregate result exposes `structuredOutput.actionableItems` and `structuredOutput.followUpQuestions`.
   - `structuredOutput.actionableItems` provides deterministic ordered immediate integration directives and may be empty.
-  - `structuredOutput.followUpQuestions` is authoritative only when `structuredOutput.actionableItems` is empty; each queue item must conform to `numbered-question-item.schema.json` with `kind: "issue-resolution"`.
+  - `structuredOutput.followUpQuestions` may remain non-empty when `structuredOutput.actionableItems` is also non-empty because earlier executed stages already emitted human questions before a later stage found actionable edits.
+  - `structuredOutput.followUpQuestions` is authoritative for queue construction only when `structuredOutput.actionableItems` is empty; each queue item must conform to `numbered-question-item.schema.json` with `kind: "issue-resolution"`.
   - if both arrays are empty, workflow logic synthesizes one completion-confirmation queue item with an explicit "spec is done" option before entering `NumberedOptionsHumanRequest`.
 - `ClassifyCustomPrompt`
   - `outputSchema` must use `custom-prompt-classification-output.schema.json`.
@@ -481,6 +486,7 @@ File output rule:
 
 Transition mapping from delegated consistency-check child result:
 - if `actionableItems` is non-empty, transition directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
+- if `actionableItems` is non-empty and `followUpQuestions` is also non-empty, do not enqueue the returned follow-up questions for that pass.
 - if `actionableItems` is empty and `followUpQuestions` is empty, synthesize one completion-confirmation numbered question in workflow logic (with explicit "spec is done" option) and enqueue it.
 - if `actionableItems` is empty, transition to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected state).
 
@@ -772,6 +778,7 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - `LogicalConsistencyCheckCreateFollowUpQuestions` transitions only to `IntegrateIntoSpec` or `NumberedOptionsHumanRequest`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` is allowed only when the delegated child result contains one or more `actionableItems`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest` is allowed only when the delegated child result contains zero `actionableItems`.
+- Aggregate child results that contain both `actionableItems` and `followUpQuestions` still satisfy the `-> IntegrateIntoSpec` invariant because actionable items take precedence for the current pass.
 - If the delegated child result has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
 - Completion confirmation is explicit user intent selected in `NumberedOptionsHumanRequest`.
 - Terminal completed output must satisfy:
@@ -783,14 +790,16 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 
 - **AC-1 Delegation path:** when the parent workflow enters `LogicalConsistencyCheckCreateFollowUpQuestions`, it launches exactly one child workflow run of type `app-builder.spec-doc.consistency-follow-up.v1` for that pass and bases its next transition only on the child aggregate result.
 - **AC-2 Immediate-action path:** if the child returns one or more `actionableItems`, the parent transitions directly to `IntegrateIntoSpec`, passes `source: "consistency-action-items"`, passes the returned items unchanged and in order, and does not enter `NumberedOptionsHumanRequest` for that pass.
+- **AC-2A Mixed-aggregate prioritization:** if the child aggregate contains both non-empty `actionableItems` and non-empty `followUpQuestions`, the parent still transitions directly to `IntegrateIntoSpec`, does not enter `NumberedOptionsHumanRequest` for that pass, and treats the retained follow-up questions as non-authoritative until a later consistency pass returns zero `actionableItems`.
 - **AC-3 Human-question path:** if the child returns zero `actionableItems` and one or more `followUpQuestions`, the parent transitions to `NumberedOptionsHumanRequest` and enqueues those questions unchanged and in order.
 - **AC-4 Completion-confirmation path:** if the child returns zero `actionableItems` and zero `followUpQuestions`, the parent synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
 - **AC-5 Prompt-layer extensibility:** the child workflow executes `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` in array order, and adding a new prompt layer requires only appending a new hardcoded entry plus its prompt template and matching narrow stage schema; parent transition logic remains unchanged.
 - **AC-6 Short-circuit behavior:** once any executed child prompt layer emits one or more `actionableItems`, later prompt layers in that child run are not executed.
 - **AC-7 Contract enforcement:** duplicate `itemId` or `questionId` values across executed child prompt layers fail the run explicitly; the implementation must not silently deduplicate or overwrite them. Example: if layer `scope-objective-consistency` emits `questionId: "issue.api-shape"` and a later executed layer with zero `actionableItems` emits the same `questionId`, the child run fails before returning a result.
 - **AC-8 Integration behavior:** when `IntegrateIntoSpec` receives `source: "consistency-action-items"`, it applies the provided `actionableItems` in array order while preserving prior accepted decisions unless explicitly overridden by newer inputs.
-- **AC-9 Invalid mixed-result rejection:** if any child stage or final child aggregate would produce both non-empty `actionableItems` and non-empty `followUpQuestions`, the child run fails before the parent chooses a next state.
-- **AC-10 Minimal parent change surface:** the parent FSM implementation for this iteration introduces no additional outbound transitions from `LogicalConsistencyCheckCreateFollowUpQuestions` beyond `-> IntegrateIntoSpec` for non-empty `actionableItems` and `-> NumberedOptionsHumanRequest` otherwise; prompt layering and issue splitting remain child-owned behavior.
+- **AC-9 Stage-level mixed-result rejection:** if any individual child stage output would produce both non-empty `actionableItems` and non-empty `followUpQuestions`, the child run fails before the parent chooses a next state.
+- **AC-10 Aggregate mixed-result preservation:** if earlier executed stages emitted `followUpQuestions` and a later executed stage emits `actionableItems`, the child aggregate preserves both arrays without failing, later stages are skipped, and the parent prioritizes `IntegrateIntoSpec` for that pass.
+- **AC-11 Minimal parent change surface:** the parent FSM implementation for this iteration introduces no additional outbound transitions from `LogicalConsistencyCheckCreateFollowUpQuestions` beyond `-> IntegrateIntoSpec` for non-empty `actionableItems` and `-> NumberedOptionsHumanRequest` otherwise; prompt layering and issue splitting remain child-owned behavior.
 
 ## 11) Failure and Exit Conditions
 

@@ -59,8 +59,10 @@ Each behavior should validate all relevant dimensions:
 **Given** run is in `LogicalConsistencyCheckCreateFollowUpQuestions`
 **When** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` completes with a valid aggregate result
 **Then** the parent transitions to `IntegrateIntoSpec` when `actionableItems` is non-empty
+**And** if the child aggregate contains both non-empty `actionableItems` and non-empty `followUpQuestions`, the parent still prioritizes `IntegrateIntoSpec` for that pass
 **And** the parent transitions to `NumberedOptionsHumanRequest` when `actionableItems` is empty
 **And** `followUpQuestions` from the child result populate the question queue when present
+**And** retained `followUpQuestions` from a mixed aggregate do not populate the question queue until a later consistency pass returns zero `actionableItems`
 **And** if child output has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes one completion-confirmation question with an explicit "spec is done" option
 **And** `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`
 
@@ -150,7 +152,7 @@ Each behavior should validate all relevant dimensions:
 **When** any executed prompt layer returns one or more `actionableItems`
 **Then** later prompt layers are not executed in that child run
 **And** the child returns the accumulated `actionableItems` in stage order
-**And** the child returns an empty `followUpQuestions` array
+**And** the child preserves any `followUpQuestions` already aggregated from earlier executed stages
 **And** the child transitions from `ExecutePromptLayer` to `Done` without visiting later stages
 
 ## B-SD-CHILD-001A: Delegated child executes one prompt layer per self-loop state entry
@@ -167,11 +169,18 @@ Each behavior should validate all relevant dimensions:
 **Then** the child run fails explicitly before returning an aggregate result
 **And** no parent-state transition is selected from the invalid child output
 
-## B-SD-CHILD-003: Delegated child rejects mixed actionable and follow-up output
+## B-SD-CHILD-003: Delegated child rejects stage-local mixed actionable and follow-up output
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` receives a schema-valid layer output
-**When** that layer output or final aggregate would contain both non-empty `actionableItems` and non-empty `followUpQuestions`
+**When** that single layer output contains both non-empty `actionableItems` and non-empty `followUpQuestions`
 **Then** the child run fails explicitly before returning an aggregate result
 **And** the parent workflow does not branch from the invalid mixed result
+
+## B-SD-CHILD-004: Delegated child preserves mixed aggregate outcomes across executed stages
+**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` executes one or more stages that emit `followUpQuestions`
+**When** a later executed stage emits one or more `actionableItems`
+**Then** the child aggregate may contain both non-empty `actionableItems` and non-empty `followUpQuestions`
+**And** later prompt layers are not executed after that actionable stage
+**And** the parent treats the aggregate as an immediate-action result and does not enter `NumberedOptionsHumanRequest` for that pass
 
 ---
 
@@ -486,14 +495,14 @@ Must assert:
 ## GS-SD-004: Immediate-action child result short-circuits back to integration
 1. Start workflow.
 2. `IntegrateIntoSpec` produces initial draft.
-3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` returns one or more `actionableItems` and zero `followUpQuestions`.
+3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` returns one or more `actionableItems` and may also retain earlier `followUpQuestions` from previously executed stages.
 4. Parent transitions directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
 5. No `NumberedOptionsHumanRequest` state is entered for that pass.
 
 Must assert:
 - Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → IntegrateIntoSpec` for that pass.
 - Child `actionableItems` are forwarded unchanged and in order.
-- No feedback child run launches before the follow-up consistency pass.
+- No feedback child run launches before the follow-up consistency pass, even when the child aggregate retained earlier `followUpQuestions`.
 
 ## GS-SD-003: Research-first custom prompt round trip
 1. Start workflow and reach `NumberedOptionsHumanRequest`.
@@ -532,7 +541,7 @@ Must assert:
 3. NumberedOptionsHumanRequest implementation (section 6.4) → `B-SD-HFB-001..005`, `B-SD-QUEUE-001..005`, `B-SD-TRANS-004..007`, `B-SD-TRANS-012..015`.
 4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..004`.
 5. Schema validation (section 7.1) → `B-SD-SCHEMA-001..006`.
-6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`, `B-SD-CHILD-001..003`.
+6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`, `B-SD-CHILD-001..004`.
 7. Human feedback boundary (section 8) → `B-SD-HFB-004`.
 8. Observability (section 9) → `B-SD-OBS-001..003`.
 9. Completion criteria (section 10) → `B-SD-DONE-001..003`.
