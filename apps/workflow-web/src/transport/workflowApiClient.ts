@@ -161,6 +161,8 @@ const withQuery = (path: string, query: string): string =>
 const buildRunsPath = (runId: string): string =>
   `${API_BASE}/workflows/runs/${encodeURIComponent(runId)}`;
 
+const EMPTY_CONTROL_REQUEST_BODY = '{}';
+
 const sortEventsAscending = (response: RunEventsResponse): RunEventsResponse => ({
   ...response,
   items: [...response.items].sort((left, right) => left.sequence - right.sequence),
@@ -268,6 +270,7 @@ export const createWorkflowApiClient = (options: CreateWorkflowApiClientOptions 
     cancelRun: async (runId: string): Promise<CancelRunResponse> =>
       requestJson(`${buildRunsPath(runId)}/cancel`, cancelRunResponseSchema, {
         method: 'POST',
+        body: EMPTY_CONTROL_REQUEST_BODY,
         panel: 'summary',
       }),
 

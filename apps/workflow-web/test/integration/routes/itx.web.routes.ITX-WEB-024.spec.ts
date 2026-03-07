@@ -32,11 +32,18 @@ describe('integration.routes.ITX-WEB-024', () => {
   it('cancel endpoint uses POST method on /api/v1/workflows/runs/:runId/cancel', async () => {
     let capturedMethod = '';
     let capturedUrl = '';
+    let capturedBody: string | null = null;
+    let capturedContentType: string | null = null;
 
     const client = createWorkflowApiClient({
       fetchImpl: async (input, init) => {
         capturedUrl = String(input);
         capturedMethod = (init?.method ?? 'GET').toUpperCase();
+        capturedBody = typeof init?.body === 'string' ? init.body : null;
+        capturedContentType =
+          init?.headers && !Array.isArray(init.headers) && !(init.headers instanceof Headers)
+            ? (init.headers['Content-Type'] ?? init.headers['content-type'] ?? null)
+            : null;
         return new Response(JSON.stringify(buildCancelRunResponse('wr_024_1')), { status: 200 });
       },
       eventSourceFactory: (url) => ({ url, close() {} }) as unknown as EventSource,
@@ -45,6 +52,8 @@ describe('integration.routes.ITX-WEB-024', () => {
     await client.cancelRun('wr_024_1');
     expect(capturedUrl).toBe('/api/v1/workflows/runs/wr_024_1/cancel');
     expect(capturedMethod).toBe('POST');
+    expect(capturedBody).toBe('{}');
+    expect(capturedContentType).toBe('application/json');
   });
 
   it('CancelRunResponse includes updated lifecycle field', async () => {

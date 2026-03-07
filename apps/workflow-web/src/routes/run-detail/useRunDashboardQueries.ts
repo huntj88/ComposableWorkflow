@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
-  cancelRunResponseSchema,
   errorEnvelopeSchema,
   listRunFeedbackRequestsResponseSchema,
   runSummaryResponseSchema,
@@ -135,7 +134,7 @@ const getFeedback = (runId: string): Promise<ListRunFeedbackRequestsResponse> =>
   );
 
 const postCancelRun = (runId: string): Promise<CancelRunResponse> =>
-  getJson(`/api/v1/workflows/runs/${runId}/cancel`, cancelRunResponseSchema, { method: 'POST' });
+  workflowApiClient.cancelRun(runId);
 
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.length > 0 ? error.message : fallback;
