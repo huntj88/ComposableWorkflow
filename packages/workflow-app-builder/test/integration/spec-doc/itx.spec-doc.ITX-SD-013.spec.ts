@@ -1,11 +1,11 @@
 /**
- * ITX-SD-013: Consistency check always routes to NumberedOptionsHumanRequest.
+ * ITX-SD-013: Consistency check follow-up and completion queue routing variants.
  *
  * Behaviors: B-SD-TRANS-003, B-SD-TRANS-011, B-SD-DONE-001.
  *
- * Validates that `LogicalConsistencyCheckCreateFollowUpQuestions` always
- * transitions to `NumberedOptionsHumanRequest` regardless of output shape
- * (blocking issues, follow-up count, empty results).
+ * Validates the currently implemented follow-up/completion queue routing
+ * variants for `LogicalConsistencyCheckCreateFollowUpQuestions`
+ * (`followUpQuestions` present vs. empty).
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
@@ -43,7 +43,7 @@ beforeEach(() => {
   obsSink = createObservabilitySink();
 });
 
-describe('ITX-SD-013: Consistency check always routes to NumberedOptionsHumanRequest', () => {
+describe('ITX-SD-013: Consistency check follow-up and completion queue routing variants', () => {
   it('routes to NumberedOptionsHumanRequest with blocking issues and follow-up questions (B-SD-TRANS-003)', async () => {
     copilotDouble.reset({
       LogicalConsistencyCheckCreateFollowUpQuestions: [

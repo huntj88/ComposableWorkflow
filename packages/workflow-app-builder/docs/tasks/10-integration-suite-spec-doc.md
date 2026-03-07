@@ -92,5 +92,5 @@ Implement deterministic integration coverage for all integration-primary and sha
 | SD-ITX-010-QuestionImmutability | `test/integration/spec-doc/itx.spec-doc.ITX-SD-010.spec.ts` | issued questions are never mutated when follow-ups are generated. |
 | SD-ITX-011-GeneratedQuestionSchema | `test/integration/spec-doc/itx.spec-doc.ITX-SD-011.spec.ts` | all generated questions satisfy schema and option usability requirements. |
 | SD-ITX-012-TemplateIDTraceability | `test/integration/spec-doc/itx.spec-doc.ITX-SD-012.spec.ts` | delegation events/logs include stable template IDs. |
-| SD-ITX-013-ConsistencyFixedRouting | `test/integration/spec-doc/itx.spec-doc.ITX-SD-013.spec.ts` | consistency check always routes to `NumberedOptionsHumanRequest`. |
+| SD-ITX-013-ConsistencyChildResultRouting | `test/integration/spec-doc/itx.spec-doc.ITX-SD-013.spec.ts` | consistency-check parent routing follows the child aggregate result. |
 | SD-ITX-014-DoneInvariantPaths | `test/integration/spec-doc/itx.spec-doc.ITX-SD-014.spec.ts` | done invariants hold across all reachable completion paths. |

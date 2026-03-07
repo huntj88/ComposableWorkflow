@@ -286,11 +286,11 @@ describe('SD-CHECK-003-CompletionSynthesis', () => {
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
-// SD-CHECK-001 – Fixed Route to NumberedOptionsHumanRequest
+// SD-CHECK-001 – Follow-up and completion queue routing
 // ---------------------------------------------------------------------------
 
-describe('SD-CHECK-001-FixedRouteToHumanRequest', () => {
-  it('always transitions to NumberedOptionsHumanRequest with follow-up questions', async () => {
+describe('SD-CHECK-001-FollowUpAndCompletionQueueRouting', () => {
+  it('routes to NumberedOptionsHumanRequest when follow-up questions are returned', async () => {
     const stateData = stateDataWithIntegrationOutput();
     const { ctx, transitionSpy, failSpy } = createMockContext();
 
@@ -301,7 +301,7 @@ describe('SD-CHECK-001-FixedRouteToHumanRequest', () => {
     expect(transitionSpy).toHaveBeenCalledWith('NumberedOptionsHumanRequest', expect.any(Object));
   });
 
-  it('always transitions to NumberedOptionsHumanRequest with empty follow-up (completion)', async () => {
+  it('routes to NumberedOptionsHumanRequest when empty follow-ups trigger completion synthesis', async () => {
     const stateData = stateDataWithIntegrationOutput();
     const output = emptyConsistencyOutput();
     const { ctx, transitionSpy, failSpy } = createMockContext({
@@ -743,10 +743,10 @@ describe('Logging', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ITX-SD-013: All output variants route only to NumberedOptionsHumanRequest
+// ITX-SD-013: Follow-up and completion queue routing variants
 // ---------------------------------------------------------------------------
 
-describe('ITX-SD-013: All output variants route only to NumberedOptionsHumanRequest', () => {
+describe('ITX-SD-013: Follow-up and completion queue routing variants', () => {
   it('routes to NumberedOptionsHumanRequest with blocking issues and follow-ups', async () => {
     const stateData = stateDataWithIntegrationOutput();
     const { ctx, transitionSpy } = createMockContext();

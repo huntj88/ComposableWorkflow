@@ -169,7 +169,7 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** requires combinatorial coverage of valid/invalid completion responses.
 
 **Setup**
-- Configure consistency check to return empty `followUpQuestions` with no blocking issues so workflow logic synthesizes a completion-confirmation question.
+- Configure delegated child output to return empty `actionableItems` and empty `followUpQuestions` so workflow logic synthesizes a completion-confirmation question.
 - Submit responses with: exactly one option (valid), zero options, multiple options, non-existent option IDs.
 
 **Assertions**
@@ -185,16 +185,20 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** requires direct inspection of constructed input contract across multiple passes.
 
 **Setup**
-- Run workflow through initial pass and subsequent feedback-driven pass.
+- Run workflow through:
+  - initial pass,
+  - subsequent feedback-driven pass,
+  - immediate-action pass triggered by delegated child output with non-empty `actionableItems`.
 - Inspect `IntegrateIntoSpecInput` for each invocation.
 
 **Assertions**
 - First pass: `source === "workflow-input"`, `answers` absent/empty, fields from `SpecDocGenerationInput`.
 - Second pass: `source === "numbered-options-feedback"`, `answers` contains normalized records, `specPath` references prior draft.
+- Immediate-action pass: `source === "consistency-action-items"`, `actionableItems` are forwarded unchanged and in child-provided order, and `specPath` references the prior draft.
 - All normalized answer records include `questionId`, `selectedOptionIds`, optional `text`, `answeredAt`.
 - Prior decisions preserved unless explicitly overridden by newer answers.
 
-**Related behaviors:** `B-SD-INPUT-001`, `B-SD-INPUT-002`, `B-SD-INPUT-003`, `B-SD-TRANS-006`.
+**Related behaviors:** `B-SD-INPUT-001`, `B-SD-INPUT-002`, `B-SD-INPUT-003`, `B-SD-INPUT-004`, `B-SD-TRANS-006`.
 
 ## ITX-SD-008: Recovery of interrupted question queue processing
 **Why not E2E-only:** requires synthetic crash/restart during queue mid-processing.
@@ -257,7 +261,7 @@ A behavior is integration-primary when one or more is true:
 - Option IDs are unique contiguous integers starting at `1` per question.
 - Each option includes `description` with pros/cons content.
 - Each consistency-check question has `kind: "issue-resolution"`.
-- Completion-confirmation question is synthesized in workflow logic when consistency output is empty.
+- Completion-confirmation question is synthesized in workflow logic when delegated child output has empty `actionableItems` and empty `followUpQuestions`.
 - Clarification follow-up questions conform to server-owned base schema plus `kind: "issue-resolution"`.
 
 **Related behaviors:** `B-SD-SCHEMA-004`, `B-SD-SCHEMA-005`, `B-SD-SCHEMA-006`.
@@ -274,24 +278,61 @@ A behavior is integration-primary when one or more is true:
 - Template IDs are stable and match documented identifiers from section 7.2 of the workflow spec.
 - Template ID is present in both event payloads and structured log records.
 - Research-only clarification outcomes emit `spec-doc.research.logged` with the same prompt-template traceability as the originating clarification delegation.
+- Delegated child-workflow events for `LogicalConsistencyCheckCreateFollowUpQuestions` include `childWorkflowType`.
+- Prompt-layer events include `stageId` and preserve execution order.
+- When the child short-circuits on non-empty `actionableItems`, later prompt layers emit skipped observability or are otherwise externally observable as not executed.
 
-**Related behaviors:** `B-SD-OBS-002`, `B-SD-COPILOT-003`.
+**Related behaviors:** `B-SD-OBS-002`, `B-SD-OBS-003`, `B-SD-COPILOT-003`, `B-SD-CHILD-001`.
 
-## ITX-SD-013: LogicalConsistencyCheckCreateFollowUpQuestions always routes to NumberedOptionsHumanRequest
-**Why not E2E-only:** requires verification of fixed routing under all output variations.
+## ITX-SD-013: LogicalConsistencyCheckCreateFollowUpQuestions routes from the child aggregate result
+**Why not E2E-only:** requires verification of deterministic parent routing across child-result variations.
 
 **Setup**
-- Configure consistency check to return:
-  - blocking issues with issue-resolution questions,
-  - no blocking issues with empty follow-up questions,
-  - edge case with empty `blockingIssues` but present follow-up questions.
+- Configure delegated child result variants with:
+  - non-empty `actionableItems` and empty `followUpQuestions`,
+  - empty `actionableItems` and non-empty `followUpQuestions`,
+  - empty `actionableItems` and empty `followUpQuestions`.
 
 **Assertions**
-- Transition is always to `NumberedOptionsHumanRequest` regardless of output content.
-- No direct transition to `Done`, `IntegrateIntoSpec`, or any other state.
-- If output follow-up questions are empty, workflow logic synthesizes one completion-confirmation question with explicit "spec is done" option.
+- Transition is to `IntegrateIntoSpec` when child output has non-empty `actionableItems`.
+- Transition is to `NumberedOptionsHumanRequest` when child output has empty `actionableItems`.
+- No direct transition to `Done` or any other state.
+- If child output has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes one completion-confirmation question with explicit "spec is done" option.
 
 **Related behaviors:** `B-SD-TRANS-003`, `B-SD-TRANS-011`, `B-SD-DONE-001`.
+
+## ITX-SD-015: Deferred revisit feedback attempts and idempotency keys
+**Why not E2E-only:** requires direct inspection of child-launch metadata across defer/revisit cycles.
+
+**Setup**
+- Configure a numbered question to be deferred by custom text classified as `clarifying-question` or `unrelated-question`.
+- Revisit the same source `questionId` after the research detour completes.
+- Capture feedback child-launch metadata for both the original ask and the revisit.
+
+**Assertions**
+- The revisit launches a fresh `server.human-feedback.v1` child run for the same `questionId`.
+- The per-question feedback attempt counter increments before the revisit launch.
+- The revisit idempotency key differs from the original ask by incrementing the `attempt-{feedbackAttempt}` component while preserving run, pass, and `questionId` identity.
+- The revisit does not replay the previously responded child result.
+
+**Related behaviors:** `B-SD-HFB-001`, `B-SD-HFB-005`, `B-SD-TRANS-013`, `B-SD-TRANS-015`.
+
+## ITX-SD-016: Delegated child contract enforcement and short-circuit behavior
+**Why not E2E-only:** requires controlled multi-layer child outputs and explicit contract-violation injection.
+
+**Setup**
+- Configure delegated child workflow layers to exercise:
+  - early non-empty `actionableItems` followed by a later configured layer,
+  - duplicate `itemId` or `questionId` across executed layers,
+  - mixed non-empty `actionableItems` and `followUpQuestions` in one layer or final aggregate.
+
+**Assertions**
+- When an early layer emits non-empty `actionableItems`, later layers are not executed and parent routing uses only the actionable result.
+- Duplicate ids across executed layers fail the child run before any parent transition is chosen.
+- Mixed actionable/question output fails the child run before any parent transition is chosen.
+- Failure diagnostics identify the child contract violation and relevant stage context.
+
+**Related behaviors:** `B-SD-CHILD-001`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-FAIL-001`.
 
 ## ITX-SD-014: Done state invariants hold across all paths
 **Why not E2E-only:** requires exhaustive path verification for terminal state reachability.
@@ -315,7 +356,7 @@ A behavior is integration-primary when one or more is true:
 ## 5) Integration vs E2E Ownership Matrix
 
 ## 5.1 Integration-Primary
-- ITX-SD-001, 002, 004, 005, 007, 008, 010, 011, 012, 013, 014.
+- ITX-SD-001, 002, 004, 005, 007, 008, 010, 011, 012, 013, 014, 015, 016.
 
 ## 5.2 Shared Coverage (Integration + E2E)
 - ITX-SD-003, 006, 009.

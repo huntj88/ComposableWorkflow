@@ -30,7 +30,12 @@ import { emitDelegationStarted, emitClassificationOutcome } from '../observabili
 import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { createSpecDocValidator } from '../schema-validation.js';
 import { SCHEMA_IDS } from '../schemas.js';
-import { deferQuestionId, type SpecDocStateData, createInitialStateData } from '../state-data.js';
+import {
+  deferQuestionId,
+  incrementFeedbackRequestAttempt,
+  type SpecDocStateData,
+  createInitialStateData,
+} from '../state-data.js';
 
 // ---------------------------------------------------------------------------
 // State name constant
@@ -202,6 +207,10 @@ export async function handleClassifyCustomPrompt(
       normalizedAnswers: updatedAnswers,
       deferredQuestionIds: deferQuestionId(
         stateData.deferredQuestionIds,
+        sourceQuestion.questionId,
+      ),
+      feedbackRequestAttemptsByQuestionId: incrementFeedbackRequestAttempt(
+        stateData.feedbackRequestAttemptsByQuestionId,
         sourceQuestion.questionId,
       ),
       pendingClarification: {

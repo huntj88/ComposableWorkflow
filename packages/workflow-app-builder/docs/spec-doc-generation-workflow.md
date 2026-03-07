@@ -2,7 +2,9 @@
 
 ## 1) Purpose
 
-Define a finite state machine workflow that converts an initial human request into an implementation-ready specification document.
+### Objective
+
+Define a finite state machine workflow that converts an initial human request into an implementation-ready specification document and iteratively refines that document until it is ready for implementation.
 
 This document describes the first workflow in a planned series of app/feature builder workflows.
 
@@ -12,12 +14,22 @@ In scope:
 - one workflow: `app-builder.spec-doc.v1`
 - iterative clarification loop
 - spec integration and logical consistency checks
+- delegation from `LogicalConsistencyCheckCreateFollowUpQuestions` to an internal child workflow FSM that can return immediate actionable items or numbered follow-up questions
 - completion when the spec is implementation-ready
 
-Out of scope:
+### Non-Goals
 - implementation of interactive user-feedback transport in `workflow-app-builder`
 - UI for review/approval
 - runtime server orchestration details beyond required dependency contracts
+- runtime-configurable prompt layering for consistency/follow-up generation in MVP
+
+### Constraints and Assumptions
+- `LogicalConsistencyCheckCreateFollowUpQuestions` remains a parent FSM state but delegates its substantive validation/question-generation work to an internal child workflow FSM.
+- The child workflow executes an ordered hardcoded prompt-layer array in code; adding another validation/question-generation layer must only require appending a new entry to that array.
+- Parent-state branching is limited to: `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`, then `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` when immediate actionable items exist, otherwise `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest`.
+- The parent FSM change surface is intentionally minimal: prompt-layer execution, issue splitting, and follow-up generation remain child-owned implementation details rather than new parent states or parent-managed prompt sequencing.
+- Immediate actionable items are integration directives that do not require a new human decision and must be applied before asking more numbered questions.
+- If the child returns no actionable items, existing numbered-options behavior remains authoritative, including workflow-synthesized completion confirmation when no follow-up questions remain.
 
 ## 3) Planned Workflow Series (initial)
 
@@ -34,8 +46,10 @@ Only the first workflow is specified now.
 - `workflowVersion`: `1.0.0`
 - package: `workflow-app-builder`
 - primary dependency workflow: `app-builder.copilot.prompt.v1`
+- internal child workflow: `app-builder.spec-doc.consistency-follow-up.v1`
+- child workflow purpose: layered validation and follow-up planning for `LogicalConsistencyCheckCreateFollowUpQuestions`
 
-## 5) Intent and Inputs/Outputs
+## 5) Interfaces and Contracts
 
 ## 5.1 Input Contract
 
@@ -70,6 +84,69 @@ export interface SpecDocGenerationOutput {
 }
 ```
 
+## 5.3 Delegated Consistency / Follow-Up Child Contracts
+
+`LogicalConsistencyCheckCreateFollowUpQuestions` delegates to an internal child workflow FSM and bases all post-delegation behavior on that child result.
+
+Child input contract:
+
+```ts
+export interface ConsistencyFollowUpChildInput {
+  request: string;
+  specPath: string;
+  constraints: string[];
+  loopCount: number;
+  remainingQuestionIds: string[];
+}
+```
+
+Input rules:
+- `specPath` must point to the latest working draft emitted by the most recent `IntegrateIntoSpec` pass.
+- `remainingQuestionIds` is the ordered list of unresolved numbered question ids still known from the latest integration metadata; pass an empty array when none remain.
+- `loopCount` is the parent workflow's current consistency-check pass counter and is forwarded unchanged to every executed child prompt layer in that pass.
+
+Child output contract:
+
+```ts
+export interface SpecActionableItem {
+  itemId: string;
+  instruction: string;
+  rationale: string;
+  targetSection?: string;
+  blockingIssueIds: string[];
+}
+
+export interface ConsistencyCheckOutput {
+  blockingIssues: Array<{
+    id: string;
+    description: string;
+    severity: "low" | "medium" | "high";
+    section?: string;
+  }>;
+  actionableItems: SpecActionableItem[];
+  followUpQuestions: NumberedQuestionItem[];
+  readinessChecklist: {
+    hasScopeAndObjective: boolean;
+    hasNonGoals: boolean;
+    hasConstraintsAndAssumptions: boolean;
+    hasInterfacesOrContracts: boolean;
+    hasTestableAcceptanceCriteria: boolean;
+    hasNoContradictions: boolean;
+    hasSufficientDetail: boolean;
+  };
+}
+```
+
+Contract rules:
+- Parent state transition logic after delegation must use only this child output contract; it must not branch from raw model text.
+- The child is solely responsible for classifying each surfaced issue as either an immediate actionable item, a human follow-up question, or already-resolved/no-output for that pass.
+- `actionableItems` and `followUpQuestions` are mutually exclusive in the aggregate child result. If `actionableItems.length > 0`, `followUpQuestions` must be empty.
+- `actionableItems` is ordered and must contain only edits that `IntegrateIntoSpec` can apply without asking the human for another decision.
+- `followUpQuestions` is ordered and must contain only questions that require human input through `NumberedOptionsHumanRequest`.
+- An empty `actionableItems` array and empty `followUpQuestions` array means no new integration work or human decision is required; parent workflow logic then synthesizes a completion-confirmation numbered question.
+- Duplicate `itemId` or `questionId` values anywhere in one child run across all executed stages are contract violations and must fail the run rather than being silently deduplicated.
+- `blockingIssues` is an ordered diagnostic/audit surface for the executed child run; the parent may persist or log it, but parent routing is driven only by `actionableItems` vs `followUpQuestions`.
+
 ## 6) State Machine Definition
 
 ## 6.1 Canonical Flow (sample)
@@ -81,8 +158,10 @@ title App Builder Spec Generation Workflow (app-builder.spec-doc.v1)
 [*] --> IntegrateIntoSpec : workflow input received
 IntegrateIntoSpec --> LogicalConsistencyCheckCreateFollowUpQuestions : integration pass complete
 
-LogicalConsistencyCheckCreateFollowUpQuestions : checks for issues and creates follow-up questions
-LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest : nextState=NumberedOptionsHumanRequest
+LogicalConsistencyCheckCreateFollowUpQuestions : delegates validation/question planning to child FSM
+LogicalConsistencyCheckCreateFollowUpQuestions : child runs ordered hardcoded prompt layers
+LogicalConsistencyCheckCreateFollowUpQuestions --> IntegrateIntoSpec : child returns actionableItems[]
+LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest : child returns no actionableItems[]
 
 NumberedOptionsHumanRequest : one feedback child run per queue item
 NumberedOptionsHumanRequest : questionId required
@@ -117,45 +196,71 @@ Done : terminal\nstatus=completed
 ## 6.2 State Semantics
 
 1. `IntegrateIntoSpec`
-   - Merge latest human answer(s) into working spec draft.
-  - Initial pass integrates `SpecDocGenerationInput` from workflow start (no dedicated feedback start state).
-  - Subsequent passes integrate accumulated normalized numbered-options responses after queue exhaustion.
+   - Merge latest human answer(s) or immediate action item(s) into the working spec draft.
+   - Initial pass integrates `SpecDocGenerationInput` from workflow start (no dedicated feedback start state).
+   - Subsequent passes integrate accumulated normalized numbered-options responses after queue exhaustion or child-generated actionable items from consistency/follow-up analysis.
    - Preserve prior accepted decisions unless explicitly overridden.
 
 2. `LogicalConsistencyCheckCreateFollowUpQuestions`
-   - Validate internal consistency of scope, constraints, contracts, and acceptance criteria.
-   - Generate follow-up questions when inconsistencies or missing decisions are detected.
-  - Route to `NumberedOptionsHumanRequest` with numbered follow-up questions for either unresolved issues or completion confirmation.
+   - Parent orchestration state only; it does not directly author follow-up questions.
+   - Delegates to child workflow `app-builder.spec-doc.consistency-follow-up.v1`.
+   - Consumes only the child workflow aggregate result contract (`actionableItems[]`, `followUpQuestions[]`, `blockingIssues[]`, `readinessChecklist`).
+   - Must not inspect per-layer prompt output or sequence prompt layers itself; those responsibilities stay inside the child FSM.
+   - Routes to `IntegrateIntoSpec` when the child returns immediate actionable items.
+   - Routes to `NumberedOptionsHumanRequest` when the child returns no actionable items; returned numbered questions are asked as-is, and empty question output still triggers synthesized completion confirmation.
 
 3. `NumberedOptionsHumanRequest`
    - Request user selection among explicit choices.
-  - Used when decision branches are clear and mutually exclusive.
-  - If multiple numbered follow-up questions exist, this state self-loops question-by-question until all answers are captured.
-  - User may answer by selecting numbered options or by providing a custom prompt; responses are accumulated until the numbered queue is exhausted.
-  - If custom prompt text is provided, route through `ClassifyCustomPrompt`; classification results return to numbered-options processing.
-  - If custom prompt text is classified as a research question rather than an answer, the current numbered question is deferred and revisited after the research detour completes.
-  - If no unresolved questions remain, this state asks explicit completion confirmation (`Done` vs additional work for `IntegrateIntoSpec`).
+   - Used when decision branches are clear and mutually exclusive.
+   - If multiple numbered follow-up questions exist, this state self-loops question-by-question until all answers are captured.
+   - User may answer by selecting numbered options or by providing a custom prompt; responses are accumulated until the numbered queue is exhausted.
+   - If custom prompt text is provided, route through `ClassifyCustomPrompt`; classification results return to numbered-options processing.
+   - If custom prompt text is classified as a research question rather than an answer, the current numbered question is deferred and revisited after the research detour completes.
+   - If no unresolved questions remain, this state asks explicit completion confirmation (`Done` vs additional work for `IntegrateIntoSpec`).
 
 4. `ClassifyCustomPrompt`
-  - Uses `app-builder.copilot.prompt.v1` with schema-validated `structuredOutput` to classify custom prompt intent as `clarifying-question`, `unrelated-question`, or `custom-answer`.
-  - `clarifying-question` means the user is asking for information needed to answer the current numbered question.
-  - `unrelated-question` means the user is requesting research on the spec or implementation that is not itself an answer to the current numbered question.
-  - For either question intent, `structuredOutput.customQuestionText` is the normalized text handed to `ExpandQuestionWithClarification`.
-  - Does not transition directly to `IntegrateIntoSpec`; `custom-answer` returns to `NumberedOptionsHumanRequest`, while question intents transition to `ExpandQuestionWithClarification`.
+   - Uses `app-builder.copilot.prompt.v1` with schema-validated `structuredOutput` to classify custom prompt intent as `clarifying-question`, `unrelated-question`, or `custom-answer`.
+   - `clarifying-question` means the user is asking for information needed to answer the current numbered question.
+  - Questions about the current spec draft, repository, or implementation still count as `clarifying-question` when that research is being used to answer the current numbered question.
+   - `unrelated-question` means the user is requesting research on the spec or implementation that is not itself an answer to the current numbered question.
+   - For either question intent, `structuredOutput.customQuestionText` is the normalized text handed to `ExpandQuestionWithClarification`.
+   - Does not transition directly to `IntegrateIntoSpec`; `custom-answer` returns to `NumberedOptionsHumanRequest`, while question intents transition to `ExpandQuestionWithClarification`.
 
 5. `ExpandQuestionWithClarification`
-  - Performs research against the current spec draft and relevant implementation/workspace context before deciding whether another human question is required.
-  - For `clarifying-question`, research is scoped to resolving ambiguity in the current numbered question.
-  - For `unrelated-question`, research answers the user's side question without treating it as an answer to the current numbered question.
-  - If research reveals a remaining ambiguity or decision gap, materializes a research-grounded follow-up question, appends a new immutable queue item with a new `questionId`, and inserts it as the immediate next question.
-  - If research resolves the issue without needing human input, records a research log entry/observability event and returns to numbered-options processing without appending a new queue item.
-  - `structuredOutput.researchOutcome` is the single source of truth for whether a follow-up question is required.
-  - Research-only results are persisted as `researchNotes[]` state records for audit/observability and are not merged into `IntegrateIntoSpec.answers` unless later echoed in a human answer.
-  - Deferred questions are managed as a LIFO revisit stack. When a follow-up question is generated, the source numbered question that triggered the research detour is pushed onto that stack and revisited before the workflow advances to older unresolved items or evaluates terminal queue exhaustion.
+   - Performs research against the current spec draft and relevant implementation/workspace context before deciding whether another human question is required.
+   - For `clarifying-question`, research is scoped to resolving ambiguity in the current numbered question.
+   - For `unrelated-question`, research answers the user's side question without treating it as an answer to the current numbered question.
+  - If the same source numbered question asks the same normalized research question again, the workflow reuses the existing `researchNotes[]` result instead of delegating the same research repeatedly.
+   - If research reveals a remaining ambiguity or decision gap, materializes a research-grounded follow-up question, appends a new immutable queue item with a new `questionId`, and inserts it as the immediate next question.
+   - If research resolves the issue without needing human input, records a research log entry/observability event and returns to numbered-options processing without appending a new queue item.
+   - `structuredOutput.researchOutcome` is the single source of truth for whether a follow-up question is required.
+   - Research-only results are persisted as `researchNotes[]` state records for audit/observability and are not merged into `IntegrateIntoSpec.answers` unless later echoed in a human answer.
+   - Deferred questions are managed as a LIFO revisit stack. When a follow-up question is generated, the source numbered question that triggered the research detour is pushed onto that stack and revisited before the workflow advances to older unresolved items or evaluates terminal queue exhaustion.
 
 6. `Done`
    - Terminal state.
    - Spec is internally consistent and implementation-ready under current constraints.
+
+## 6.2.1 Delegated Child Workflow Semantics
+
+The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` is an implementation-owned FSM with the following behavior:
+1. It executes `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` as an ordered hardcoded array of prompt stages.
+2. Each stage uses `app-builder.copilot.prompt.v1` with the shared `consistency-check-output.schema.json` contract.
+3. Each executed stage is responsible for splitting any issues it finds into either immediate `actionableItems` for `IntegrateIntoSpec` or human `followUpQuestions` for `NumberedOptionsHumanRequest`.
+4. The child FSM has these implementation-relevant states:
+   - `LoadChildContext`: validate `ConsistencyFollowUpChildInput`, initialize empty aggregate collections, and load the ordered prompt-layer array.
+   - `ExecutePromptLayer(stageIndex)`: run the current prompt layer with the shared child input plus current stage metadata.
+   - `MergeStageOutput`: validate schema output, append unique `blockingIssues` by `blockingIssues[].id`, merge readiness-checklist failures with field-wise logical AND semantics, and inspect `actionableItems` vs `followUpQuestions`.
+   - `EmitActionableItems`: terminal child state used when the current stage returned one or more `actionableItems`; child returns accumulated actionable items and an empty `followUpQuestions` array.
+   - `EmitFollowUpQuestions`: terminal child state used after the last configured stage completes with zero actionable items; child returns aggregated follow-up questions and an empty `actionableItems` array.
+   - `FailContractViolation`: terminal child failure state for duplicate ids, invalid mixed actionable/question output, or schema/contract violations.
+5. The child evaluates stages in array order and aggregates `blockingIssues` plus readiness-checklist failures from every executed stage.
+6. If any executed stage returns one or more `actionableItems`, the child stops before running later stages, returns the accumulated actionable items in stage order, and returns an empty `followUpQuestions` array.
+7. If no executed stage returns actionable items, the child aggregates `followUpQuestions` from all executed stages in stage order and returns an empty `actionableItems` array.
+8. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` or `-> NumberedOptionsHumanRequest` transition.
+9. The child must fail explicitly on duplicate `itemId` or `questionId` values across executed stages.
+10. Appending another prompt layer to `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` must not require any parent-FSM transition changes.
+11. `MergeStageOutput` transitions to `FailContractViolation` for schema validation failures, duplicate ids, or mixed non-empty `actionableItems` plus `followUpQuestions`; otherwise it transitions to `EmitActionableItems` when `actionableItems` is non-empty, to `EmitFollowUpQuestions` when the current stage is the last configured stage, or back to `ExecutePromptLayer(stageIndex + 1)` when additional stages remain.
 
 ## 6.3 Transition Rules and Guards
 
@@ -163,8 +268,10 @@ Done : terminal\nstatus=completed
   - Guard: workflow input is available and validated.
 - `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`
   - Guard: integration pass complete.
+- `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec`
+  - Guard: delegated child result contains one or more actionable items that can be applied without human input.
 - `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest`
-  - Guard: consistency-check pass produces numbered follow-up questions and/or explicit completion confirmation choices.
+  - Guard: delegated child result contains zero actionable items; returned follow-up questions may be non-empty or empty.
 - `NumberedOptionsHumanRequest -> NumberedOptionsHumanRequest`
   - Guard: additional numbered follow-up questions remain to be asked and answered, and no custom prompt text is provided with the current response.
 - `NumberedOptionsHumanRequest -> IntegrateIntoSpec`
@@ -184,13 +291,14 @@ Done : terminal\nstatus=completed
 
 Execution model:
 - This state is implemented as a deterministic question queue processor.
-- Input queue is created from `LogicalConsistencyCheckCreateFollowUpQuestions` output and stored in workflow context/state data.
+- Input queue is created from the delegated child workflow result returned by `LogicalConsistencyCheckCreateFollowUpQuestions` when `actionableItems` is empty and stored in workflow context/state data.
+- The state must not be entered for a consistency-check pass that returned `actionableItems`; that pass goes directly to `IntegrateIntoSpec`.
 - Each queue item is a numbered-options question with stable `questionId`, `prompt`, and `options[]`.
 - Within each question, option IDs are unique contiguous integers starting at `1`.
 
 Question queue construction:
-- If consistency checks report unresolved issues, generate one or more numbered questions mapped to those issues.
-- If consistency checks return zero follow-up questions, workflow logic must synthesize a completion-confirmation numbered question that includes an explicit "spec is done" option.
+- If the child returns unresolved human-decision items, enqueue one or more returned numbered questions in child-provided order.
+- If the child returns zero `actionableItems` and zero `followUpQuestions`, workflow logic must synthesize a completion-confirmation numbered question that includes an explicit "spec is done" option.
 - Canonical completion option IDs are not required; done is interpreted from the selected option as authored for that specific question.
 - Each generated option should include concise pros/cons to help user decision-making (use option `description` with a clear `Pros:` / `Cons:` format).
 - Queue order must be stable across retries/recovery (deterministic ordering by generated `questionId`).
@@ -204,8 +312,8 @@ Per-question execution:
 - For the current queue item, request human feedback through the server-owned feedback workflow.
 - Launch one feedback child run per queue item (no batching of multiple questions into one feedback run).
 - Populate `HumanFeedbackRequestInput.questionId` with the queue item's stable `questionId` when launching each feedback request.
-- The idempotency key for each feedback child run must include the consistency-check pass number to prevent cached responses from prior passes being replayed for structurally identical questions in later passes. Format: `spec-doc:feedback:{runId}:{questionId}:pass-{consistencyCheckPasses}`.
-- Expect server feedback projection persistence to store this value as `human_feedback_requests.question_id` for question-level diagnostics and replay correlation.
+- The idempotency key for each feedback child run must include both the consistency-check pass number and the per-question feedback attempt number so cached responses are not replayed across later passes or deferred re-asks of the same question. Format: `spec-doc:feedback:{runId}:{questionId}:pass-{consistencyCheckPasses}:attempt-{feedbackAttempt}`.
+- Expect server feedback projection persistence to store the stable `HumanFeedbackRequestInput.questionId` value as `human_feedback_requests.question_id` for question-level diagnostics and replay correlation; the idempotency key remains a separate replay-control mechanism.
 - Accept response payload with `selectedOptionIds?: number[]` and optional `text?: string` custom prompt.
 - Treat invalid `selectedOptionIds` as request-validation errors from the feedback API (no answer recorded; question remains pending until valid response).
 - Feedback responses must include either one selected option or non-empty custom text.
@@ -217,6 +325,7 @@ Per-question execution:
   - `text` (possibly empty),
   - `answeredAt` timestamp.
 - If custom text is classified as `clarifying-question` or `unrelated-question` and no answer has been given for the current numbered item, do not mark that item answered; instead persist a `researchNotes[]` entry and defer the numbered question for later revisit.
+- Each time a numbered question is deferred for a research detour, increment that question's feedback attempt counter so its later revisit creates a fresh feedback request rather than replaying the previous responded child.
 
 Research note persistence:
 - Research-only outcomes are stored separately from normalized answers as `researchNotes[]` entries with:
@@ -225,6 +334,7 @@ Research note persistence:
   - `questionText`,
   - `researchSummary`,
   - `recordedAt` timestamp.
+- Repeated clarification lookups for the same `sourceQuestionId` and normalized `questionText` reuse the existing `researchNotes[]` entry instead of creating a duplicate delegation.
 - `researchNotes[]` is for auditability and observability, not direct spec integration input.
 
 Custom prompt handling:
@@ -240,7 +350,7 @@ Custom prompt handling:
 Transition resolution after each response:
 - If custom prompt text is provided, transition to `ClassifyCustomPrompt` first for intent classification.
 - If custom prompt intent is clarifying-question or unrelated-question, transition to `ExpandQuestionWithClarification` and defer the source numbered question unless it already has a valid answer.
-- If `ExpandQuestionWithClarification.structuredOutput.researchOutcome === "resolved-with-research"`, log the research answer and transition to `NumberedOptionsHumanRequest`; the most recently deferred source question becomes the next item to revisit.
+- If `ExpandQuestionWithClarification.structuredOutput.researchOutcome === "resolved-with-research"`, log or reuse the research answer and transition to `NumberedOptionsHumanRequest`; the most recently deferred source question becomes the next item to revisit.
 - If `ExpandQuestionWithClarification.structuredOutput.researchOutcome === "needs-follow-up-question"`, insert the schema-validated `followUpQuestion` as immediate next, transition to `NumberedOptionsHumanRequest`, ask that generated question next, and revisit the deferred source question when the inserted follow-up chain completes.
 - If custom prompt intent is custom-answer, buffer it and continue numbered queue processing.
 - If unasked queue items remain and no custom prompt text is pending classification, transition to `NumberedOptionsHumanRequest` (self-loop).
@@ -252,16 +362,17 @@ Re-entry with exhausted queue:
 - `NumberedOptionsHumanRequest` may be re-entered from `ClassifyCustomPrompt` (custom-answer) or `ExpandQuestionWithClarification` with `queueIndex >= queue.length`.
 - When entered with an exhausted queue, the handler must not fail. Instead it evaluates queue-exhaustion transitions using the already-recorded answers:
 - If deferred questions remain on the revisit stack, queue exhaustion is not final; the handler must resume with the most recently deferred source question.
-  - If any answered item is the completion-confirmation question with the done option selected (option 1), transition to `Done`.
-  - Otherwise, transition to `IntegrateIntoSpec` with accumulated normalized answers.
+  - Resuming a deferred question must launch a fresh feedback child request for that revisit attempt, even when the `questionId` and consistency-check pass are unchanged.
+- If no deferred questions remain and any answered item is the completion-confirmation question with the done option selected (option 1), transition to `Done`.
+- Otherwise, transition to `IntegrateIntoSpec` with accumulated normalized answers.
 
 ## 6.5 IntegrateIntoSpec Input Contract (MVP)
 
-`IntegrateIntoSpec` consumes a normalized state input that supports both initial draft creation and later feedback-driven updates.
+`IntegrateIntoSpec` consumes a normalized state input that supports initial draft creation, immediate consistency-driven edits, and later feedback-driven updates.
 
 ```ts
 export interface IntegrateIntoSpecInput {
-  source: "workflow-input" | "numbered-options-feedback";
+  source: "workflow-input" | "numbered-options-feedback" | "consistency-action-items";
   request: string;
   targetPath?: string;
   constraints?: string[];
@@ -272,21 +383,30 @@ export interface IntegrateIntoSpecInput {
     text?: string;
     answeredAt: string; // ISO-8601 timestamp
   }>;
+  actionableItems?: Array<{
+    itemId: string;
+    instruction: string;
+    rationale: string;
+    targetSection?: string;
+    blockingIssueIds: string[];
+  }>;
 }
 ```
 
 Contract notes:
 - `source: "workflow-input"` is used for the first pass and carries workflow input fields.
 - `source: "numbered-options-feedback"` is used after numbered queue exhaustion when accumulated responses require spec updates.
-- `answers` is optional for initial pass and, when present, is the normalized answer record accumulated in `NumberedOptionsHumanRequest`.
+- `source: "consistency-action-items"` is used immediately after `LogicalConsistencyCheckCreateFollowUpQuestions` when the delegated child returns `actionableItems`.
+- `answers` is optional for initial and consistency-action-item passes and, when present, is the normalized answer record accumulated in `NumberedOptionsHumanRequest`.
+- `actionableItems` is required when `source === "consistency-action-items"` and must be applied in array order as concrete edit directives for the current spec pass.
 - `specPath` allows integration into an existing working draft path from prior passes.
 
 ## 7) Dependency on `app-builder.copilot.prompt.v1`
 
 This workflow is primarily an orchestration layer that composes repeated calls to `app-builder.copilot.prompt.v1` for:
 - drafting and revising spec sections,
-- generating follow-up questions,
-- running consistency-check prompts,
+- running the delegated child's layered consistency/follow-up prompts,
+- generating child-owned follow-up questions when immediate integration is not possible,
 - producing final implementation-ready markdown.
 
 `app-builder.spec-doc.v1` must not re-implement Copilot ACP protocol details; it delegates prompt execution to `app-builder.copilot.prompt.v1`.
@@ -307,6 +427,7 @@ Schema artifacts for this workflow:
 Schema ownership boundary:
 - `packages/workflow-app-builder/docs/schemas/spec-doc/numbered-question-item.schema.json` extends the server-owned base envelope in `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json` by adding app-builder-specific `kind` semantics.
 - Numbered response transport validation remains server-owned via `packages/workflow-server/docs/schemas/human-input/numbered-options-response-input.schema.json`.
+- `consistency-check-output.schema.json` is the shared contract for each prompt layer in the delegated child workflow and for the child workflow's aggregate result consumed by the parent FSM.
 
 Minimum usage contract by FSM state:
 - `IntegrateIntoSpec`
@@ -314,10 +435,12 @@ Minimum usage contract by FSM state:
   - `outputSchema` must use `spec-integration-output.schema.json`.
   - `structuredOutput.specPath` is the markdown file path for the updated working draft.
 - `LogicalConsistencyCheckCreateFollowUpQuestions`
-  - `outputSchema` must use `consistency-check-output.schema.json`.
-  - `structuredOutput.followUpQuestions` provides deterministic ordered issue-resolution question queue payload and may be empty.
-  - each queue item must conform to `numbered-question-item.schema.json` with `kind: "issue-resolution"`.
-  - if `structuredOutput.followUpQuestions` is empty, workflow logic synthesizes one completion-confirmation queue item with an explicit "spec is done" option before entering `NumberedOptionsHumanRequest`.
+  - must launch internal child workflow `app-builder.spec-doc.consistency-follow-up.v1`.
+  - each executed prompt layer in that child must use `consistency-check-output.schema.json`.
+  - the child aggregate result exposes `structuredOutput.actionableItems` and `structuredOutput.followUpQuestions`.
+  - `structuredOutput.actionableItems` provides deterministic ordered immediate integration directives and may be empty.
+  - `structuredOutput.followUpQuestions` is authoritative only when `structuredOutput.actionableItems` is empty; each queue item must conform to `numbered-question-item.schema.json` with `kind: "issue-resolution"`.
+  - if both arrays are empty, workflow logic synthesizes one completion-confirmation queue item with an explicit "spec is done" option before entering `NumberedOptionsHumanRequest`.
 - `ClassifyCustomPrompt`
   - `outputSchema` must use `custom-prompt-classification-output.schema.json`.
   - `structuredOutput.intent` is the single source of truth for intent routing (`clarifying-question` vs `unrelated-question` vs `custom-answer`).
@@ -335,14 +458,15 @@ File output rule:
 - The generated spec artifact is a markdown file on disk (`*.md`).
 - Schemas must validate routing/metadata contracts and file references, not embed full spec body text.
 
-Transition mapping from consistency-check output:
-- if `followUpQuestions` is empty, synthesize one completion-confirmation numbered question in workflow logic (with explicit "spec is done" option) and enqueue it.
-- transition to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected state).
+Transition mapping from delegated consistency-check child result:
+- if `actionableItems` is non-empty, transition directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
+- if `actionableItems` is empty and `followUpQuestions` is empty, synthesize one completion-confirmation numbered question in workflow logic (with explicit "spec is done" option) and enqueue it.
+- if `actionableItems` is empty, transition to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected state).
 
 Transition mapping from numbered-options response:
 - if custom prompt text is provided: transition to `ClassifyCustomPrompt` (evaluate this first for the current response).
 - if custom prompt intent is classified as clarifying-question or unrelated-question: transition to `ExpandQuestionWithClarification` and defer the source numbered question unless already answered.
-- if `ExpandQuestionWithClarification.researchOutcome === "resolved-with-research"`: log the research answer and transition to `NumberedOptionsHumanRequest` to revisit the deferred source question.
+- if `ExpandQuestionWithClarification.researchOutcome === "resolved-with-research"`: log or reuse the research answer and transition to `NumberedOptionsHumanRequest` to revisit the deferred source question.
 - if `ExpandQuestionWithClarification.researchOutcome === "needs-follow-up-question"`: insert the related follow-up as immediate next, transition to `NumberedOptionsHumanRequest`, ask it next, then revisit the deferred source question.
 - if user selects the completion-confirmation done option and the numbered queue is exhausted: transition to `Done`.
 - if custom prompt intent is classified as custom-answer: buffer response and transition to `NumberedOptionsHumanRequest`.
@@ -365,7 +489,7 @@ Validation behavior:
 
 ## 7.2 Hardcoded Copilot Prompt Templates (MVP)
 
-This workflow should use fixed prompt templates (versioned in code) for each state that delegates to `app-builder.copilot.prompt.v1`.
+This workflow and its delegated consistency/follow-up child should use fixed prompt templates (versioned in code) for each state or child-stage that delegates to `app-builder.copilot.prompt.v1`.
 
 Prompt-template rules:
 - Prompt bodies are hardcoded string literals; runtime provides only variable interpolation data.
@@ -374,6 +498,7 @@ Prompt-template rules:
 - The workflow must branch only from schema-validated `structuredOutput`.
 - All IDs and list ordering must be deterministic for identical inputs.
 - Prompt text should describe model task intent only; transition/routing authority remains in workflow logic + schema validation.
+- `LogicalConsistencyCheckCreateFollowUpQuestions` child prompt layering must be defined by an ordered hardcoded array in implementation, not by runtime configuration.
 
 ### 7.2.1 `IntegrateIntoSpec` prompt (`spec-doc.integrate.v1`)
 
@@ -383,11 +508,12 @@ Usage:
 
 Required runtime interpolation variables:
 - `{{request}}`
-- `{{source}}` (`workflow-input` or `numbered-options-feedback`)
+- `{{source}}` (`workflow-input`, `numbered-options-feedback`, or `consistency-action-items`)
 - `{{targetPath}}` (optional)
 - `{{constraintsJson}}` (JSON array)
 - `{{specPath}}` (optional existing draft path)
 - `{{answersJson}}` (JSON array of normalized answers; optional/empty on first pass)
+- `{{actionableItemsJson}}` (JSON array of immediate action items; optional/empty unless source is `consistency-action-items`)
 
 Prompt text:
 
@@ -396,7 +522,7 @@ You are generating and maintaining an implementation-ready software specificatio
 
 You must:
 1) Preserve prior accepted decisions unless explicitly overridden by newer answers.
-2) Integrate all provided constraints and normalized numbered-options answers.
+2) Integrate all provided constraints, normalized numbered-options answers, and immediate actionable items.
 3) Keep the spec concrete and testable.
 4) Ensure sections exist for: objective/scope, non-goals, constraints/assumptions, interfaces/contracts, acceptance criteria.
 5) Write or update the markdown file in the workspace.
@@ -408,20 +534,24 @@ Input context:
 - existingSpecPath: {{specPath}}
 - constraints: {{constraintsJson}}
 - answers: {{answersJson}}
+- actionableItems: {{actionableItemsJson}}
 
 Spec quality requirements:
 - No unresolved contradictions in scope, constraints, or interface contracts.
 - Acceptance criteria must be testable and unambiguous.
 - Keep language implementation-ready and avoid vague statements.
+- Enough detail to implement without ambiguity.
+- When actionableItems are present, treat them as ordered concrete edit directives for the current pass.
 ```
 
-### 7.2.2 `LogicalConsistencyCheckCreateFollowUpQuestions` prompt (`spec-doc.consistency-check.v1`)
+### 7.2.2 `LogicalConsistencyCheckCreateFollowUpQuestions` baseline layer prompt (`spec-doc.consistency-check.v1`)
 
 Usage:
-- state: `LogicalConsistencyCheckCreateFollowUpQuestions`
+- delegated child workflow: `app-builder.spec-doc.consistency-follow-up.v1`
 - output schema: `consistency-check-output.schema.json`
 
 Required runtime interpolation variables:
+- `{{stageId}}`
 - `{{request}}`
 - `{{specPath}}`
 - `{{constraintsJson}}`
@@ -431,9 +561,10 @@ Required runtime interpolation variables:
 Prompt text:
 
 ```text
-You are validating a spec document for implementation readiness and generating deterministic numbered follow-up questions.
+You are validating a spec document for implementation readiness and producing either immediate actionable integration items or deterministic numbered follow-up questions.
 
 Input context:
+- stageId: {{stageId}}
 - request: {{request}}
 - specPath: {{specPath}}
 - constraints: {{constraintsJson}}
@@ -446,19 +577,48 @@ Evaluation checklist (must map to readinessChecklist booleans):
 3) Constraints/assumptions explicit.
 4) Interfaces/contracts defined where needed.
 5) Acceptance criteria testable.
+6) No contradictions or unresolved issues.
+7) Enough detail to implement without ambiguity.
 
-Question-generation rules:
-- If blocking issues exist: generate issue-resolution questions for each blocking decision gap.
-- If no blocking issues remain: return an empty `followUpQuestions` array (completion-confirmation question is synthesized by workflow logic).
-- Each question must include:
-  - stable deterministic questionId,
+Action/question-generation rules:
+- Split discovered issues into `actionableItems` when `IntegrateIntoSpec` can resolve them immediately, otherwise into `followUpQuestions` when a human decision is still required.
+- Prefer `actionableItems` when the spec can be improved immediately without a new human decision.
+- Use `followUpQuestions` only for true decision gaps that require human input.
+- If no blocking issues remain: return empty `actionableItems` and empty `followUpQuestions` (completion-confirmation is synthesized by parent workflow logic).
+- Never emit non-empty `actionableItems` and non-empty `followUpQuestions` in the same result.
+- Each actionable item must include:
+  - stable deterministic `itemId`,
+  - `instruction`,
+  - `rationale`,
+  - optional `targetSection`,
+  - related `blockingIssueIds`.
+- Each follow-up question must include:
+  - stable deterministic `questionId`,
   - prompt,
   - options with unique contiguous integer ids starting at 1,
   - per-option `description` that includes concise `Pros:` and `Cons:`,
   - kind set to `issue-resolution`.
-- Keep followUpQuestions ordering deterministic.
-
+- Keep all output ordering deterministic.
 ```
+
+### 7.2.2.1 `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` implementation contract
+
+```ts
+const CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS = [
+  { stageId: 'baseline-consistency', templateId: 'spec-doc.consistency-check.v1' },
+  // append additional validation/question-generation layers here
+] as const;
+```
+
+Rules:
+- The delegated child workflow executes entries in array order.
+- Adding another validation/question-generation layer is an append-only change to this hardcoded array; parent transition logic stays unchanged.
+- Each appended layer may introduce additional validation or question-generation coverage without changing parent state semantics.
+- Every entry must produce the shared `consistency-check-output.schema.json` contract.
+- Every executed entry receives the shared child input (`request`, `specPath`, `constraints`, `loopCount`, `remainingQuestionIds`) plus its own `stageId`.
+- Later stages execute only if all earlier executed stages returned zero `actionableItems`.
+- `stageId` values must be unique.
+- `readinessChecklist` aggregation across executed layers is field-wise logical AND; once any layer marks a checklist field `false`, the aggregate field remains `false` for the rest of that child run.
 
 ### 7.2.3 `ClassifyCustomPrompt` prompt (`spec-doc.classify-custom-prompt.v1`)
 
@@ -553,14 +713,17 @@ Server-spec placement requirement:
 
 Per run, emit events for:
 - entering each FSM state,
+- delegated child workflow started/completed for `LogicalConsistencyCheckCreateFollowUpQuestions`,
+- each consistency/follow-up prompt layer started/completed/skipped,
 - question generated (numbered-options follow-up/confirmation),
+- immediate actionable item generated,
 - research result logged,
 - user response received,
 - spec integration pass completed,
 - consistency-check outcome,
 - terminal completion.
 
-All events should include `runId`, `workflowType`, `state`, and sequence ordering consistent with shared runtime contracts.
+All events should include `runId`, `workflowType`, `state`, and sequence ordering consistent with shared runtime contracts. Child-workflow events should also include `childWorkflowType` and `stageId` when applicable.
 
 ## 10) Completion Criteria (for workflow execution)
 
@@ -571,23 +734,39 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - interfaces/contracts are defined where needed,
 - acceptance criteria are testable,
 - no unresolved blocking questions remain,
+- latest delegated child result contains zero actionable items requiring immediate integration,
 - user explicitly confirms completion from `NumberedOptionsHumanRequest`.
 
 ## 10.1 Invariants (Implementation/Test)
 
 - `Done` is reachable only from `NumberedOptionsHumanRequest`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`.
-- `LogicalConsistencyCheckCreateFollowUpQuestions` transitions only to `NumberedOptionsHumanRequest`.
-- `LogicalConsistencyCheckCreateFollowUpQuestions` always transitions to `NumberedOptionsHumanRequest` via fixed workflow logic.
-- If consistency output has empty `followUpQuestions`, workflow logic synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
+- `LogicalConsistencyCheckCreateFollowUpQuestions` transitions only to `IntegrateIntoSpec` or `NumberedOptionsHumanRequest`.
+- `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` is allowed only when the delegated child result contains one or more `actionableItems`.
+- `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest` is allowed only when the delegated child result contains zero `actionableItems`.
+- If the delegated child result has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
 - Completion confirmation is explicit user intent selected in `NumberedOptionsHumanRequest`.
 - Terminal completed output must satisfy:
   - `status === "completed"`
   - `specPath` ends with `.md`
   - `summary.unresolvedQuestions === 0`
 
+## 10.2 Acceptance Criteria
+
+- **AC-1 Delegation path:** when the parent workflow enters `LogicalConsistencyCheckCreateFollowUpQuestions`, it launches exactly one child workflow run of type `app-builder.spec-doc.consistency-follow-up.v1` for that pass and bases its next transition only on the child aggregate result.
+- **AC-2 Immediate-action path:** if the child returns one or more `actionableItems`, the parent transitions directly to `IntegrateIntoSpec`, passes `source: "consistency-action-items"`, passes the returned items unchanged and in order, and does not enter `NumberedOptionsHumanRequest` for that pass.
+- **AC-3 Human-question path:** if the child returns zero `actionableItems` and one or more `followUpQuestions`, the parent transitions to `NumberedOptionsHumanRequest` and enqueues those questions unchanged and in order.
+- **AC-4 Completion-confirmation path:** if the child returns zero `actionableItems` and zero `followUpQuestions`, the parent synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
+- **AC-5 Prompt-layer extensibility:** the child workflow executes `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` in array order, and adding a new prompt layer requires only appending a new hardcoded entry plus its prompt template; parent transition logic remains unchanged.
+- **AC-6 Short-circuit behavior:** once any executed child prompt layer emits one or more `actionableItems`, later prompt layers in that child run are not executed.
+- **AC-7 Contract enforcement:** duplicate `itemId` or `questionId` values across executed child prompt layers fail the run explicitly; the implementation must not silently deduplicate or overwrite them. Example: if layer `baseline-consistency` emits `questionId: "issue.api-shape"` and a later executed layer with zero `actionableItems` emits the same `questionId`, the child run fails before returning a result.
+- **AC-8 Integration behavior:** when `IntegrateIntoSpec` receives `source: "consistency-action-items"`, it applies the provided `actionableItems` in array order while preserving prior accepted decisions unless explicitly overridden by newer inputs.
+- **AC-9 Invalid mixed-result rejection:** if any child stage or final child aggregate would produce both non-empty `actionableItems` and non-empty `followUpQuestions`, the child run fails before the parent chooses a next state.
+- **AC-10 Minimal parent change surface:** the parent FSM implementation for this iteration introduces no additional outbound transitions from `LogicalConsistencyCheckCreateFollowUpQuestions` beyond `-> IntegrateIntoSpec` for non-empty `actionableItems` and `-> NumberedOptionsHumanRequest` otherwise; prompt layering and issue splitting remain child-owned behavior.
+
 ## 11) Failure and Exit Conditions
 
+- If delegated consistency/follow-up child workflow execution fails, propagate failure with parent-state and child-stage context.
 - If delegated Copilot prompt workflow fails, propagate failure with stage context.
 - If human feedback times out/cancels (per server policy), transition to failed/cancelled according to server lifecycle rules.
 
@@ -597,3 +776,4 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - Preserve generator-friendly metadata for future code generation alignment.
 - Do not couple to transport details for human interaction.
 - Use schema-validated `structuredOutput` for all state branching and completion payload construction.
+- Keep `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` as an ordered hardcoded constant in code; do not make it runtime configurable in MVP.

@@ -369,6 +369,41 @@ describe('Clarifying-question routing to ExpandQuestionWithClarification', () =>
     const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
     expect(updatedState.deferredQuestionIds).toEqual(['q-cc-1']);
   });
+
+  it('increments feedback request attempt for the deferred source question', async () => {
+    const stateData = stateDataForClassification();
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        structuredOutput: clarifyingClassificationOutput(),
+      },
+    });
+
+    await handleClassifyCustomPrompt(ctx, stateData);
+
+    const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(updatedState.feedbackRequestAttemptsByQuestionId).toEqual({
+      'q-cc-1': 1,
+    });
+  });
+
+  it('increments feedback request attempt again when the same source question is deferred repeatedly', async () => {
+    const stateData = {
+      ...stateDataForClassification(),
+      feedbackRequestAttemptsByQuestionId: { 'q-cc-1': 1 },
+    } satisfies SpecDocStateData;
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        structuredOutput: clarifyingClassificationOutput(),
+      },
+    });
+
+    await handleClassifyCustomPrompt(ctx, stateData);
+
+    const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(updatedState.feedbackRequestAttemptsByQuestionId).toEqual({
+      'q-cc-1': 2,
+    });
+  });
 });
 
 describe('Unrelated-question routing to ExpandQuestionWithClarification', () => {

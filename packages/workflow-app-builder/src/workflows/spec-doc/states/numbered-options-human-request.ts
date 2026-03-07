@@ -25,6 +25,7 @@ import {
 import { emitQuestionGenerated, emitResponseReceived } from '../observability.js';
 import { COMPLETION_CONFIRMATION_QUESTION_ID } from '../queue.js';
 import {
+  getFeedbackRequestAttempt,
   peekDeferredQuestionId,
   popDeferredQuestionId,
   type SpecDocStateData,
@@ -198,10 +199,15 @@ export async function handleNumberedOptionsHumanRequest(
 
   let childOutput: HumanFeedbackChildOutput;
   try {
+    const feedbackAttempt = getFeedbackRequestAttempt(
+      stateData.feedbackRequestAttemptsByQuestionId,
+      currentItem.questionId,
+    );
+
     childOutput = await ctx.launchChild<HumanFeedbackChildInput, HumanFeedbackChildOutput>({
       workflowType: SERVER_HUMAN_FEEDBACK_WORKFLOW_TYPE,
       input: childInput,
-      idempotencyKey: `spec-doc:feedback:${ctx.runId}:${currentItem.questionId}:pass-${stateData.counters.consistencyCheckPasses}`,
+      idempotencyKey: `spec-doc:feedback:${ctx.runId}:${currentItem.questionId}:pass-${stateData.counters.consistencyCheckPasses}:attempt-${feedbackAttempt}`,
     });
   } catch (err) {
     ctx.fail(

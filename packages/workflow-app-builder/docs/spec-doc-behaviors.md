@@ -55,12 +55,13 @@ Each behavior should validate all relevant dimensions:
 **And** `state.entered` for `LogicalConsistencyCheckCreateFollowUpQuestions` appears
 **And** `specPath` from integration output is carried forward in workflow state
 
-## B-SD-TRANS-003: LogicalConsistencyCheckCreateFollowUpQuestions always transitions to NumberedOptionsHumanRequest
+## B-SD-TRANS-003: LogicalConsistencyCheckCreateFollowUpQuestions routes from the child aggregate result
 **Given** run is in `LogicalConsistencyCheckCreateFollowUpQuestions`
-**When** consistency check completes with `consistency-check-output.schema.json` output
-**Then** transition is always to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected)
-**And** `followUpQuestions` from output populate the question queue when present
-**And** if output `followUpQuestions` is empty, workflow logic synthesizes one completion-confirmation question with an explicit "spec is done" option
+**When** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` completes with a valid aggregate result
+**Then** the parent transitions to `IntegrateIntoSpec` when `actionableItems` is non-empty
+**And** the parent transitions to `NumberedOptionsHumanRequest` when `actionableItems` is empty
+**And** `followUpQuestions` from the child result populate the question queue when present
+**And** if child output has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes one completion-confirmation question with an explicit "spec is done" option
 **And** `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`
 
 ## B-SD-TRANS-004: NumberedOptionsHumanRequest self-loops for remaining queued questions
@@ -119,9 +120,10 @@ Each behavior should validate all relevant dimensions:
 ## B-SD-TRANS-014: Research-only resolution resumes the deferred question
 **Given** run is in `ExpandQuestionWithClarification`
 **When** research finds no remaining ambiguity and generates no follow-up question
-**Then** the workflow logs the research answer
+**Then** the workflow logs or reuses the research answer
 **And** transitions to `NumberedOptionsHumanRequest`
 **And** resumes at the deferred source question rather than skipping it permanently
+**And** if the same source question asks the same normalized research question again, the workflow reuses the cached research note instead of delegating duplicate research
 
 ## B-SD-TRANS-015: Deferred questions block terminal queue exhaustion
 **Given** run re-enters `NumberedOptionsHumanRequest` with `queueIndex >= queue.length`
@@ -136,12 +138,31 @@ Each behavior should validate all relevant dimensions:
 **And** if any answered item is completion-confirmation with done option selected, run transitions to `Done`
 **And** otherwise run transitions to `IntegrateIntoSpec` with accumulated normalized answers
 
-## B-SD-TRANS-011: Empty follow-up output synthesizes completion-confirmation question
-**Given** `LogicalConsistencyCheckCreateFollowUpQuestions` output has empty `followUpQuestions`
+## B-SD-TRANS-011: Empty child result synthesizes completion-confirmation question
+**Given** `LogicalConsistencyCheckCreateFollowUpQuestions` child output has empty `actionableItems` and empty `followUpQuestions`
 **When** workflow prepares queue payload before routing to `NumberedOptionsHumanRequest`
 **Then** workflow logic synthesizes exactly one `completion-confirmation` question
 **And** the synthesized question includes an explicit "spec is done" choice
 **And** `blockingIssues` is empty
+
+## B-SD-CHILD-001: Delegated child short-circuits after actionable items
+**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` is executing prompt layers in order
+**When** any executed prompt layer returns one or more `actionableItems`
+**Then** later prompt layers are not executed in that child run
+**And** the child returns the accumulated `actionableItems` in stage order
+**And** the child returns an empty `followUpQuestions` array
+
+## B-SD-CHILD-002: Delegated child fails on duplicate ids
+**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` executes multiple prompt layers
+**When** duplicate `itemId` or duplicate `questionId` values appear across executed layer outputs
+**Then** the child run fails explicitly before returning an aggregate result
+**And** no parent-state transition is selected from the invalid child output
+
+## B-SD-CHILD-003: Delegated child rejects mixed actionable and follow-up output
+**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` receives a schema-valid layer output
+**When** that layer output or final aggregate would contain both non-empty `actionableItems` and non-empty `followUpQuestions`
+**Then** the child run fails explicitly before returning an aggregate result
+**And** the parent workflow does not branch from the invalid mixed result
 
 ---
 
@@ -153,7 +174,14 @@ Each behavior should validate all relevant dimensions:
 **Then** exactly one `server.human-feedback.v1` child run is launched per queue item (no batching)
 **And** `HumanFeedbackRequestInput.questionId` matches the queue item's stable `questionId`
 **And** `human_feedback_requests.question_id` projection stores the same value
-**And** the idempotency key includes the consistency-check pass number (`spec-doc:feedback:{runId}:{questionId}:pass-{consistencyCheckPasses}`) to prevent cached responses from prior passes being replayed for structurally identical questions in later passes
+**And** the idempotency key includes both the consistency-check pass number and the per-question feedback attempt number (`spec-doc:feedback:{runId}:{questionId}:pass-{consistencyCheckPasses}:attempt-{feedbackAttempt}`) to prevent cached responses from prior passes or deferred re-asks being replayed for structurally identical questions
+
+## B-SD-HFB-005: Deferred revisits create a fresh feedback request
+**Given** a numbered question was deferred because custom text was classified as `clarifying-question` or `unrelated-question`
+**When** the workflow later revisits that same `questionId`
+**Then** the per-question feedback attempt counter has incremented
+**And** the revisit launches a fresh `server.human-feedback.v1` child run instead of replaying the previous responded child
+**And** the user is asked again even when the consistency-check pass number is unchanged
 
 ## B-SD-HFB-002: Invalid selectedOptionIds do not record an answer
 **Given** a pending feedback request with defined option IDs `[1, 2, 3]`
@@ -184,7 +212,7 @@ Each behavior should validate all relevant dimensions:
 **Given** a copilot prompt call returns `structuredOutput`
 **When** output is parsed for the current state
 **Then** `IntegrateIntoSpec` validates against `spec-integration-output.schema.json`
-**And** `LogicalConsistencyCheckCreateFollowUpQuestions` validates against `consistency-check-output.schema.json`
+**And** each executed child prompt layer for `LogicalConsistencyCheckCreateFollowUpQuestions` validates against `consistency-check-output.schema.json`
 **And** `ClassifyCustomPrompt` validates against `custom-prompt-classification-output.schema.json`
 **And** `ExpandQuestionWithClarification` validates against `clarification-follow-up-output.schema.json`
 **And** `Done` terminal payload validates against `spec-doc-generation-output.schema.json`
@@ -266,7 +294,7 @@ Each behavior should validate all relevant dimensions:
 ## 6) Question Queue Processing Behaviors
 
 ## B-SD-QUEUE-001: Queue ordering is deterministic and stable
-**Given** `LogicalConsistencyCheckCreateFollowUpQuestions` produces multiple follow-up questions
+**Given** delegated child output for `LogicalConsistencyCheckCreateFollowUpQuestions` has empty `actionableItems` and multiple `followUpQuestions`
 **When** questions enter the queue
 **Then** ordering is deterministic by `questionId`
 **And** ordering is stable across retries/recovery
@@ -315,6 +343,7 @@ Each behavior should validate all relevant dimensions:
   - interfaces/contracts defined where needed
   - acceptance criteria testable
   - no unresolved blocking questions remain
+  - latest delegated child result contains zero actionable items requiring immediate integration
   - user explicitly confirmed completion
 
 ## B-SD-DONE-003: Terminal output satisfies output contract
@@ -359,6 +388,13 @@ Each behavior should validate all relevant dimensions:
 **And** `answers` contains normalized answer records from the completed queue
 **And** `specPath` points to the existing working draft from prior passes
 
+## B-SD-INPUT-004: Immediate-action passes use consistency-action-items source
+**Given** delegated child output from `LogicalConsistencyCheckCreateFollowUpQuestions` contains one or more `actionableItems`
+**When** `IntegrateIntoSpec` input is constructed for the next pass
+**Then** `source === "consistency-action-items"`
+**And** `actionableItems` are passed unchanged and in child-provided order
+**And** `specPath` points to the existing working draft from the prior integration pass
+
 ## B-SD-INPUT-003: Prior accepted decisions are preserved unless overridden
 **Given** an existing spec draft from a previous integration pass
 **When** `IntegrateIntoSpec` runs with new answers
@@ -372,7 +408,10 @@ Each behavior should validate all relevant dimensions:
 ## B-SD-OBS-001: Events emitted for all major FSM operations
 Per run, events must be emitted for:
 - entering each FSM state (`state.entered`),
+- delegated child workflow started/completed for `LogicalConsistencyCheckCreateFollowUpQuestions`,
+- each consistency/follow-up prompt layer started/completed/skipped,
 - question generated (numbered-options follow-up/confirmation),
+- immediate actionable item generated,
 - user response received,
 - spec integration pass completed,
 - consistency-check outcome,
@@ -381,13 +420,20 @@ Per run, events must be emitted for:
 - research-only clarification result logged,
 - terminal completion or failure.
 
-All events include `runId`, `workflowType`, `state`, and sequence ordering.
+All events include `runId`, `workflowType`, `state`, and sequence ordering. Child-workflow events also include `childWorkflowType` and `stageId` when applicable.
 
 ## B-SD-OBS-002: Prompt template IDs are traceable in observability events
 **Given** any copilot prompt delegation from this workflow
 **When** the call is made
 **Then** prompt template ID (e.g., `spec-doc.integrate.v1`) is included in observability events
 **And** template IDs are stable and versioned for traceability
+
+## B-SD-OBS-003: Child workflow observability includes child and stage metadata
+**Given** `LogicalConsistencyCheckCreateFollowUpQuestions` launches delegated child workflow execution
+**When** child-workflow or prompt-layer observability events are emitted
+**Then** each child event includes `childWorkflowType`
+**And** each prompt-layer event includes `stageId` when applicable
+**And** prompt-layer events preserve execution order, including skipped later stages after child short-circuiting
 
 ---
 
@@ -396,7 +442,7 @@ All events include `runId`, `workflowType`, `state`, and sequence ordering.
 ## GS-SD-001: Happy path — single loop to completion
 1. Start `app-builder.spec-doc.v1` with valid input.
 2. `IntegrateIntoSpec` produces initial draft.
-3. `LogicalConsistencyCheckCreateFollowUpQuestions` finds no blocking issues and returns empty follow-up questions; workflow logic synthesizes completion-confirmation question.
+3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` returns empty `actionableItems` and empty `followUpQuestions`; workflow logic synthesizes completion-confirmation question.
 4. User selects completion-confirmation option with exactly one selected option.
 5. Run transitions to `Done`.
 
@@ -407,16 +453,28 @@ Must assert:
 
 ## GS-SD-002: Multi-loop clarification to completion
 1. Start workflow.
-2. First consistency check finds blocking issues; generates multiple questions.
+2. First delegated child run for `LogicalConsistencyCheckCreateFollowUpQuestions` returns empty `actionableItems` and multiple `followUpQuestions`.
 3. User answers questions across multiple self-loops.
 4. Queue exhaustion routes to `IntegrateIntoSpec` for second pass.
-5. Second consistency check returns no follow-up questions; workflow logic synthesizes completion-confirmation.
+5. Second delegated child run returns empty `actionableItems` and empty `followUpQuestions`; workflow logic synthesizes completion-confirmation.
 6. User confirms completion.
 
 Must assert:
 - Multiple feedback child runs (one per question).
 - `IntegrateIntoSpec` called twice with different `source` values.
 - All normalized answers present in second integration input.
+
+## GS-SD-004: Immediate-action child result short-circuits back to integration
+1. Start workflow.
+2. `IntegrateIntoSpec` produces initial draft.
+3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` returns one or more `actionableItems` and zero `followUpQuestions`.
+4. Parent transitions directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
+5. No `NumberedOptionsHumanRequest` state is entered for that pass.
+
+Must assert:
+- Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → IntegrateIntoSpec` for that pass.
+- Child `actionableItems` are forwarded unchanged and in order.
+- No feedback child run launches before the follow-up consistency pass.
 
 ## GS-SD-003: Research-first custom prompt round trip
 1. Start workflow and reach `NumberedOptionsHumanRequest`.
@@ -450,16 +508,16 @@ Must assert:
 
 ## 12) Coverage Matrix (Spec Section → Behaviors)
 
-1. FSM state semantics (section 6.2) → `B-SD-TRANS-001..011`.
-2. Transition rules and guards (section 6.3) → `B-SD-TRANS-001..011`, `B-SD-DONE-001`.
-3. NumberedOptionsHumanRequest implementation (section 6.4) → `B-SD-HFB-001..004`, `B-SD-QUEUE-001..005`, `B-SD-TRANS-004..007`.
-4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..003`.
+1. FSM state semantics (section 6.2) → `B-SD-TRANS-001..015`.
+2. Transition rules and guards (section 6.3) → `B-SD-TRANS-001..015`, `B-SD-DONE-001`.
+3. NumberedOptionsHumanRequest implementation (section 6.4) → `B-SD-HFB-001..005`, `B-SD-QUEUE-001..005`, `B-SD-TRANS-004..007`, `B-SD-TRANS-012..015`.
+4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..004`.
 5. Schema validation (section 7.1) → `B-SD-SCHEMA-001..006`.
-6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`.
+6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`, `B-SD-CHILD-001..003`.
 7. Human feedback boundary (section 8) → `B-SD-HFB-004`.
-8. Observability (section 9) → `B-SD-OBS-001..002`.
+8. Observability (section 9) → `B-SD-OBS-001..003`.
 9. Completion criteria (section 10) → `B-SD-DONE-001..003`.
-10. Failure/exit conditions (section 11) → `B-SD-LOOP-001..002`, `B-SD-FAIL-001..002`.
+10. Failure/exit conditions (section 11) → `B-SD-FAIL-001..002`.
 
 ---
 

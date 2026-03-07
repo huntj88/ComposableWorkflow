@@ -331,6 +331,43 @@ describe('SD-HRQ-001-OneChildPerQuestion', () => {
     expect(childInput.options).toHaveLength(2);
     expect(childInput.options[0].label).toBe('First');
   });
+
+  it('uses attempt-0 in the feedback child idempotency key on the first ask', async () => {
+    const stateData = stateDataWithQueue([makeQueueItem('q-1')]);
+
+    const { ctx, launchChildSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-1', selectedOptionIds: [1] },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(launchChildSpy.mock.calls[0][0].idempotencyKey).toBe(
+      'spec-doc:feedback:run-001:q-1:pass-0:attempt-0',
+    );
+  });
+
+  it('uses the incremented attempt in the feedback child idempotency key when re-asking a deferred question', async () => {
+    const stateData = stateDataWithQueue([makeQueueItem('q-source')], {
+      deferredQuestionIds: ['q-source'],
+      feedbackRequestAttemptsByQuestionId: { 'q-source': 1 },
+    });
+
+    const { ctx, launchChildSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-source', selectedOptionIds: [1] },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(launchChildSpy.mock.calls[0][0].idempotencyKey).toBe(
+      'spec-doc:feedback:run-001:q-source:pass-0:attempt-1',
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

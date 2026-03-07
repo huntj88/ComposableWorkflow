@@ -24,7 +24,8 @@ Implement `LogicalConsistencyCheckCreateFollowUpQuestions` with deterministic ou
 
 ## Acceptance Criteria
 - Direct transition from this state to `Done` is impossible.
-- Empty follow-up output synthesizes one completion question with explicit done option.
+- Child results with non-empty `actionableItems` transition directly to `IntegrateIntoSpec`.
+- Child results with empty `actionableItems` and empty `followUpQuestions` synthesize one completion question with explicit done option.
 - Queue ordering is deterministic and stable across retries.
 - `consistencyCheckPasses` is incremented on each successful consistency-check pass.
 - `{{remainingQuestionIdsJson}}` is sourced from persisted integration output in state data.
@@ -35,7 +36,7 @@ Implement `LogicalConsistencyCheckCreateFollowUpQuestions` with deterministic ou
 - Behaviors: `B-SD-TRANS-003`, `B-SD-TRANS-011`, `B-SD-QUEUE-001`, `B-SD-SCHEMA-004`, `B-SD-SCHEMA-006`.
 
 ## Fixed Implementation Decisions
-- Transition target from consistency check is hardcoded to `NumberedOptionsHumanRequest`.
+- Parent routing from consistency check is driven by child aggregate result: non-empty `actionableItems` go to `IntegrateIntoSpec`; otherwise route to `NumberedOptionsHumanRequest`.
 - Completion-confirmation queue item is workflow-authored, never model-authored.
 - Completion-confirmation option IDs are question-local only (no canonical global completion option ID requirement).
 - Queue ordering is deterministic by generated `questionId` and must remain stable across retries/recovery.
@@ -57,16 +58,16 @@ Implement `LogicalConsistencyCheckCreateFollowUpQuestions` with deterministic ou
 
 ## Verification
 - Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- logical-consistency-check`
-  - Expected: fixed routing and queue synthesis semantics pass.
+  - Expected: child-result routing and queue synthesis semantics pass.
 - Command: `pnpm --filter @composable-workflow/workflow-app-builder test -- ITX-SD-013`
-  - Expected: all output variants route only to `NumberedOptionsHumanRequest`.
+  - Expected: child-result routing variants pass, including direct `IntegrateIntoSpec` on `actionableItems`.
 
 ## One-to-One Requirement Mapping
 | Requirement ID | Implementation Artifact | Verification Assertion |
 |---|---|---|
-| SD-CHECK-001-FixedRouteToHumanRequest | `src/workflows/spec-doc/states/logical-consistency-check.ts` | transition target is always `NumberedOptionsHumanRequest`. |
+| SD-CHECK-001-ChildResultRouting | `src/workflows/spec-doc/states/logical-consistency-check.ts` | transition target is `IntegrateIntoSpec` when `actionableItems` exist, otherwise `NumberedOptionsHumanRequest`. |
 | SD-CHECK-002-DeterministicQueueOrder | `src/workflows/spec-doc/queue.ts` | queue order is deterministic by `questionId`. |
-| SD-CHECK-003-CompletionSynthesis | `src/workflows/spec-doc/queue.ts` | empty follow-up list synthesizes exactly one completion-confirmation question. |
+| SD-CHECK-003-CompletionSynthesis | `src/workflows/spec-doc/queue.ts` | empty child question output synthesizes exactly one completion-confirmation question. |
 | SD-CHECK-004-QuestionItemSchema | `src/workflows/spec-doc/states/logical-consistency-check.ts` | all generated issue-resolution items satisfy numbered question schema constraints. |
 | SD-CHECK-005-ConsistencyPassCounter | `src/workflows/spec-doc/states/logical-consistency-check.ts` | `consistencyCheckPasses` increments on each successful pass. |
 | SD-CHECK-006-RemainingQuestionIdsInterpolation | `src/workflows/spec-doc/states/logical-consistency-check.ts` | `{{remainingQuestionIdsJson}}` is sourced from persisted integration output. |

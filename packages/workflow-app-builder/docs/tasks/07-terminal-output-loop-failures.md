@@ -27,7 +27,7 @@ Implement terminal semantics (`Done` and `failed`) including completion confirma
 
 ## Spec/Behavior Links
 - Spec: sections 10, 10.1, 11.
-- Behaviors: `B-SD-TRANS-007`, `B-SD-DONE-001`, `B-SD-DONE-002`, `B-SD-DONE-003`, `B-SD-LOOP-001`, `B-SD-LOOP-002`, `B-SD-FAIL-001`, `B-SD-COPILOT-002`.
+- Behaviors: `B-SD-TRANS-007`, `B-SD-TRANS-012`, `B-SD-TRANS-015`, `B-SD-DONE-001`, `B-SD-DONE-002`, `B-SD-DONE-003`, `B-SD-FAIL-001`, `B-SD-COPILOT-002`.
 
 ## Fixed Implementation Decisions
 - Completion confirmation validation is evaluated before terminalization.

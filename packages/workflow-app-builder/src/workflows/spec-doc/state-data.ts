@@ -109,6 +109,9 @@ export function findMatchingResearchNote(
  */
 export type DeferredQuestionStack = string[];
 
+/** Per-question feedback request attempt number for child-run idempotency. */
+export type FeedbackRequestAttempts = Record<string, number>;
+
 /**
  * Root state data model persisted across FSM transitions.
  *
@@ -129,6 +132,8 @@ export interface SpecDocStateData {
   artifacts: SpecDocArtifacts;
   /** LIFO stack of deferred source question ids awaiting revisit. */
   deferredQuestionIds?: DeferredQuestionStack;
+  /** Per-question feedback request attempt number used for re-ask idempotency. */
+  feedbackRequestAttemptsByQuestionId?: FeedbackRequestAttempts;
   /** Research-only outcomes recorded outside normalized integration answers. */
   researchNotes: ResearchNote[];
   /**
@@ -154,7 +159,28 @@ export function createInitialStateData(): SpecDocStateData {
     },
     artifacts: {},
     deferredQuestionIds: [],
+    feedbackRequestAttemptsByQuestionId: {},
     researchNotes: [],
+  };
+}
+
+/** Return the current feedback request attempt for a question, defaulting to 0. */
+export function getFeedbackRequestAttempt(
+  attemptsByQuestionId: Readonly<FeedbackRequestAttempts> | undefined,
+  questionId: string,
+): number {
+  return attemptsByQuestionId?.[questionId] ?? 0;
+}
+
+/** Increment and return the feedback request attempt map for a question. */
+export function incrementFeedbackRequestAttempt(
+  attemptsByQuestionId: Readonly<FeedbackRequestAttempts> | undefined,
+  questionId: string,
+): FeedbackRequestAttempts {
+  const attempts = attemptsByQuestionId ?? {};
+  return {
+    ...attempts,
+    [questionId]: getFeedbackRequestAttempt(attempts, questionId) + 1,
   };
 }
 
