@@ -1,12 +1,14 @@
 /**
  * ITX-SD-003: Custom prompt classification routing matrix.
  *
- * Behaviors: B-SD-TRANS-005, B-SD-TRANS-008, B-SD-TRANS-009, B-SD-QUEUE-005.
+ * Behaviors: B-SD-TRANS-005, B-SD-TRANS-008, B-SD-TRANS-009,
+ * B-SD-TRANS-013, B-SD-QUEUE-005.
  *
- * Validates the two classification intents route correctly with queue items
- * remaining and queue exhausted. Custom answer buffers are preserved in
- * accumulated answers and classification uses structuredOutput.intent as
- * sole routing authority.
+ * Validates all three classification intents route correctly with queue items
+ * remaining and queue exhausted. Question intents defer and revisit the
+ * source question, while custom answer buffers are preserved in accumulated
+ * answers and classification uses structuredOutput.intent as sole routing
+ * authority.
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
@@ -45,34 +47,44 @@ beforeEach(() => {
 describe('ITX-SD-003: Custom prompt classification routing matrix', () => {
   const sourceQuestion = makeQueueItem('q-classify-001');
 
-  it('routes clarifying-question to ExpandQuestionWithClarification (B-SD-TRANS-009)', async () => {
-    copilotDouble.reset({
-      ClassifyCustomPrompt: [
-        {
-          structuredOutput: makeClassificationOutput('clarifying-question', {
-            customQuestionText: 'Could you clarify the scope boundary?',
-          }),
-        },
-      ],
-    });
+  it.each([
+    ['clarifying-question', 'Could you clarify the scope boundary?'],
+    ['unrelated-question', 'What do comparable systems usually choose here?'],
+  ] as const)(
+    'routes %s to ExpandQuestionWithClarification and defers the source question (B-SD-TRANS-008, B-SD-TRANS-013)',
+    async (intent, customQuestionText) => {
+      copilotDouble.reset({
+        ClassifyCustomPrompt: [
+          {
+            structuredOutput: makeClassificationOutput(intent, {
+              customQuestionText,
+            }),
+          },
+        ],
+      });
 
-    const input = makeDefaultInput();
-    const stateData = makeStateDataForClassification(sourceQuestion, 'What about edge cases?');
-    const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink);
+      const input = makeDefaultInput();
+      const stateData = makeStateDataForClassification(sourceQuestion, 'What about edge cases?');
+      stateData.queue.push(makeQueueItem('q-classify-002'));
+      const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink);
 
-    await handleClassifyCustomPrompt(ctx, stateData);
+      await handleClassifyCustomPrompt(ctx, stateData);
 
-    expect(result.failedError).toBeUndefined();
-    expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].to).toBe('ExpandQuestionWithClarification');
+      expect(result.failedError).toBeUndefined();
+      expect(result.transitions).toHaveLength(1);
+      expect(result.transitions[0].to).toBe('ExpandQuestionWithClarification');
 
-    const nextData = result.transitions[0].data as SpecDocStateData;
-    expect(nextData.pendingClarification).toBeDefined();
-    expect(nextData.pendingClarification!.sourceQuestionId).toBe(sourceQuestion.questionId);
-    expect(nextData.pendingClarification!.customQuestionText).toBe(
-      'Could you clarify the scope boundary?',
-    );
-  });
+      const nextData = result.transitions[0].data as SpecDocStateData;
+      expect(nextData.pendingClarification).toBeDefined();
+      expect(nextData.pendingClarification!.sourceQuestionId).toBe(sourceQuestion.questionId);
+      expect(nextData.pendingClarification!.intent).toBe(intent);
+      expect(nextData.pendingClarification!.customQuestionText).toBe(customQuestionText);
+      expect(nextData.queue[0].answered).toBe(false);
+      expect(nextData.normalizedAnswers).toHaveLength(stateData.normalizedAnswers.length - 1);
+      expect(nextData.deferredQuestionIds).toEqual([sourceQuestion.questionId]);
+      expect(nextData.queueIndex).toBe(stateData.queueIndex);
+    },
+  );
 
   it('routes custom-answer to NumberedOptionsHumanRequest (B-SD-TRANS-008)', async () => {
     copilotDouble.reset({

@@ -1,4 +1,4 @@
 {
-  "intent": "clarifying-question",
-  "clarifyingQuestionText": "Can you elaborate on the expected query patterns for the REST vs GraphQL decision?"
+  "intent": "unrelated-question",
+  "customQuestionText": "What do similar analytics systems usually choose for API shape at this scale?"
 }

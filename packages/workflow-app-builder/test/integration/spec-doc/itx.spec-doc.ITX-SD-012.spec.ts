@@ -34,6 +34,7 @@ import {
   makeQuestionItem,
   makeClassificationOutput,
   makeClarificationFollowUpOutput,
+  makeResearchOnlyClarificationOutput,
   makeStateDataAfterIntegration,
   makeStateDataForClassification,
   makeStateDataForExpandClarification,
@@ -194,6 +195,51 @@ describe('ITX-SD-012: Prompt template ID traceability', () => {
     expect(delegations).toHaveLength(1);
     expect(delegations[0].observabilityType).toBe(OBS_TYPES.delegationStarted);
     expect(delegations[0].state).toBe('IntegrateIntoSpec');
+  });
+
+  it('research-only clarification emits research observability alongside template traceability (B-SD-OBS-001)', async () => {
+    const sourceQuestion = makeQueueItem('q-tpl-research');
+    copilotDouble.reset({
+      ExpandQuestionWithClarification: [
+        {
+          structuredOutput: makeResearchOnlyClarificationOutput(
+            'Workspace research resolves the clarification without asking another human question.',
+          ),
+        },
+      ],
+    });
+
+    const input = makeDefaultInput();
+    const stateData = makeStateDataForExpandClarification(
+      sourceQuestion,
+      'What do the existing docs already say about this trade-off?',
+    );
+    stateData.queue[0] = { ...stateData.queue[0], answered: false };
+    stateData.queueIndex = 1;
+    stateData.normalizedAnswers = [];
+    stateData.deferredQuestionIds = [sourceQuestion.questionId];
+    stateData.researchNotes = [];
+    stateData.pendingClarification = {
+      sourceQuestionId: sourceQuestion.questionId,
+      intent: 'clarifying-question',
+      customQuestionText: 'What do the existing docs already say about this trade-off?',
+    };
+
+    const { ctx } = createMockContext(input, copilotDouble, feedbackController, obsSink);
+
+    await handleExpandQuestionWithClarification(ctx, stateData);
+
+    const delegations = obsSink.delegationEvents();
+    expect(delegations).toHaveLength(1);
+    expect(delegations[0].payload.promptTemplateId).toBe(TEMPLATE_IDS.expandClarification);
+
+    const researchEvents = obsSink.eventsByType(OBS_TYPES.researchResultLogged);
+    expect(researchEvents).toHaveLength(1);
+    expect(researchEvents[0].payload).toMatchObject({
+      sourceQuestionId: sourceQuestion.questionId,
+      researchOutcome: 'resolved-with-research',
+      promptTemplateId: TEMPLATE_IDS.expandClarification,
+    });
   });
 
   it('copilot double records correlationId with correct state:templateId format', async () => {

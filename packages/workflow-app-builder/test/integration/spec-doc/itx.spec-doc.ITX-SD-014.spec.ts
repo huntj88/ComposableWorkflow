@@ -11,6 +11,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 
 import { handleDone } from '../../../src/workflows/spec-doc/states/done.js';
+import { handleNumberedOptionsHumanRequest } from '../../../src/workflows/spec-doc/states/numbered-options-human-request.js';
 import { COMPLETION_CONFIRMATION_QUESTION_ID } from '../../../src/workflows/spec-doc/queue.js';
 import type { SpecDocStateData } from '../../../src/workflows/spec-doc/state-data.js';
 import { createCopilotDouble, type CopilotDouble } from '../harness/spec-doc/copilot-double.js';
@@ -247,6 +248,95 @@ describe('ITX-SD-014: Done state terminal output invariants', () => {
       expect(result.completedOutput).toBeUndefined();
       expect(result.failedError).toBeDefined();
       expect(result.failedError!.message).toContain('consistencyCheckPasses');
+    });
+  });
+
+  describe('Deferred-question exhaustion guards', () => {
+    it('revisits a deferred source question instead of routing to Done when completion is already selected (B-SD-TRANS-015)', async () => {
+      const input = makeDefaultInput();
+      const stateData: SpecDocStateData = {
+        queue: [
+          makeQueueItem('q-deferred-done', { answered: false }),
+          {
+            ...makeQueueItem(COMPLETION_CONFIRMATION_QUESTION_ID, {
+              kind: 'completion-confirmation' as const,
+              prompt: 'Is the spec document complete and ready?',
+              options: [
+                { id: 1, label: 'Yes, done', description: 'Accept the spec.' },
+                { id: 2, label: 'No, continue', description: 'Keep refining.' },
+              ],
+            }),
+            answered: true,
+          },
+        ],
+        queueIndex: 2,
+        normalizedAnswers: [
+          {
+            questionId: COMPLETION_CONFIRMATION_QUESTION_ID,
+            selectedOptionIds: [1],
+            answeredAt: '2026-01-15T10:00:00.000Z',
+          },
+        ],
+        counters: {
+          integrationPasses: 1,
+          consistencyCheckPasses: 1,
+        },
+        artifacts: {
+          specPath: 'docs/generated-spec.md',
+        },
+        deferredQuestionIds: ['q-deferred-done'],
+        researchNotes: [],
+      };
+
+      const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink);
+
+      await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+      expect(result.failedError).toBeUndefined();
+      expect(result.completedOutput).toBeUndefined();
+      expect(result.transitions).toHaveLength(1);
+      expect(result.transitions[0].to).toBe('NumberedOptionsHumanRequest');
+
+      const nextData = result.transitions[0].data as SpecDocStateData;
+      expect(nextData.queueIndex).toBe(0);
+    });
+
+    it('revisits a deferred source question instead of routing to IntegrateIntoSpec on queue exhaustion (B-SD-TRANS-015)', async () => {
+      const input = makeDefaultInput();
+      const stateData: SpecDocStateData = {
+        queue: [
+          makeQueueItem('q-deferred-integrate', { answered: false }),
+          makeQueueItem('q-answered-tail', { answered: true }),
+        ],
+        queueIndex: 2,
+        normalizedAnswers: [
+          {
+            questionId: 'q-answered-tail',
+            selectedOptionIds: [1],
+            answeredAt: '2026-01-15T10:00:00.000Z',
+          },
+        ],
+        counters: {
+          integrationPasses: 1,
+          consistencyCheckPasses: 1,
+        },
+        artifacts: {
+          specPath: 'docs/generated-spec.md',
+        },
+        deferredQuestionIds: ['q-deferred-integrate'],
+        researchNotes: [],
+      };
+
+      const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink);
+
+      await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+      expect(result.failedError).toBeUndefined();
+      expect(result.transitions).toHaveLength(1);
+      expect(result.transitions[0].to).toBe('NumberedOptionsHumanRequest');
+
+      const nextData = result.transitions[0].data as SpecDocStateData;
+      expect(nextData.queueIndex).toBe(0);
     });
   });
 

@@ -114,7 +114,7 @@ A behavior is integration-primary when one or more is true:
 **Why not E2E-only:** requires combinatorial coverage of classification outcomes across queue states.
 
 **Setup**
-- Configure copilot prompt stub to return `clarifying-question`, `unrelated-question`, or `custom-answer` intent for different responses.
+- Configure copilot prompt stub to return `clarifying-question`, `unrelated-question`, and `custom-answer` intent for different responses.
 - Exercise all classification paths with queue items remaining and queue exhausted.
 
 **Assertions**
@@ -123,6 +123,7 @@ A behavior is integration-primary when one or more is true:
 - Custom text classification takes precedence over direct queue self-loop evaluation.
 - Buffered custom-answers are present in accumulated answers at queue exhaustion.
 - Question intents defer the source question unless it already has a valid answer.
+- Deferred question intent paths preserve revisit precedence over older unresolved queue items.
 - Classification uses schema-validated `structuredOutput.intent` as sole routing authority.
 
 **Related behaviors:** `B-SD-TRANS-005`, `B-SD-TRANS-008`, `B-SD-TRANS-009`, `B-SD-TRANS-013`, `B-SD-QUEUE-005`.
@@ -160,6 +161,7 @@ A behavior is integration-primary when one or more is true:
 - Workflow transitions back to `NumberedOptionsHumanRequest`.
 - Q1 remains pending and is revisited before advancing permanently to Q2.
 - `structuredOutput.researchOutcome === "resolved-with-research"` is the sole branch selector.
+- Research-only outcomes are persisted in `researchNotes[]` rather than normalized integration answers.
 
 **Related behaviors:** `B-SD-TRANS-010`, `B-SD-TRANS-014`.
 
@@ -260,8 +262,8 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-SD-SCHEMA-004`, `B-SD-SCHEMA-005`, `B-SD-SCHEMA-006`.
 
-## ITX-SD-012: Prompt template ID traceability
-**Why not E2E-only:** requires direct inspection of observability events for template metadata.
+## ITX-SD-012: Prompt template ID traceability and research observability
+**Why not E2E-only:** requires direct inspection of observability events for template metadata and research-only log payloads.
 
 **Setup**
 - Run workflow through multiple states with copilot delegation.
@@ -271,6 +273,7 @@ A behavior is integration-primary when one or more is true:
 - Each copilot delegation event includes the prompt template ID (e.g., `spec-doc.integrate.v1`, `spec-doc.consistency-check.v1`, `spec-doc.classify-custom-prompt.v1`, `spec-doc.expand-clarification.v1`).
 - Template IDs are stable and match documented identifiers from section 7.2 of the workflow spec.
 - Template ID is present in both event payloads and structured log records.
+- Research-only clarification outcomes emit `spec-doc.research.logged` with the same prompt-template traceability as the originating clarification delegation.
 
 **Related behaviors:** `B-SD-OBS-002`, `B-SD-COPILOT-003`.
 
@@ -303,6 +306,7 @@ A behavior is integration-primary when one or more is true:
 - `Done` is reached only from `NumberedOptionsHumanRequest` in all tested paths.
 - Terminal output satisfies: `status === "completed"`, `specPath` ends with `.md`, `summary.unresolvedQuestions === 0`.
 - `artifacts.integrationPasses` and `artifacts.consistencyCheckPasses` are accurate per path.
+- Deferred source questions block both `Done` and `IntegrateIntoSpec` routing until the deferred stack is empty.
 
 **Related behaviors:** `B-SD-DONE-001`, `B-SD-DONE-002`, `B-SD-DONE-003`.
 
@@ -319,7 +323,7 @@ A behavior is integration-primary when one or more is true:
 ## 5.3 E2E/System-Owned Coverage (Intentional)
 - `B-SD-TRANS-001` and `B-SD-TRANS-002` are primarily covered by golden-path E2E (`GS-SD-001`, `GS-SD-002`) and server run-start/transition behavior suites.
 - `B-SD-HFB-004` is primarily covered by server boundary/contract tests plus E2E child-launch contract assertions.
-- `B-SD-OBS-001` is primarily covered by end-to-end event stream assertions in golden scenarios.
+- `B-SD-OBS-001` is shared: end-to-end scenarios prove production parity while ITX-SD-004/012 cover deterministic research-only observability details.
 - `B-SD-FAIL-002` is primarily covered by server lifecycle/cancellation integration tests and spec-doc E2E cancellation scenarios.
 
 Guideline:

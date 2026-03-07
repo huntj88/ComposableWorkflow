@@ -377,6 +377,7 @@ Per run, events must be emitted for:
 - consistency-check outcome,
 - custom prompt classification result,
 - clarification follow-up generated,
+- research-only clarification result logged,
 - terminal completion or failure.
 
 All events include `runId`, `workflowType`, `state`, and sequence ordering.
@@ -416,21 +417,23 @@ Must assert:
 - `IntegrateIntoSpec` called twice with different `source` values.
 - All normalized answers present in second integration input.
 
-## GS-SD-003: Custom prompt classification round trip
+## GS-SD-003: Research-first custom prompt round trip
 1. Start workflow and reach `NumberedOptionsHumanRequest`.
 2. User provides custom prompt text with response.
 3. `ClassifyCustomPrompt` classifies as `custom-answer`.
 4. Answer is buffered; queue processing continues.
-5. On another question, user provides clarifying question text.
-6. `ClassifyCustomPrompt` classifies as `clarifying-question`.
-7. `ExpandQuestionWithClarification` inserts follow-up as immediate next.
-8. Follow-up is asked and answered; workflow completes.
+5. On another question, user provides research-style clarification text.
+6. `ClassifyCustomPrompt` classifies as a question intent (`clarifying-question` or `unrelated-question`).
+7. `ExpandQuestionWithClarification` performs research first and resolves without emitting a follow-up question.
+8. The source numbered question is revisited before older queued items.
+9. Workflow completes after the deferred question is answered.
 
 Must assert:
 - At least one question intent plus `custom-answer` are exercised.
 - Custom-answer buffered and carried to `IntegrateIntoSpec`.
-- Clarification follow-up inserted ahead of remaining queue items.
-- New question has new `questionId` and conforms to schema.
+- Research-only clarification emits observability for the research result.
+- No new follow-up question is inserted when research resolves the detour.
+- The deferred source question is revisited before older queued items.
 
 ## GS-SD-005: Copilot prompt workflow failure propagation
 1. Start workflow.

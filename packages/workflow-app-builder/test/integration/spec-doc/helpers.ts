@@ -179,6 +179,16 @@ export function makeClarificationFollowUpOutput(questionId: string): Clarificati
   };
 }
 
+/** Create a research-only clarification output with no follow-up question. */
+export function makeResearchOnlyClarificationOutput(
+  researchSummary = 'Research resolved the question without needing a new follow-up.',
+): ClarificationFollowUpOutput {
+  return {
+    researchOutcome: 'resolved-with-research',
+    researchSummary,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // State data builders
 // ---------------------------------------------------------------------------

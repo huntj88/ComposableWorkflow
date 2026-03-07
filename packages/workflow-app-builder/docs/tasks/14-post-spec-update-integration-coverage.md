@@ -10,11 +10,11 @@
 Add integration and scenario coverage for the clarification-research changes introduced after the original integration suite task was completed, without rewriting the completed task history.
 
 ## Implementation Tasks
-- [ ] Add coverage for the research-only clarification path documented as `ITX-SD-004`.
-- [ ] Expand custom-routing integration coverage so `ITX-SD-003` includes `unrelated-question` alongside existing intents.
-- [ ] Add coverage that deferred source questions block terminal exhaustion until revisited.
-- [ ] Add coverage that research-result observability is emitted on research-only outcomes.
-- [ ] Update the production black-box `GS-SD-003` scenario for the revised clarification round-trip behavior.
+- [x] Add coverage for the research-only clarification path documented as `ITX-SD-004`.
+- [x] Expand custom-routing integration coverage so `ITX-SD-003` includes `unrelated-question` alongside existing intents.
+- [x] Add coverage that deferred source questions block terminal exhaustion until revisited.
+- [x] Add coverage that research-result observability is emitted on research-only outcomes.
+- [x] Update the production black-box `GS-SD-003` scenario for the revised clarification round-trip behavior.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-003.spec.ts`

@@ -12,6 +12,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 
 import type { SpecDocStateData } from '../../../src/workflows/spec-doc/state-data.js';
 import { handleExpandQuestionWithClarification } from '../../../src/workflows/spec-doc/states/expand-question-with-clarification.js';
+import { handleNumberedOptionsHumanRequest } from '../../../src/workflows/spec-doc/states/numbered-options-human-request.js';
 import { createCopilotDouble, type CopilotDouble } from '../harness/spec-doc/copilot-double.js';
 import {
   createFeedbackController,
@@ -296,5 +297,89 @@ describe('ITX-SD-005: Clarification insertion ordering correctness', () => {
 
     const nextData = result.transitions[0].data as SpecDocStateData;
     expect(nextData.pendingClarification).toBeUndefined();
+  });
+
+  it('revisits the deferred source question after the inserted follow-up chain completes (B-SD-TRANS-013)', async () => {
+    const q1 = makeQueueItem('q-revisit-source');
+    const q2 = makeQueueItem('q-revisit-next');
+    const q3 = makeQueueItem('q-revisit-later');
+
+    const stateData: SpecDocStateData = {
+      queue: [q1, q2, q3],
+      queueIndex: 1,
+      normalizedAnswers: [],
+      counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
+      artifacts: { specPath: 'docs/generated-spec.md' },
+      deferredQuestionIds: ['q-revisit-source'],
+      researchNotes: [],
+      pendingClarification: {
+        sourceQuestionId: 'q-revisit-source',
+        intent: 'clarifying-question',
+        customQuestionText: 'Clarify the API contract boundary.',
+      },
+    };
+
+    copilotDouble.reset({
+      ExpandQuestionWithClarification: [
+        { structuredOutput: makeClarificationFollowUpOutput('q-revisit-source-fu') },
+      ],
+    });
+    feedbackController.reset({
+      'q-revisit-source-fu': [{ selectedOptionIds: [1] }],
+      'q-revisit-source': [{ selectedOptionIds: [2] }],
+    });
+
+    const input = makeDefaultInput();
+    const { ctx: expandCtx, result: expandResult } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+    );
+
+    await handleExpandQuestionWithClarification(expandCtx, stateData);
+
+    const afterExpand = expandResult.transitions[0].data as SpecDocStateData;
+    expect(afterExpand.queue.map((item) => item.questionId)).toEqual([
+      'q-revisit-source',
+      'q-revisit-source-fu',
+      'q-revisit-next',
+      'q-revisit-later',
+    ]);
+
+    const { ctx: followUpCtx, result: followUpResult } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+    );
+    await handleNumberedOptionsHumanRequest(followUpCtx, afterExpand);
+
+    expect(followUpResult.failedError).toBeUndefined();
+    expect(followUpResult.transitions[0].to).toBe('NumberedOptionsHumanRequest');
+
+    const afterFollowUp = followUpResult.transitions[0].data as SpecDocStateData;
+    expect(afterFollowUp.queueIndex).toBe(0);
+    expect(afterFollowUp.deferredQuestionIds).toEqual(['q-revisit-source']);
+
+    const { ctx: deferredCtx, result: deferredResult } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+    );
+    await handleNumberedOptionsHumanRequest(deferredCtx, afterFollowUp);
+
+    expect(deferredResult.failedError).toBeUndefined();
+    expect(deferredResult.transitions[0].to).toBe('NumberedOptionsHumanRequest');
+
+    const afterDeferredReplay = deferredResult.transitions[0].data as SpecDocStateData;
+    expect(afterDeferredReplay.queueIndex).toBe(1);
+    expect(afterDeferredReplay.queue[0].answered).toBe(true);
+    expect(afterDeferredReplay.deferredQuestionIds).toEqual([]);
+    expect(feedbackController.calls.map((call) => call.questionId)).toEqual([
+      'q-revisit-source-fu',
+      'q-revisit-source',
+    ]);
   });
 });
