@@ -86,13 +86,20 @@ describe.skipIf(shouldSkip)('e2e.blackbox.spec-doc.GS-SD-002', () => {
     );
     expect(feedbackStarts.length).toBeGreaterThanOrEqual(3);
 
-    // Multiple copilot child.started events (2 integrations + 2 consistency checks)
+    // Parent-visible direct copilot child starts come from the 2 integration passes.
     const copilotStarts = events.filter(
       (e) =>
         e.eventType === 'child.started' &&
         e.child?.childWorkflowType === 'app-builder.copilot.prompt.v1',
     );
-    expect(copilotStarts.length).toBeGreaterThanOrEqual(4);
+    expect(copilotStarts.length).toBe(2);
+
+    const consistencyChildStarts = events.filter(
+      (e) =>
+        e.eventType === 'child.started' &&
+        e.child?.childWorkflowType === 'app-builder.spec-doc.consistency-follow-up.v1',
+    );
+    expect(consistencyChildStarts.length).toBe(2);
 
     // Event sequences are monotonically increasing
     const sequences = events.map((e) => e.sequence);

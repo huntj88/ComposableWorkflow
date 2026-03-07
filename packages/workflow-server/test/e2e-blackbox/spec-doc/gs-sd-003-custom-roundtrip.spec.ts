@@ -110,7 +110,14 @@ describe.skipIf(shouldSkip)('e2e.blackbox.spec-doc.GS-SD-003', () => {
         e.eventType === 'child.started' &&
         e.child?.childWorkflowType === 'app-builder.copilot.prompt.v1',
     );
-    expect(copilotStarts.length).toBeGreaterThanOrEqual(7);
+    expect(copilotStarts.length).toBe(5);
+
+    const consistencyChildStarts = events.filter(
+      (e) =>
+        e.eventType === 'child.started' &&
+        e.child?.childWorkflowType === 'app-builder.spec-doc.consistency-follow-up.v1',
+    );
+    expect(consistencyChildStarts.length).toBe(2);
 
     const feedbackStarts = events.filter(
       (e) =>

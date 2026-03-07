@@ -42,6 +42,7 @@ export {
   makeReadinessChecklist,
   makeConsistencyOutput,
   makeBlockingIssue,
+  makeActionableItem,
   makeClassificationOutput,
   makeClarificationFollowUpOutput,
   makeStateDataAfterIntegration,
@@ -51,5 +52,6 @@ export {
   runFSM,
   type TransitionRecord,
   type MockWorkflowResult,
+  type ChildLaunchRecord,
   type FSMRunResult,
 } from './spec-doc/helpers.js';

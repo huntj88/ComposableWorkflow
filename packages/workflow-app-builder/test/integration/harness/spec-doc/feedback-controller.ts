@@ -44,6 +44,8 @@ export interface FeedbackCallRecord {
   requestedByRunId: string;
   requestedByWorkflowType: string;
   requestedByState?: string;
+  correlationId?: string;
+  idempotencyKey?: string;
   calledAt: string;
 }
 
@@ -80,6 +82,7 @@ export interface FeedbackController {
     workflowType: string;
     input: FeedbackChildInput;
     correlationId?: string;
+    idempotencyKey?: string;
   }): Promise<FeedbackChildOutput>;
 
   /** All recorded calls in order. */
@@ -139,6 +142,8 @@ export function createFeedbackController(
         requestedByRunId: input.requestedByRunId,
         requestedByWorkflowType: input.requestedByWorkflowType,
         requestedByState: input.requestedByState,
+        correlationId: req.correlationId,
+        idempotencyKey: req.idempotencyKey,
         calledAt: new Date().toISOString(),
       };
       calls.push(record);

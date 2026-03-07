@@ -182,6 +182,8 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | ITX-SD-012 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-012.spec.ts | SDB-10 | implemented | required |
 | ITX-SD-013 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-013.spec.ts | SDB-10 | implemented | required |
 | ITX-SD-014 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-014.spec.ts | SDB-10 | implemented | required |
+| ITX-SD-015 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-015.spec.ts | SDB-17 | implemented | required |
+| ITX-SD-016 | integration | packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-016.spec.ts | SDB-17 | implemented | required |
 
 ### Spec-doc E2E golden scenarios (`GS-SD-*`, `SD-E2E-*`)
 
@@ -190,6 +192,7 @@ Harness note: suites in `packages/workflow-server/test/e2e/**` execute with the 
 | SD-E2E-001-HappyPathCompletion | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-001-happy-path.spec.ts | SDB-11 | implemented | required |
 | SD-E2E-002-MultiLoopCompletion | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-002-multi-loop.spec.ts | SDB-11 | implemented | required |
 | SD-E2E-003-CustomPromptRoundTrip | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-003-custom-roundtrip.spec.ts | SDB-11 | implemented | required |
+| SD-E2E-004-ImmediateActionParity | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-004-immediate-action.spec.ts | SDB-17 | implemented | required |
 | SD-E2E-005-CopilotFailurePropagation | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/gs-sd-005-copilot-failure-propagation.spec.ts | SDB-11 | implemented | required |
 | SD-E2E-006-FeedbackCancellationLifecycle | e2e-blackbox | packages/workflow-server/test/e2e-blackbox/spec-doc/spec-doc-feedback-cancellation.spec.ts | SDB-11 | implemented | required |
 

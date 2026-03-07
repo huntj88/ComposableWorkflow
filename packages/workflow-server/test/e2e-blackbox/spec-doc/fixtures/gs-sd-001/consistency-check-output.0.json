@@ -1,11 +1,14 @@
 {
   "blockingIssues": [],
+  "actionableItems": [],
   "followUpQuestions": [],
   "readinessChecklist": {
     "hasScopeAndObjective": true,
     "hasNonGoals": true,
     "hasConstraintsAndAssumptions": true,
     "hasInterfacesOrContracts": true,
-    "hasTestableAcceptanceCriteria": true
+    "hasTestableAcceptanceCriteria": true,
+    "hasNoContradictions": true,
+    "hasSufficientDetail": true
   }
 }

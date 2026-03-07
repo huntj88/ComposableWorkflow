@@ -1,0 +1,17 @@
+[
+  {
+    "specPath": "docs/generated-spec.md",
+    "changeSummary": ["Created the initial specification draft from the workflow request."],
+    "resolvedQuestionIds": [],
+    "remainingQuestionIds": []
+  },
+  {
+    "specPath": "docs/generated-spec.md",
+    "changeSummary": [
+      "Applied immediate action items from the delegated consistency child.",
+      "Clarified scope and acceptance criteria wording."
+    ],
+    "resolvedQuestionIds": [],
+    "remainingQuestionIds": []
+  }
+]

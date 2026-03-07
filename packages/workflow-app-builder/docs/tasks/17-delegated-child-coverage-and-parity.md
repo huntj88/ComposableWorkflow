@@ -14,12 +14,12 @@ Close the remaining deterministic integration and production-parity gaps introdu
 This task stays scoped to the currently shipped delegated-child architecture established by `SDB-16A`. Explicit child-FSM self-loop runtime states are deferred to `SDB-18`.
 
 ## Implementation Tasks
-- [ ] Extend `ITX-SD-007` to cover `source: "consistency-action-items"`.
-- [ ] Extend `ITX-SD-012` to assert child/stage observability metadata and short-circuit visibility.
-- [ ] Add `ITX-SD-015` for deferred revisit feedback-attempt/idempotency behavior.
-- [ ] Add `ITX-SD-016` for delegated child contract enforcement and short-circuit behavior.
-- [ ] Add black-box `GS-SD-004` coverage for the immediate-action child-result path.
-- [ ] Refresh shared coverage-matrix references so new `ITX-SD-*` / `GS-SD-*` assets remain traceable.
+- [x] Extend `ITX-SD-007` to cover `source: "consistency-action-items"`.
+- [x] Extend `ITX-SD-012` to assert child/stage observability metadata and short-circuit visibility.
+- [x] Add `ITX-SD-015` for deferred revisit feedback-attempt/idempotency behavior.
+- [x] Add `ITX-SD-016` for delegated child contract enforcement and short-circuit behavior.
+- [x] Add black-box `GS-SD-004` coverage for the immediate-action child-result path.
+- [x] Refresh shared coverage-matrix references so new `ITX-SD-*` / `GS-SD-*` assets remain traceable.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-007.spec.ts`

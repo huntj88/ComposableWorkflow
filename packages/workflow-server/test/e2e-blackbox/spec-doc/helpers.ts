@@ -5,6 +5,8 @@
  * production server — no in-process injection or test harness coupling.
  */
 
+import { cpSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -346,7 +348,13 @@ export const cancelRun = async (runId: string): Promise<void> => {
 
 const FIXTURES_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
 
-export const fixtureDir = (scenario: string): string => path.join(FIXTURES_DIR, scenario);
+export const fixtureDir = (scenario: string): string => {
+  const sourceDir = path.join(FIXTURES_DIR, scenario);
+  const tempRoot = mkdtempSync(path.join(tmpdir(), `spec-doc-fixture-${scenario}-`));
+  const tempScenarioDir = path.join(tempRoot, scenario);
+  cpSync(sourceDir, tempScenarioDir, { recursive: true });
+  return tempScenarioDir;
+};
 
 // ---------------------------------------------------------------------------
 // Utilities

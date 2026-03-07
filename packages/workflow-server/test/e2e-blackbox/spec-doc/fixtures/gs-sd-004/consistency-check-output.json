@@ -1,0 +1,121 @@
+[
+  {
+    "blockingIssues": [
+      {
+        "id": "bi-sd-004-immediate-001",
+        "description": "The scope boundary and rollout acceptance criteria are underspecified.",
+        "severity": "high"
+      }
+    ],
+    "actionableItems": [
+      {
+        "itemId": "act-sd-004-001",
+        "instruction": "Rewrite the scope section so that the supported user roles and exclusions are explicit.",
+        "rationale": "The current draft leaves the primary operator persona ambiguous.",
+        "targetSection": "Scope",
+        "blockingIssueIds": ["bi-sd-004-immediate-001"]
+      },
+      {
+        "itemId": "act-sd-004-002",
+        "instruction": "Add acceptance criteria that define rollback safety checks for the deployment workflow.",
+        "rationale": "The workflow needs a testable definition of safe completion before implementation starts.",
+        "targetSection": "Acceptance Criteria",
+        "blockingIssueIds": ["bi-sd-004-immediate-001"]
+      }
+    ],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": false,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": true,
+      "hasTestableAcceptanceCriteria": false,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": false
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": true,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": true,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": true
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": true,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": true,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": true
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": true,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": true,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": true
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": true,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": true,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": true
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": true,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": true,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": true
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": true,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": true,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": true
+    }
+  }
+]

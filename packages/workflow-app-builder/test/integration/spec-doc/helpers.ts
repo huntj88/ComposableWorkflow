@@ -18,15 +18,21 @@ import type {
   SpecDocGenerationOutput,
   SpecIntegrationOutput,
   ConsistencyCheckOutput,
+  ConsistencyFollowUpChildInput,
   NumberedQuestionItem,
   QuestionQueueItem,
   CustomPromptClassificationOutput,
   ClarificationFollowUpOutput,
   ReadinessChecklist,
   BlockingIssue,
+  SpecActionableItem,
 } from '../../../src/workflows/spec-doc/contracts.js';
 import type { SpecDocStateData } from '../../../src/workflows/spec-doc/state-data.js';
 import { createInitialStateData } from '../../../src/workflows/spec-doc/state-data.js';
+import {
+  CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+  executeConsistencyFollowUpPromptLayers,
+} from '../../../src/workflows/spec-doc/consistency-follow-up-child.js';
 import { createSpecDocWorkflowDefinition } from '../../../src/workflows/spec-doc/workflow.js';
 import type { CopilotDouble } from '../harness/spec-doc/copilot-double.js';
 import type { FeedbackController } from '../harness/spec-doc/feedback-controller.js';
@@ -133,6 +139,20 @@ export function makeBlockingIssue(id: string, overrides?: Partial<BlockingIssue>
     id,
     description: `Blocking issue ${id}`,
     severity: 'medium',
+    ...overrides,
+  };
+}
+
+/** Create a valid actionable item. */
+export function makeActionableItem(
+  itemId: string,
+  overrides?: Partial<SpecActionableItem>,
+): SpecActionableItem {
+  return {
+    itemId,
+    instruction: `Apply immediate update ${itemId}`,
+    rationale: `Immediate action required for ${itemId}`,
+    blockingIssueIds: [],
     ...overrides,
   };
 }
@@ -267,8 +287,126 @@ export interface TransitionRecord {
 /** Captured outputs from a mock context invocation. */
 export interface MockWorkflowResult {
   transitions: TransitionRecord[];
+  childLaunches: ChildLaunchRecord[];
   completedOutput?: SpecDocGenerationOutput;
   failedError?: Error;
+}
+
+/** Captured child workflow launch metadata from the mock context. */
+export interface ChildLaunchRecord {
+  workflowType: string;
+  input: unknown;
+  correlationId?: string;
+  idempotencyKey?: string;
+  startedAt: string;
+  completedAt?: string;
+  status: 'pending' | 'completed' | 'failed';
+  output?: unknown;
+  error?: Error;
+}
+
+interface MockContextOptions {
+  executeConsistencyChild?: boolean;
+}
+
+function createChildLaunchResolver(params: {
+  rootInput: SpecDocGenerationInput;
+  copilotDouble: CopilotDouble;
+  feedbackController: FeedbackController;
+  obsSink: ObservabilitySink;
+  childLaunches: ChildLaunchRecord[];
+  options?: MockContextOptions;
+}): <CI, CO>(req: ChildWorkflowRequest<CI>) => Promise<CO> {
+  const resolveChildLaunch = async <CI, CO>(req: ChildWorkflowRequest<CI>): Promise<CO> => {
+    const record: ChildLaunchRecord = {
+      workflowType: req.workflowType,
+      input: req.input,
+      correlationId: req.correlationId,
+      idempotencyKey: req.idempotencyKey,
+      startedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+    params.childLaunches.push(record);
+
+    try {
+      let output: CO;
+
+      if (req.workflowType === 'app-builder.copilot.prompt.v1') {
+        output = (await params.copilotDouble.resolve({
+          workflowType: req.workflowType,
+          input: req.input as { prompt: string; outputSchema?: string },
+          correlationId: req.correlationId,
+        })) as unknown as CO;
+      } else if (req.workflowType === CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE) {
+        if (params.options?.executeConsistencyChild) {
+          const childCtx: WorkflowContext<ConsistencyFollowUpChildInput, ConsistencyCheckOutput> = {
+            runId: 'test-run-001:child:consistency',
+            workflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+            input: req.input as ConsistencyFollowUpChildInput,
+            now: () => new Date('2026-01-15T10:00:00.000Z'),
+            log: (event: WorkflowLogEvent) => {
+              params.obsSink.capture(event);
+            },
+            transition: () => {
+              throw new Error('transition not supported in consistency child test context');
+            },
+            launchChild: resolveChildLaunch,
+            runCommand: async () => {
+              throw new Error('runCommand not supported in integration tests');
+            },
+            complete: () => {
+              throw new Error('complete not supported in consistency child test context');
+            },
+            fail: (error: Error) => {
+              throw error;
+            },
+          };
+
+          output = (await executeConsistencyFollowUpPromptLayers(
+            childCtx,
+            req.input as ConsistencyFollowUpChildInput,
+          )) as unknown as CO;
+        } else {
+          const childResult = await params.copilotDouble.resolve({
+            workflowType: 'app-builder.copilot.prompt.v1',
+            input: {
+              prompt: JSON.stringify(req.input),
+            },
+            correlationId: req.correlationId,
+          });
+          if (childResult.structuredOutput == null) {
+            throw new Error(
+              '[ExecutePromptLayer] Copilot prompt did not return structuredOutput ' +
+                '(template: spec-doc.consistency-scope-objective.v1). Raw: ' +
+                `${childResult.structuredOutputRaw ?? '<empty>'}`,
+            );
+          }
+          output = childResult.structuredOutput as CO;
+        }
+      } else if (req.workflowType === 'server.human-feedback.v1') {
+        output = (await params.feedbackController.resolve({
+          workflowType: req.workflowType,
+          input: req.input as never,
+          correlationId: req.correlationId,
+          idempotencyKey: req.idempotencyKey,
+        })) as unknown as CO;
+      } else {
+        throw new Error(`Unknown child workflow type: ${req.workflowType}`);
+      }
+
+      record.status = 'completed';
+      record.output = output;
+      record.completedAt = new Date().toISOString();
+      return output;
+    } catch (error) {
+      record.status = 'failed';
+      record.error = error instanceof Error ? error : new Error(String(error));
+      record.completedAt = new Date().toISOString();
+      throw error;
+    }
+  };
+
+  return resolveChildLaunch;
 }
 
 /**
@@ -282,13 +420,24 @@ export function createMockContext(
   copilotDouble: CopilotDouble,
   feedbackController: FeedbackController,
   obsSink: ObservabilitySink,
+  options?: MockContextOptions,
 ): {
   ctx: WorkflowContext<SpecDocGenerationInput, SpecDocGenerationOutput>;
   result: MockWorkflowResult;
 } {
   const result: MockWorkflowResult = {
     transitions: [],
+    childLaunches: [],
   };
+
+  const resolveChildLaunch = createChildLaunchResolver({
+    rootInput: input,
+    copilotDouble,
+    feedbackController,
+    obsSink,
+    childLaunches: result.childLaunches,
+    options,
+  });
 
   const ctx: WorkflowContext<SpecDocGenerationInput, SpecDocGenerationOutput> = {
     runId: 'test-run-001',
@@ -301,39 +450,7 @@ export function createMockContext(
     transition: (to: string, data?: unknown) => {
       result.transitions.push({ to, data });
     },
-    launchChild: async <CI, CO>(req: ChildWorkflowRequest<CI>): Promise<CO> => {
-      if (req.workflowType === 'app-builder.copilot.prompt.v1') {
-        return copilotDouble.resolve({
-          workflowType: req.workflowType,
-          input: req.input as { prompt: string; outputSchema?: string },
-          correlationId: req.correlationId,
-        }) as unknown as CO;
-      }
-      if (req.workflowType === 'app-builder.spec-doc.consistency-follow-up.v1') {
-        const childResult = await copilotDouble.resolve({
-          workflowType: 'app-builder.copilot.prompt.v1',
-          input: {
-            prompt: JSON.stringify(req.input),
-          },
-          correlationId: req.correlationId,
-        });
-        if (childResult.structuredOutput == null) {
-          throw new Error(
-            '[ExecutePromptLayer] Copilot prompt did not return structuredOutput ' +
-              `(template: spec-doc.consistency-scope-objective.v1). Raw: ${childResult.structuredOutputRaw ?? '<empty>'}`,
-          );
-        }
-        return childResult.structuredOutput as CO;
-      }
-      if (req.workflowType === 'server.human-feedback.v1') {
-        return feedbackController.resolve({
-          workflowType: req.workflowType,
-          input: req.input as never,
-          correlationId: req.correlationId,
-        }) as unknown as CO;
-      }
-      throw new Error(`Unknown child workflow type: ${req.workflowType}`);
-    },
+    launchChild: resolveChildLaunch,
     runCommand: async () => {
       throw new Error('runCommand not supported in integration tests');
     },
@@ -355,6 +472,7 @@ export function createMockContext(
 /** Result from running the FSM through multiple state transitions. */
 export interface FSMRunResult {
   stateHistory: Array<{ state: string; data: unknown }>;
+  childLaunches: ChildLaunchRecord[];
   completedOutput?: SpecDocGenerationOutput;
   failedError?: Error;
 }
@@ -375,11 +493,24 @@ export async function runFSM(
     maxSteps?: number;
     startState?: string;
     startData?: unknown;
+    executeConsistencyChild?: boolean;
   },
 ): Promise<FSMRunResult> {
   const definition = createSpecDocWorkflowDefinition();
   const maxSteps = options?.maxSteps ?? 50;
   const stateHistory: Array<{ state: string; data: unknown }> = [];
+  const childLaunches: ChildLaunchRecord[] = [];
+
+  const resolveChildLaunch = createChildLaunchResolver({
+    rootInput: input,
+    copilotDouble,
+    feedbackController,
+    obsSink,
+    childLaunches,
+    options: {
+      executeConsistencyChild: options?.executeConsistencyChild,
+    },
+  });
 
   let currentState = options?.startState ?? 'start';
   let currentData: unknown = options?.startData;
@@ -405,39 +536,7 @@ export async function runFSM(
       transition: (to: string, data?: unknown) => {
         transitionTarget = { to, data };
       },
-      launchChild: async <CI, CO>(req: ChildWorkflowRequest<CI>): Promise<CO> => {
-        if (req.workflowType === 'app-builder.copilot.prompt.v1') {
-          return copilotDouble.resolve({
-            workflowType: req.workflowType,
-            input: req.input as { prompt: string; outputSchema?: string },
-            correlationId: req.correlationId,
-          }) as unknown as CO;
-        }
-        if (req.workflowType === 'app-builder.spec-doc.consistency-follow-up.v1') {
-          const childResult = await copilotDouble.resolve({
-            workflowType: 'app-builder.copilot.prompt.v1',
-            input: {
-              prompt: JSON.stringify(req.input),
-            },
-            correlationId: req.correlationId,
-          });
-          if (childResult.structuredOutput == null) {
-            throw new Error(
-              '[ExecutePromptLayer] Copilot prompt did not return structuredOutput ' +
-                `(template: spec-doc.consistency-scope-objective.v1). Raw: ${childResult.structuredOutputRaw ?? '<empty>'}`,
-            );
-          }
-          return childResult.structuredOutput as CO;
-        }
-        if (req.workflowType === 'server.human-feedback.v1') {
-          return feedbackController.resolve({
-            workflowType: req.workflowType,
-            input: req.input as never,
-            correlationId: req.correlationId,
-          }) as unknown as CO;
-        }
-        throw new Error(`Unknown child workflow type: ${req.workflowType}`);
-      },
+      launchChild: resolveChildLaunch,
       runCommand: async () => {
         throw new Error('runCommand not supported');
       },
@@ -453,10 +552,10 @@ export async function runFSM(
     await handler(ctx, currentData);
 
     if (completedOutput !== undefined) {
-      return { completedOutput, stateHistory };
+      return { completedOutput, stateHistory, childLaunches };
     }
     if (failedError !== undefined) {
-      return { failedError, stateHistory };
+      return { failedError, stateHistory, childLaunches };
     }
     if (transitionTarget) {
       currentState = transitionTarget.to;

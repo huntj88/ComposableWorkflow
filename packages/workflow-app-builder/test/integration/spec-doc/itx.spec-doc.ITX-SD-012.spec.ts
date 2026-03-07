@@ -1,21 +1,21 @@
 /**
- * ITX-SD-012: Prompt template ID traceability in delegation events.
+ * ITX-SD-012: Prompt template ID traceability and delegated-child observability.
  *
- * Behaviors: B-SD-OBS-002, B-SD-COPILOT-003.
- *
- * Validates that every copilot delegation emits an observability event
- * carrying the prompt template ID and that the IDs match the canonical
- * `TEMPLATE_IDS` constants.
+ * Behaviors: B-SD-OBS-002, B-SD-OBS-003, B-SD-COPILOT-003, B-SD-CHILD-001.
  */
 
-import { describe, expect, it, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-import { handleIntegrateIntoSpec } from '../../../src/workflows/spec-doc/states/integrate-into-spec.js';
-import { handleLogicalConsistencyCheck } from '../../../src/workflows/spec-doc/states/logical-consistency-check.js';
+import {
+  CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+  CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS,
+} from '../../../src/workflows/spec-doc/consistency-follow-up-child.js';
+import { OBS_TYPES } from '../../../src/workflows/spec-doc/observability.js';
+import { TEMPLATE_IDS } from '../../../src/workflows/spec-doc/prompt-templates.js';
 import { handleClassifyCustomPrompt } from '../../../src/workflows/spec-doc/states/classify-custom-prompt.js';
 import { handleExpandQuestionWithClarification } from '../../../src/workflows/spec-doc/states/expand-question-with-clarification.js';
-import { TEMPLATE_IDS } from '../../../src/workflows/spec-doc/prompt-templates.js';
-import { OBS_TYPES } from '../../../src/workflows/spec-doc/observability.js';
+import { handleIntegrateIntoSpec } from '../../../src/workflows/spec-doc/states/integrate-into-spec.js';
+import { handleLogicalConsistencyCheck } from '../../../src/workflows/spec-doc/states/logical-consistency-check.js';
 import { createCopilotDouble, type CopilotDouble } from '../harness/spec-doc/copilot-double.js';
 import {
   createFeedbackController,
@@ -27,24 +27,30 @@ import {
 } from '../harness/spec-doc/observability-sink.js';
 import {
   createMockContext,
-  makeDefaultInput,
-  makeQueueItem,
-  makeIntegrationOutput,
-  makeConsistencyOutput,
-  makeQuestionItem,
+  makeActionableItem,
   makeClassificationOutput,
   makeClarificationFollowUpOutput,
+  makeConsistencyOutput,
+  makeDefaultInput,
+  makeIntegrationOutput,
+  makeQuestionItem,
+  makeQueueItem,
   makeResearchOnlyClarificationOutput,
   makeStateDataAfterIntegration,
   makeStateDataForClassification,
   makeStateDataForExpandClarification,
 } from './helpers.js';
 
-// ---------------------------------------------------------------------------
-
 let copilotDouble: CopilotDouble;
 let feedbackController: FeedbackController;
 let obsSink: ObservabilitySink;
+
+const makeStageResponses = (
+  overridesByIndex: Array<ReturnType<typeof makeConsistencyOutput> | undefined>,
+) =>
+  CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((_, index) => ({
+    structuredOutput: overridesByIndex[index] ?? makeConsistencyOutput(),
+  }));
 
 beforeEach(() => {
   copilotDouble = createCopilotDouble();
@@ -52,7 +58,7 @@ beforeEach(() => {
   obsSink = createObservabilitySink();
 });
 
-describe('ITX-SD-012: Prompt template ID traceability', () => {
+describe('ITX-SD-012: Prompt template ID traceability and delegated-child observability', () => {
   it('IntegrateIntoSpec delegation emits spec-doc.integrate.v1 template ID (B-SD-OBS-002)', async () => {
     copilotDouble.reset({
       IntegrateIntoSpec: [{ structuredOutput: makeIntegrationOutput() }],
@@ -68,26 +74,101 @@ describe('ITX-SD-012: Prompt template ID traceability', () => {
     expect(delegations[0].payload.promptTemplateId).toBe(TEMPLATE_IDS.integrate);
   });
 
-  it('LogicalConsistencyCheck delegation emits the first scoped consistency template ID', async () => {
+  it('LogicalConsistencyCheck records child workflow start/completion metadata and ordered prompt-layer stage IDs (B-SD-OBS-003)', async () => {
     copilotDouble.reset({
-      LogicalConsistencyCheckCreateFollowUpQuestions: [
+      ExecutePromptLayer: makeStageResponses([
+        makeConsistencyOutput({ followUpQuestions: [makeQuestionItem('q-obs-stage-001')] }),
+      ]),
+    });
+
+    const input = makeDefaultInput();
+    const stateData = makeStateDataAfterIntegration();
+    const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink, {
+      executeConsistencyChild: true,
+    });
+
+    await handleLogicalConsistencyCheck(ctx, stateData);
+
+    expect(result.failedError).toBeUndefined();
+
+    const childLaunches = result.childLaunches.filter(
+      (launch) => launch.workflowType === CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+    );
+    expect(childLaunches).toHaveLength(1);
+    expect(childLaunches[0].status).toBe('completed');
+    expect(childLaunches[0].startedAt).toBeDefined();
+    expect(childLaunches[0].completedAt).toBeDefined();
+
+    const parentDelegation = obsSink
+      .delegationEvents()
+      .find((event) => event.state === 'LogicalConsistencyCheckCreateFollowUpQuestions');
+    expect(parentDelegation?.payload).toMatchObject({
+      promptTemplateId: CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].templateId,
+      childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+    });
+
+    const stageDelegations = obsSink
+      .delegationEvents()
+      .filter((event) => event.state === 'ExecutePromptLayer');
+    expect(stageDelegations).toHaveLength(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length);
+    expect(stageDelegations.map((event) => event.payload.childWorkflowType)).toEqual(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map(() => CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE),
+    );
+    expect(stageDelegations.map((event) => event.payload.stageId)).toEqual(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer) => layer.stageId),
+    );
+
+    const stageConsistencyOutcome = obsSink
+      .consistencyOutcomeEvents()
+      .find((event) => event.state === 'EmitFollowUpQuestions');
+    expect(stageConsistencyOutcome?.payload.childWorkflowType).toBe(
+      CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+    );
+  });
+
+  it('child short-circuiting is externally visible by later stage absence after actionable items appear (B-SD-OBS-003)', async () => {
+    copilotDouble.reset({
+      ExecutePromptLayer: [
+        { structuredOutput: makeConsistencyOutput() },
         {
           structuredOutput: makeConsistencyOutput({
-            followUpQuestions: [makeQuestionItem('q-tpl-001')],
+            actionableItems: [
+              makeActionableItem('act-obs-001', {
+                instruction: 'Rewrite the objective section to resolve the ambiguity.',
+              }),
+            ],
           }),
         },
+        { failure: new Error('later prompt layer should not execute after short-circuit') },
       ],
     });
 
     const input = makeDefaultInput();
     const stateData = makeStateDataAfterIntegration();
-    const { ctx } = createMockContext(input, copilotDouble, feedbackController, obsSink);
+    const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink, {
+      executeConsistencyChild: true,
+    });
 
     await handleLogicalConsistencyCheck(ctx, stateData);
 
-    const delegations = obsSink.delegationEvents();
-    expect(delegations).toHaveLength(1);
-    expect(delegations[0].payload.promptTemplateId).toBe(TEMPLATE_IDS.consistencyScopeObjective);
+    expect(result.failedError).toBeUndefined();
+    expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
+
+    const executedStageIds = obsSink
+      .delegationEvents()
+      .filter((event) => event.state === 'ExecutePromptLayer')
+      .map((event) => event.payload.stageId);
+    expect(executedStageIds).toEqual(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.slice(0, 2).map((layer) => layer.stageId),
+    );
+    expect(executedStageIds).not.toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[2].stageId);
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(2);
+
+    const actionableOutcome = obsSink
+      .consistencyOutcomeEvents()
+      .find((event) => event.state === 'EmitActionableItems');
+    expect(actionableOutcome?.payload.stageId).toBe(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
+    expect(actionableOutcome?.payload.actionableItemsCount).toBe(1);
   });
 
   it('ClassifyCustomPrompt delegation emits spec-doc.classify-custom-prompt.v1 template ID', async () => {
@@ -130,71 +211,6 @@ describe('ITX-SD-012: Prompt template ID traceability', () => {
     const delegations = obsSink.delegationEvents();
     expect(delegations).toHaveLength(1);
     expect(delegations[0].payload.promptTemplateId).toBe(TEMPLATE_IDS.expandClarification);
-  });
-
-  it('all TEMPLATE_IDS are exercised across delegating states (B-SD-COPILOT-003)', async () => {
-    // Run all 4 delegating states sequentially and check all template IDs appear
-
-    // 1. IntegrateIntoSpec
-    copilotDouble.reset({
-      IntegrateIntoSpec: [{ structuredOutput: makeIntegrationOutput() }],
-    });
-    const input = makeDefaultInput();
-    const { ctx: ctx1 } = createMockContext(input, copilotDouble, feedbackController, obsSink);
-    await handleIntegrateIntoSpec(ctx1);
-
-    // 2. LogicalConsistencyCheck
-    copilotDouble.addResponses('LogicalConsistencyCheckCreateFollowUpQuestions', [
-      {
-        structuredOutput: makeConsistencyOutput({
-          followUpQuestions: [makeQuestionItem('q-all-001')],
-        }),
-      },
-    ]);
-    const stateData2 = makeStateDataAfterIntegration();
-    const { ctx: ctx2 } = createMockContext(input, copilotDouble, feedbackController, obsSink);
-    await handleLogicalConsistencyCheck(ctx2, stateData2);
-
-    // 3. ClassifyCustomPrompt
-    copilotDouble.addResponses('ClassifyCustomPrompt', [
-      { structuredOutput: makeClassificationOutput('custom-answer') },
-    ]);
-    const sourceQ = makeQueueItem('q-all-classify');
-    const stateData3 = makeStateDataForClassification(sourceQ, 'My clarification');
-    const { ctx: ctx3 } = createMockContext(input, copilotDouble, feedbackController, obsSink);
-    await handleClassifyCustomPrompt(ctx3, stateData3);
-
-    // 4. ExpandQuestionWithClarification
-    copilotDouble.addResponses('ExpandQuestionWithClarification', [
-      { structuredOutput: makeClarificationFollowUpOutput('q-all-expand-fu') },
-    ]);
-    const sourceQ2 = makeQueueItem('q-all-expand');
-    const stateData4 = makeStateDataForExpandClarification(sourceQ2, 'Please clarify');
-    const { ctx: ctx4 } = createMockContext(input, copilotDouble, feedbackController, obsSink);
-    await handleExpandQuestionWithClarification(ctx4, stateData4);
-
-    // Assert all template IDs were used
-    obsSink.assertAllDelegationsHaveTemplateId();
-    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.integrate);
-    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.consistencyScopeObjective);
-    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.classifyCustomPrompt);
-    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.expandClarification);
-  });
-
-  it('delegation events include correct observabilityType (B-SD-OBS-002)', async () => {
-    copilotDouble.reset({
-      IntegrateIntoSpec: [{ structuredOutput: makeIntegrationOutput() }],
-    });
-
-    const input = makeDefaultInput();
-    const { ctx } = createMockContext(input, copilotDouble, feedbackController, obsSink);
-
-    await handleIntegrateIntoSpec(ctx);
-
-    const delegations = obsSink.delegationEvents();
-    expect(delegations).toHaveLength(1);
-    expect(delegations[0].observabilityType).toBe(OBS_TYPES.delegationStarted);
-    expect(delegations[0].state).toBe('IntegrateIntoSpec');
   });
 
   it('research-only clarification emits research observability alongside template traceability (B-SD-OBS-001)', async () => {
@@ -240,6 +256,60 @@ describe('ITX-SD-012: Prompt template ID traceability', () => {
       researchOutcome: 'resolved-with-research',
       promptTemplateId: TEMPLATE_IDS.expandClarification,
     });
+  });
+
+  it('all TEMPLATE_IDS are exercised across delegating states (B-SD-COPILOT-003)', async () => {
+    copilotDouble.reset({
+      IntegrateIntoSpec: [{ structuredOutput: makeIntegrationOutput() }],
+      ExecutePromptLayer: makeStageResponses([makeConsistencyOutput()]),
+      ClassifyCustomPrompt: [{ structuredOutput: makeClassificationOutput('custom-answer') }],
+      ExpandQuestionWithClarification: [
+        { structuredOutput: makeClarificationFollowUpOutput('q-all-expand-fu') },
+      ],
+    });
+
+    const input = makeDefaultInput();
+    const { ctx: integrateCtx } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+    );
+    await handleIntegrateIntoSpec(integrateCtx);
+
+    const { ctx: consistencyCtx } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+      { executeConsistencyChild: true },
+    );
+    await handleLogicalConsistencyCheck(consistencyCtx, makeStateDataAfterIntegration());
+
+    const classifyState = makeStateDataForClassification(
+      makeQueueItem('q-all-classify'),
+      'My clarification',
+    );
+    const { ctx: classifyCtx } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+    );
+    await handleClassifyCustomPrompt(classifyCtx, classifyState);
+
+    const expandState = makeStateDataForExpandClarification(
+      makeQueueItem('q-all-expand'),
+      'Please clarify',
+    );
+    const { ctx: expandCtx } = createMockContext(input, copilotDouble, feedbackController, obsSink);
+    await handleExpandQuestionWithClarification(expandCtx, expandState);
+
+    obsSink.assertAllDelegationsHaveTemplateId();
+    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.integrate);
+    obsSink.assertTemplateIdUsed(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].templateId);
+    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.classifyCustomPrompt);
+    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.expandClarification);
   });
 
   it('copilot double records correlationId with correct state:templateId format', async () => {

@@ -1,13 +1,35 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   appendAcpNotificationChunk,
+  extractFixtureKey,
+  loadNextFixture,
   parseStructuredOutput,
+  resetFixtureCounters,
   sliceAcpPromptOutput,
   toCopilotAcpLaunchArgs,
   toSchemaFollowUpPrompt,
   toSchemaRetryPrompt,
 } from '../../src/workflows/copilot-prompt.js';
+
+const tempDirs: string[] = [];
+
+afterEach(() => {
+  resetFixtureCounters();
+  while (tempDirs.length > 0) {
+    rmSync(tempDirs.pop()!, { recursive: true, force: true });
+  }
+});
+
+const makeTempFixtureDir = (): string => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'copilot-prompt-fixture-'));
+  tempDirs.push(dir);
+  return dir;
+};
 
 describe('toCopilotAcpLaunchArgs', () => {
   it('builds copilot ACP launch args by default', () => {
@@ -94,5 +116,37 @@ describe('schema helpers', () => {
 
     const followUpOutput = sliceAcpPromptOutput(transcript, followUpStart);
     expect(followUpOutput).toBe('{"status":"ok"}');
+  });
+});
+
+describe('fixture helpers', () => {
+  it('extracts the fixture key from the schema $id basename', () => {
+    const schema = JSON.stringify({
+      $id: 'https://composable-workflow.local/schemas/app-builder/spec-doc/spec-integration-output.schema.json',
+    });
+
+    expect(extractFixtureKey(schema)).toBe('spec-integration-output');
+  });
+
+  it('wraps array-backed fixtures back to the first entry after the last item', () => {
+    const fixtureDir = makeTempFixtureDir();
+    writeFileSync(
+      path.join(fixtureDir, 'consistency-check-output.json'),
+      JSON.stringify([{ value: 'first' }, { value: 'second' }]),
+      'utf-8',
+    );
+
+    expect(loadNextFixture(fixtureDir, 'consistency-check-output')).toEqual({ value: 'first' });
+    expect(loadNextFixture(fixtureDir, 'consistency-check-output')).toEqual({ value: 'second' });
+    expect(loadNextFixture(fixtureDir, 'consistency-check-output')).toEqual({ value: 'first' });
+  });
+
+  it('throws for empty array-backed fixtures', () => {
+    const fixtureDir = makeTempFixtureDir();
+    writeFileSync(path.join(fixtureDir, 'default.json'), '[]', 'utf-8');
+
+    expect(() => loadNextFixture(fixtureDir, 'default')).toThrow(
+      'Fixture array for key "default" must contain at least one entry',
+    );
   });
 });

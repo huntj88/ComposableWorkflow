@@ -426,8 +426,16 @@ export function loadNextFixture(fixtureDir: string, schemaKey: string): FixtureE
   if (existsSync(arrayPath)) {
     const content = JSON.parse(readFileSync(arrayPath, 'utf-8')) as FixtureEntry | FixtureEntry[];
     if (Array.isArray(content)) {
-      if (counter < content.length) return content[counter];
-      return content[content.length - 1]; // clamp to last entry
+      if (content.length === 0) {
+        throw new Error(
+          `[copilot-fixture] Fixture array for key "${schemaKey}" must contain at least one entry in ${fixtureDir}`,
+        );
+      }
+      if (counter >= content.length) {
+        fixtureCounters.set(counterKey, 0);
+        return loadNextFixture(fixtureDir, schemaKey);
+      }
+      return content[counter];
     }
     return content; // single object, always returned
   }

@@ -1,0 +1,110 @@
+[
+  {
+    "blockingIssues": [
+      {
+        "id": "bi-cancel-a",
+        "description": "Needs clarification before completion.",
+        "severity": "medium"
+      }
+    ],
+    "actionableItems": [],
+    "followUpQuestions": [
+      {
+        "questionId": "q-cancel-a",
+        "kind": "issue-resolution",
+        "prompt": "Which approach should we take for error handling?",
+        "options": [
+          {
+            "id": 1,
+            "label": "Exception-based",
+            "description": "Pros: Familiar pattern, stack traces. Cons: Hidden control flow."
+          },
+          {
+            "id": 2,
+            "label": "Result types",
+            "description": "Pros: Explicit error handling. Cons: More verbose."
+          }
+        ]
+      }
+    ],
+    "readinessChecklist": {
+      "hasScopeAndObjective": false,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": false,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": false
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": false,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": false,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": false
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": false,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": false,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": false
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": false,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": false,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": false
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": false,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": false,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": false
+    }
+  },
+  {
+    "blockingIssues": [],
+    "actionableItems": [],
+    "followUpQuestions": [],
+    "readinessChecklist": {
+      "hasScopeAndObjective": false,
+      "hasNonGoals": true,
+      "hasConstraintsAndAssumptions": true,
+      "hasInterfacesOrContracts": false,
+      "hasTestableAcceptanceCriteria": true,
+      "hasNoContradictions": true,
+      "hasSufficientDetail": false
+    }
+  }
+]

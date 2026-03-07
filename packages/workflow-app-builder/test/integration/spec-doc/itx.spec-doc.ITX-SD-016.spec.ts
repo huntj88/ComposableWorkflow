@@ -1,14 +1,13 @@
 /**
- * ITX-SD-013: Delegated child routing variants from aggregate consistency results.
+ * ITX-SD-016: Delegated child contract enforcement and short-circuit behavior.
  *
- * Behaviors: B-SD-TRANS-003, B-SD-TRANS-011, B-SD-CHILD-001.
+ * Behaviors: B-SD-CHILD-001, B-SD-CHILD-002, B-SD-CHILD-003, B-SD-FAIL-001.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS } from '../../../src/workflows/spec-doc/consistency-follow-up-child.js';
 import type { SpecDocStateData } from '../../../src/workflows/spec-doc/state-data.js';
-import { COMPLETION_CONFIRMATION_QUESTION_ID } from '../../../src/workflows/spec-doc/queue.js';
 import { handleLogicalConsistencyCheck } from '../../../src/workflows/spec-doc/states/logical-consistency-check.js';
 import { createCopilotDouble, type CopilotDouble } from '../harness/spec-doc/copilot-double.js';
 import {
@@ -45,16 +44,11 @@ beforeEach(() => {
   obsSink = createObservabilitySink();
 });
 
-describe('ITX-SD-013: Delegated child routing variants', () => {
-  it('routes to IntegrateIntoSpec when the child aggregate contains actionable items (B-SD-TRANS-003)', async () => {
+describe('ITX-SD-016: Delegated child contract enforcement and short-circuit behavior', () => {
+  it('short-circuits after the first actionable stage and never executes later prompt layers', async () => {
     const actionableItems = [
-      makeActionableItem('act-route-001', {
-        instruction: 'Add a missing scope boundary.',
-        blockingIssueIds: ['bi-route-001'],
-      }),
-      makeActionableItem('act-route-002', {
-        instruction: 'Clarify the acceptance criteria wording.',
-        blockingIssueIds: ['bi-route-002'],
+      makeActionableItem('act-short-001', {
+        instruction: 'Resolve the objective mismatch before asking more questions.',
       }),
     ];
 
@@ -65,6 +59,7 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
             actionableItems,
           }),
         },
+        { failure: new Error('unreachable later stage') },
       ],
     });
 
@@ -86,20 +81,17 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     };
     expect(nextData.source).toBe('consistency-action-items');
     expect(nextData.actionableItems).toEqual(actionableItems);
-    expect(nextData.queue).toEqual([]);
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(1);
   });
 
-  it('routes to NumberedOptionsHumanRequest when the child aggregate contains follow-up questions', async () => {
+  it('fails the parent state when executed layers emit duplicate follow-up question IDs', async () => {
     copilotDouble.reset({
       ExecutePromptLayer: makeStageResponses([
         makeConsistencyOutput({
-          followUpQuestions: [makeQuestionItem('q-route-003')],
+          followUpQuestions: [makeQuestionItem('q-dup-001')],
         }),
         makeConsistencyOutput({
-          followUpQuestions: [makeQuestionItem('q-route-001')],
-        }),
-        makeConsistencyOutput({
-          followUpQuestions: [makeQuestionItem('q-route-002')],
+          followUpQuestions: [makeQuestionItem('q-dup-001')],
         }),
       ]),
     });
@@ -112,47 +104,37 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
 
     await handleLogicalConsistencyCheck(ctx, stateData);
 
-    expect(result.failedError).toBeUndefined();
-    expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].to).toBe('NumberedOptionsHumanRequest');
-
-    const nextData = result.transitions[0].data as SpecDocStateData;
-    expect(nextData.queue.map((item) => item.questionId)).toEqual([
-      'q-route-001',
-      'q-route-002',
-      'q-route-003',
-    ]);
-    expect(nextData.queueIndex).toBe(0);
-    expect(nextData.counters.consistencyCheckPasses).toBe(1);
+    expect(result.transitions).toHaveLength(0);
+    expect(result.failedError).toBeDefined();
+    expect(result.failedError?.message).toContain('duplicate follow-up questionId: q-dup-001');
+    expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
   });
 
-  it('synthesizes a completion-confirmation question when the child aggregate is empty (B-SD-TRANS-011)', async () => {
+  it('fails the parent state when a child layer mixes actionable items and follow-up questions', async () => {
     copilotDouble.reset({
-      ExecutePromptLayer: makeStageResponses([]),
+      ExecutePromptLayer: [
+        {
+          structuredOutput: makeConsistencyOutput({
+            actionableItems: [makeActionableItem('act-mixed-001')],
+            followUpQuestions: [makeQuestionItem('q-mixed-001')],
+          }),
+        },
+      ],
     });
 
     const input = makeDefaultInput();
-    const stateData = makeStateDataAfterIntegration({
-      counters: {
-        integrationPasses: 2,
-        consistencyCheckPasses: 1,
-      },
-      queueIndex: 5,
-    });
+    const stateData = makeStateDataAfterIntegration();
     const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink, {
       executeConsistencyChild: true,
     });
 
     await handleLogicalConsistencyCheck(ctx, stateData);
 
-    expect(result.failedError).toBeUndefined();
-    expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].to).toBe('NumberedOptionsHumanRequest');
-
-    const nextData = result.transitions[0].data as SpecDocStateData;
-    expect(nextData.queue).toHaveLength(1);
-    expect(nextData.queue[0].questionId).toBe(COMPLETION_CONFIRMATION_QUESTION_ID);
-    expect(nextData.queueIndex).toBe(0);
-    expect(nextData.counters.consistencyCheckPasses).toBe(2);
+    expect(result.transitions).toHaveLength(0);
+    expect(result.failedError).toBeDefined();
+    expect(result.failedError?.message).toContain('Output schema validation failed');
+    expect(result.failedError?.message).toContain('followUpQuestions');
+    expect(result.failedError?.message).toContain('actionableItems');
+    expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].stageId);
   });
 });

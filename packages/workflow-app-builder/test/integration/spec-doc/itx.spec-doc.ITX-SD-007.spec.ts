@@ -23,6 +23,7 @@ import {
   type ObservabilitySink,
 } from '../harness/spec-doc/observability-sink.js';
 import { createMockContext, makeDefaultInput, makeIntegrationOutput } from './helpers.js';
+import { makeActionableItem } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 
@@ -218,5 +219,56 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
     expect(result.failedError).toBeUndefined();
     expect(result.transitions).toHaveLength(1);
     expect(result.transitions[0].to).toBe('LogicalConsistencyCheckCreateFollowUpQuestions');
+  });
+
+  it('immediate-action passes send source="consistency-action-items" with ordered actionable items (B-SD-INPUT-004)', async () => {
+    copilotDouble.reset({
+      IntegrateIntoSpec: [{ structuredOutput: makeIntegrationOutput() }],
+    });
+
+    const actionableItems = [
+      makeActionableItem('act-001', {
+        instruction: 'Tighten the scope section to match the target persona.',
+        blockingIssueIds: ['bi-001'],
+      }),
+      makeActionableItem('act-002', {
+        instruction: 'Add explicit acceptance criteria for rollout safety.',
+        blockingIssueIds: ['bi-002'],
+      }),
+    ];
+
+    const stateData: SpecDocStateData = {
+      ...createInitialStateData(),
+      counters: {
+        integrationPasses: 1,
+        consistencyCheckPasses: 2,
+      },
+      artifacts: {
+        specPath: 'docs/generated-spec.md',
+        lastIntegrationOutput: makeIntegrationOutput({ specPath: 'docs/generated-spec.md' }),
+      },
+    };
+
+    const input = makeDefaultInput();
+    const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink);
+
+    await handleIntegrateIntoSpec(ctx, {
+      ...stateData,
+      source: 'consistency-action-items' as const,
+      actionableItems,
+    });
+
+    expect(result.failedError).toBeUndefined();
+
+    const call = copilotDouble.calls[0];
+    expect(call).toBeDefined();
+    expect(call.prompt).toContain('consistency-action-items');
+    expect(call.prompt).toContain('docs/generated-spec.md');
+    expect(call.prompt).toContain(JSON.stringify(actionableItems));
+
+    const firstIndex = call.prompt.indexOf('act-001');
+    const secondIndex = call.prompt.indexOf('act-002');
+    expect(firstIndex).toBeGreaterThanOrEqual(0);
+    expect(secondIndex).toBeGreaterThan(firstIndex);
   });
 });
