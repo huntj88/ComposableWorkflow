@@ -221,10 +221,18 @@ Each behavior should validate all relevant dimensions:
 **Given** a copilot prompt call returns `structuredOutput`
 **When** output is parsed for the current state
 **Then** `IntegrateIntoSpec` validates against `spec-integration-output.schema.json`
-**And** each executed child prompt layer for `LogicalConsistencyCheckCreateFollowUpQuestions` validates against `consistency-check-output.schema.json`
+**And** each executed child prompt layer for `LogicalConsistencyCheckCreateFollowUpQuestions` validates against its matching stage-specific `consistency-*-output.schema.json`
+**And** the merged child aggregate validates against `consistency-check-output.schema.json` before the parent consumes it
 **And** `ClassifyCustomPrompt` validates against `custom-prompt-classification-output.schema.json`
 **And** `ExpandQuestionWithClarification` validates against `clarification-follow-up-output.schema.json`
 **And** `Done` terminal payload validates against `spec-doc-generation-output.schema.json`
+
+## B-SD-SCHEMA-001A: Scoped consistency stage schemas exclude unrelated checklist fields
+**Given** a configured prompt layer in `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS`
+**When** its `outputSchema` is selected for copilot delegation
+**Then** the schema exposes only that layer's owned `readinessChecklist` keys
+**And** unrelated checklist fields from other consistency layers are not required or accepted for that stage
+**And** shared issue, actionable-item, and follow-up-question definitions are still reused across all stage schemas
 
 ## B-SD-SCHEMA-002: Non-JSON structuredOutput triggers retry then fails
 **Given** `app-builder.copilot.prompt.v1` returns output that is not valid JSON
@@ -242,7 +250,7 @@ Each behavior should validate all relevant dimensions:
 **And** error includes the expected schema identifier and actual validation errors
 
 ## B-SD-SCHEMA-004: Numbered question items conform to schema
-**Given** `consistency-check-output.schema.json` output with `followUpQuestions`
+**Given** a stage-specific consistency output or merged child aggregate with `followUpQuestions`
 **When** questions are validated
 **Then** each item conforms to `numbered-question-item.schema.json`
 **And** each consistency-check question has `kind: "issue-resolution"`
@@ -280,6 +288,7 @@ Each behavior should validate all relevant dimensions:
 **Given** any copilot prompt call from this workflow
 **When** the call is constructed
 **Then** `outputSchema` corresponding to the current state is always provided
+**And** each scoped consistency template is paired with its matching narrow stage schema rather than the broad aggregate child schema
 **And** branching uses only schema-validated `structuredOutput` (not unstructured text)
 
 ## B-SD-COPILOT-004: Schema validation with auto-retry on copilot output

@@ -57,7 +57,7 @@ A behavior is integration-primary when one or more is true:
 - Deterministic `app-builder.copilot.prompt.v1` stub that returns configured `structuredOutput` per call.
 - Supports per-state schema-valid and schema-invalid response injection.
 - Supports failure injection (child workflow failure simulation).
-- Records all calls with template ID, `outputSchema`, and interpolation variables for assertion.
+- Records all calls with template ID, `outputSchema`, `stageId` when applicable, and interpolation variables for assertion.
 
 ## 3.2 Feedback Response Controller
 - Programmatic feedback response submission (bypass CLI/manual interaction).
@@ -85,11 +85,12 @@ A behavior is integration-primary when one or more is true:
 - Configure copilot prompt stub to return:
   - non-JSON output (for `B-SD-SCHEMA-002`),
   - valid JSON that does not match state schema (for `B-SD-SCHEMA-003`),
-  - for each of: `IntegrateIntoSpec`, `LogicalConsistencyCheckCreateFollowUpQuestions`, `ClassifyCustomPrompt`, `ExpandQuestionWithClarification`.
+  - for each of: `IntegrateIntoSpec`, every scoped `LogicalConsistencyCheckCreateFollowUpQuestions` child stage schema, `ClassifyCustomPrompt`, `ExpandQuestionWithClarification`.
 
 **Assertions**
 - Non-JSON output fails the run with parse error details.
 - Schema-mismatched JSON fails the run with schema-validation error including expected schema identifier.
+- For scoped consistency layers, the error identifies the concrete stage schema rather than only the broad child aggregate contract.
 - No partial state mutation persists after schema failure.
 - Failed state is identifiable from error context.
 
@@ -261,6 +262,7 @@ A behavior is integration-primary when one or more is true:
 - Option IDs are unique contiguous integers starting at `1` per question.
 - Each option includes `description` with pros/cons content.
 - Each consistency-check question has `kind: "issue-resolution"`.
+- Stage-specific consistency schemas and the merged child aggregate both preserve the same numbered-question item contract.
 - Completion-confirmation question is synthesized in workflow logic when delegated child output has empty `actionableItems` and empty `followUpQuestions`.
 - Clarification follow-up questions conform to server-owned base schema plus `kind: "issue-resolution"`.
 
@@ -276,6 +278,7 @@ A behavior is integration-primary when one or more is true:
 **Assertions**
 - Each copilot delegation event includes the prompt template ID (e.g., `spec-doc.integrate.v1`, `spec-doc.consistency-scope-objective.v1`, `spec-doc.classify-custom-prompt.v1`, `spec-doc.expand-clarification.v1`).
 - Template IDs are stable and match documented identifiers from section 7.2 of the workflow spec.
+- Each scoped consistency template is paired with its matching narrow `consistency-*-output.schema.json` file, and no scoped layer delegates with the broad aggregate `consistency-check-output.schema.json` as its prompt-layer `outputSchema`.
 - Template ID is present in both event payloads and structured log records.
 - Research-only clarification outcomes emit `spec-doc.research.logged` with the same prompt-template traceability as the originating clarification delegation.
 - Delegated child-workflow events for `LogicalConsistencyCheckCreateFollowUpQuestions` include `childWorkflowType`.

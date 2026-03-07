@@ -11,6 +11,7 @@ Capture task-suite level supersession notes for the delegated consistency/follow
 ## Implementation Tasks
 - [ ] Add a task-suite addendum that lists completed tasks whose wording has been superseded by delegated-child follow-on work.
 - [ ] Document that `SDB-16A` established scoped consistency prompt layers in place of the former single combined consistency prompt.
+- [ ] Document that the broad `consistency-check-output.schema.json` contract is now aggregate-only, while focused prompt layers must use stage-specific schemas.
 - [ ] Document that explicit child runtime-state progression is future work owned by `SDB-18`, not part of the already-completed delegated-child delivery.
 - [ ] Ensure the task index and dependency graph point readers at the active follow-on tasks for delegated-child evolution.
 
@@ -20,6 +21,7 @@ Capture task-suite level supersession notes for the delegated consistency/follow
 
 ## Acceptance Criteria
 - Readers can identify that `SDB-16A` captures the scoped-prompt baseline and which later task supersedes legacy combined-prompt assumptions without editing completed task files.
+- Readers can identify that legacy “shared broad child schema per prompt layer” wording is superseded by the stage-specific schema plan owned by `SDB-18`.
 - Readers can identify that explicit child self-loop runtime states remain future work owned by `SDB-18`.
 - Readers can identify that current shipped delegated-child behavior is the scoped-prompt baseline, while explicit self-loop runtime states are only a follow-on target.
 - The task index and dependency graph include this addendum task.
@@ -31,10 +33,11 @@ Capture task-suite level supersession notes for the delegated consistency/follow
 ## Fixed Implementation Decisions
 - Completed task records remain immutable after completion for this cleanup pass.
 - Supersession is documented through new follow-on tasks rather than retroactive edits to closed tasks.
+- Aggregate-vs-stage schema ownership is documented in follow-on task notes rather than by rewriting completed implementation tasks.
 
 ## Interface/Schema Contracts
-- No runtime schema changes are introduced by this task.
-- This task documents ownership and supersession only.
+- No runtime schema implementation is delivered by this task.
+- This task documents ownership and supersession only, including the distinction between aggregate child schema usage and stage-specific prompt schema usage.
 
 ## File Plan (Exact)
 ### Create
@@ -44,11 +47,12 @@ Capture task-suite level supersession notes for the delegated consistency/follow
 - `packages/workflow-app-builder/docs/tasks/README.md`
 
 ## Verification
-- Command: `rg -n "SDB-16A|SDB-18|SDB-19|combined consistency prompt|explicit child" packages/workflow-app-builder/docs/tasks`
-  - Expected: task-suite docs clearly point to the active delegated-child follow-on tasks and supersession notes.
+- Command: `rg -n "SDB-16A|SDB-18|SDB-19|combined consistency prompt|explicit child|aggregate child schema|stage-specific schema" packages/workflow-app-builder/docs/tasks`
+  - Expected: task-suite docs clearly point to the active delegated-child follow-on tasks, schema-ownership split, and supersession notes.
 
 ## One-to-One Requirement Mapping
 | Requirement ID | Implementation Artifact | Verification Assertion |
 |---|---|---|
 | SD-TASK-001-SupersessionOwnership | `docs/tasks/19-task-suite-supersession-notes.md` | task addendum identifies `SDB-16A` as the scoped-prompt baseline and active follow-on ownership for delegated-child evolution. |
+| SD-TASK-001A-SchemaOwnershipSplit | `docs/tasks/19-task-suite-supersession-notes.md` | task addendum identifies the broad child schema as aggregate-only and points stage-specific prompt schema follow-on ownership to `SDB-18`. |
 | SD-TASK-002-IndexVisibility | `docs/tasks/README.md` | task index and dependency graph surface `SDB-16A`, `SDB-18`, and `SDB-19` as the active delegated-child follow-on references. |

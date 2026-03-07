@@ -89,8 +89,8 @@ No dependency points to a numerically later prerequisite outside this graph.
 Current delegated-child alignment:
 - `SDB-16A` defines the scoped-prompt baseline used by the current shipped delegated child.
 - `SDB-17` adds parity and coverage on top of that baseline.
-- `SDB-18` is the follow-on refactor for explicit child runtime self-loop states.
-- `SDB-19` documents supersession and ownership across the evolved task sequence.
+- `SDB-18` is the follow-on refactor for explicit child runtime self-loop states and for binding each scoped prompt layer to a narrow stage-specific output schema instead of the broad aggregate child schema.
+- `SDB-19` documents supersession and ownership across the evolved task sequence, including the aggregate-schema versus stage-schema split.
 
 ### Integration Coverage (`ITX-SD-*`)
 - Harness prerequisites in `ITX` section 3 -> `SDB-09`
