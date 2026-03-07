@@ -367,7 +367,7 @@ Endpoint: `GET /api/v1/workflows/runs/{runId}/feedback-requests`
 ## B-WEB-067: Human feedback option controls enforce single-select semantics
 - Feedback options render as single-select radio controls, not multi-select controls.
 - The UI never allows more than one option to be selected simultaneously and never sends `selectedOptionIds` with more than one element.
-- When options are present, submit remains disabled until exactly one option is selected.
+- Submit remains disabled until the response contains either one selected option or non-empty text.
 
 ## B-WEB-068: Logs panel uses windowed scrolling, incremental append, and filter reset semantics
 - The Logs panel renders a limited initial window of entries (default `100` from `GetRunLogsQuery.limit`) and loads additional entries incrementally instead of rendering the full corpus at once.

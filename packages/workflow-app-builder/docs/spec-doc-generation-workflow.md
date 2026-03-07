@@ -92,7 +92,7 @@ NumberedOptionsHumanRequest : answers are buffered until queue exhaustion
 NumberedOptionsHumanRequest : research detours may defer current question for later revisit
 
 NumberedOptionsHumanRequest --> NumberedOptionsHumanRequest : more queued questions remain
-NumberedOptionsHumanRequest --> Done : queue exhausted + completion-confirmation selected\n(exactly one selected option required)
+NumberedOptionsHumanRequest --> Done : queue exhausted + completion-confirmation done option selected
 NumberedOptionsHumanRequest --> IntegrateIntoSpec : queue exhausted + collected responses require updates
 NumberedOptionsHumanRequest --> ClassifyCustomPrompt : custom prompt text provided
 
@@ -178,7 +178,7 @@ Done : terminal\nstatus=completed
 - `ExpandQuestionWithClarification -> NumberedOptionsHumanRequest`
   - Guard: research has completed; either a follow-up question has been materialized and inserted as immediate next queue item, or a research-only answer has been logged and numbered-options processing can resume.
 - `NumberedOptionsHumanRequest -> Done`
-  - Guard: numbered queue is exhausted and completion-confirmation is selected with exactly one selected option.
+  - Guard: numbered queue is exhausted and completion-confirmation done option is selected.
 
 ## 6.4 NumberedOptionsHumanRequest Implementation Detail (MVP)
 
@@ -208,7 +208,8 @@ Per-question execution:
 - Expect server feedback projection persistence to store this value as `human_feedback_requests.question_id` for question-level diagnostics and replay correlation.
 - Accept response payload with `selectedOptionIds?: number[]` and optional `text?: string` custom prompt.
 - Treat invalid `selectedOptionIds` as request-validation errors from the feedback API (no answer recorded; question remains pending until valid response).
-- For completion-confirmation questions, require exactly one selected option; treat zero or multi-select responses as request-validation errors.
+- Feedback responses must include either one selected option or non-empty custom text.
+- For completion-confirmation questions, zero-or-one selected options are allowed; multi-select responses are request-validation errors.
 - Assume no protocol-level max for custom `text` in MVP; handle any implementation-local validation errors as retryable feedback submission failures.
 - Persist normalized answer record in state data when the current numbered question actually receives an answer:
   - `questionId`,
@@ -244,7 +245,7 @@ Transition resolution after each response:
 - If custom prompt intent is custom-answer, buffer it and continue numbered queue processing.
 - If unasked queue items remain and no custom prompt text is pending classification, transition to `NumberedOptionsHumanRequest` (self-loop).
 - If no unasked queue items remain but deferred questions remain on the revisit stack, transition to `NumberedOptionsHumanRequest` and revisit the most recently deferred source question instead of evaluating terminal exhaustion.
-- If queue is exhausted, deferred-question stack is empty, and completion-confirmation indicates done with exactly one selected option, transition to `Done`.
+- If queue is exhausted, deferred-question stack is empty, and completion-confirmation indicates done by selecting its explicit done option, transition to `Done`.
 - Otherwise transition to `IntegrateIntoSpec` with accumulated normalized answers (including buffered custom-answer prompts) as integration input.
 
 Re-entry with exhausted queue:
@@ -343,7 +344,7 @@ Transition mapping from numbered-options response:
 - if custom prompt intent is classified as clarifying-question or unrelated-question: transition to `ExpandQuestionWithClarification` and defer the source numbered question unless already answered.
 - if `ExpandQuestionWithClarification.researchOutcome === "resolved-with-research"`: log the research answer and transition to `NumberedOptionsHumanRequest` to revisit the deferred source question.
 - if `ExpandQuestionWithClarification.researchOutcome === "needs-follow-up-question"`: insert the related follow-up as immediate next, transition to `NumberedOptionsHumanRequest`, ask it next, then revisit the deferred source question.
-- if user selects completion confirmation option and the numbered queue is exhausted with exactly one selected option: transition to `Done`.
+- if user selects the completion-confirmation done option and the numbered queue is exhausted: transition to `Done`.
 - if custom prompt intent is classified as custom-answer: buffer response and transition to `NumberedOptionsHumanRequest`.
 - if user selects non-completion numbered option(s) while questions remain: record response and transition to `NumberedOptionsHumanRequest`.
 - if additional numbered follow-up questions remain and no custom prompt text is provided: transition to `NumberedOptionsHumanRequest`.

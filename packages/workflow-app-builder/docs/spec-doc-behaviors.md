@@ -162,12 +162,13 @@ Each behavior should validate all relevant dimensions:
 **And** no answer is recorded in workflow state data
 **And** question remains pending until valid response
 
-## B-SD-HFB-003: Completion confirmation requires exactly one selected option
+## B-SD-HFB-003: Completion confirmation allows text-only responses but never multi-select
 **Given** a completion-confirmation question
-**When** response includes zero or multiple `selectedOptionIds`
+**When** response includes non-empty `text` and zero `selectedOptionIds`
+**Then** the response is accepted as a non-terminal answer and no transition to `Done` occurs
+**When** response includes multiple `selectedOptionIds`
 **Then** feedback API returns `400` validation error
 **And** feedback status remains `awaiting_response`
-**And** no transition to `Done` occurs
 
 ## B-SD-HFB-004: Feedback child run uses server-owned contract only
 **Given** `workflow-app-builder` workflow requesting feedback

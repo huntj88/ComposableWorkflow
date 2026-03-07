@@ -149,7 +149,7 @@ describe('human feedback validation', () => {
     expect(receivedEvents.rows[0]?.count).toBe(0);
   });
 
-  it('enforces exactly one selected option for completion-confirmation prompts including synthesized variants', async () => {
+  it('allows text-only completion-confirmation responses and rejects empty responses', async () => {
     if (!harness) {
       throw new Error('Harness not initialized');
     }
@@ -169,7 +169,7 @@ describe('human feedback validation', () => {
     });
 
     for (const runId of [authored.childRun.runId, synthesized.childRun.runId]) {
-      const zeroSelection = await integrationHarness.server.inject({
+      const emptyResponse = await integrationHarness.server.inject({
         method: 'POST',
         url: `/api/v1/human-feedback/requests/${runId}/respond`,
         payload: {
@@ -178,13 +178,52 @@ describe('human feedback validation', () => {
               runId === authored.childRun.runId
                 ? 'q_completion_authored_1'
                 : 'q_completion_synthesized_1',
-            selectedOptionIds: [],
           },
           respondedBy: 'operator_completion',
         },
       });
-      expect(zeroSelection.statusCode).toBe(400);
 
+      expect(emptyResponse.statusCode).toBe(400);
+
+      const textOnly = await integrationHarness.server.inject({
+        method: 'POST',
+        url: `/api/v1/human-feedback/requests/${runId}/respond`,
+        payload: {
+          response: {
+            questionId:
+              runId === authored.childRun.runId
+                ? 'q_completion_authored_1'
+                : 'q_completion_synthesized_1',
+            text: 'We still need to refine the deployment plan.',
+          },
+          respondedBy: 'operator_completion',
+        },
+      });
+
+      expect(textOnly.statusCode).toBe(200);
+    }
+  });
+
+  it('enforces at most one selected option when options are provided', async () => {
+    if (!harness) {
+      throw new Error('Harness not initialized');
+    }
+    const integrationHarness = harness;
+
+    const authored = await launchFeedbackRun({
+      feedbackRunId: 'wr_feedback_completion_authored_multi',
+      questionId: 'q_completion_authored_multi_1',
+      prompt: 'Completion-confirmation: should we stop now?',
+      constraints: ['kind:completion-confirmation'],
+    });
+
+    const synthesized = await launchFeedbackRun({
+      feedbackRunId: 'wr_feedback_completion_synthesized_multi',
+      questionId: 'q_completion_synthesized_multi_1',
+      prompt: 'Workflow synthesized completion confirmation prompt (spec is done)',
+    });
+
+    for (const runId of [authored.childRun.runId, synthesized.childRun.runId]) {
       const multiSelection = await integrationHarness.server.inject({
         method: 'POST',
         url: `/api/v1/human-feedback/requests/${runId}/respond`,
@@ -192,8 +231,8 @@ describe('human feedback validation', () => {
           response: {
             questionId:
               runId === authored.childRun.runId
-                ? 'q_completion_authored_1'
-                : 'q_completion_synthesized_1',
+                ? 'q_completion_authored_multi_1'
+                : 'q_completion_synthesized_multi_1',
             selectedOptionIds: [1, 2],
           },
           respondedBy: 'operator_completion',
@@ -214,8 +253,8 @@ describe('human feedback validation', () => {
           response: {
             questionId:
               runId === authored.childRun.runId
-                ? 'q_completion_authored_1'
-                : 'q_completion_synthesized_1',
+                ? 'q_completion_authored_multi_1'
+                : 'q_completion_synthesized_multi_1',
             selectedOptionIds: [1],
           },
           respondedBy: 'operator_completion',

@@ -412,16 +412,17 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-LIFE-005`, `B-HFB-001`.
 
-## ITX-026: Completion-confirmation response requires exactly one selected option
+## ITX-026: Feedback response content and single-select validation
 **Why not E2E-only:** validation permutations around completion-confirmation question type and terminalization side effects are better covered with deterministic in-process checks.
 
 **Setup**
 - Launch completion-confirmation feedback request and hold at `awaiting_response`.
-- Submit responses with zero, one, and multiple `selectedOptionIds`.
+- Submit responses with empty payloads, text-only payloads, and multiple `selectedOptionIds`.
 
 **Assertions**
-- Zero or multiple selections return `400` and keep status `awaiting_response`.
-- Exactly one valid selection is accepted and produces `human-feedback.received`.
+- Empty responses return `400` and keep status `awaiting_response`.
+- Text-only responses are accepted and produce `human-feedback.received`.
+- Multi-select responses return `400` and keep status `awaiting_response`.
 - Rejected permutations do not emit `human-feedback.received`.
 
 **Related behaviors:** `B-HFB-011`, `B-API-007`.

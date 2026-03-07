@@ -14,8 +14,10 @@ Implement strict feedback response/status API semantics and minimal operator CLI
 ## Implementation Tasks
 - [x] Implement `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond` with strict validation:
   - missing `questionId` returns `400`,
+  - empty responses (no selected option and no non-empty text) return `400` and do not terminalize,
   - invalid `selectedOptionIds` returns `400` and does not terminalize,
-  - completion-confirmation requests require exactly one selected option (including workflow-synthesized completion questions when upstream follow-up queue is empty),
+  - feedback responses allow non-empty `text` without a selected option,
+  - `selectedOptionIds` must contain at most one option (including workflow-synthesized completion questions when upstream follow-up queue is empty),
   - first accepted response wins; all subsequent responses return `409` with terminal timestamp metadata.
 - [x] On first accepted response, append `human-feedback.received` (payload envelope only), transition projection `awaiting_response -> responded`, and complete feedback run output.
 - [x] Implement `GET /api/v1/human-feedback/requests/{feedbackRunId}` status endpoint returning prompt/options metadata, linkage fields, and response payload.
@@ -24,7 +26,7 @@ Implement strict feedback response/status API semantics and minimal operator CLI
   - `workflow feedback list --status awaiting_response`
   - `workflow feedback respond --feedback-run-id <id> --response '<json>' --responded-by <id>`.
 - [x] Expand integration and black-box tests for concurrent response races, invalid options, pause/cancel while waiting, and recovery of interrupted feedback waits.
-- [x] Ensure completion-confirmation cardinality tests include workflow-logic synthesized completion prompts (not only model-authored prompts).
+- [x] Ensure feedback validation tests cover empty responses, text-only responses, and workflow-logic synthesized completion prompts.
 
 ## Required Artifacts
 - `packages/workflow-server/src/api/routes/human-feedback.ts`
@@ -99,8 +101,8 @@ Implement strict feedback response/status API semantics and minimal operator CLI
 | HFB-API-001-QuestionIdRequired | `src/api/routes/human-feedback.ts` | missing `questionId` returns `400` without terminalization. |
 | HFB-API-002-OptionValidation | `src/api/routes/human-feedback.ts` | invalid `selectedOptionIds` returns `400` and status remains `awaiting_response`. |
 | HFB-API-003-StrictConflictModel | `src/api/routes/human-feedback.ts` | post-terminal submissions return `409` with terminal timestamp metadata. |
-| HFB-API-004-CompletionConfirmationCardinality | `src/api/routes/human-feedback.ts` | completion-confirmation responses require exactly one selected option. |
-| HFB-API-004a-WorkflowSynthesizedCompletion | `src/api/routes/human-feedback.ts` | exactly-one selection rule applies equally to workflow-synthesized completion questions. |
+| HFB-API-004-ResponseContentValidation | `src/api/routes/human-feedback.ts` | empty responses fail, text-only responses are accepted, and multi-select responses return `400`. |
+| HFB-API-004a-WorkflowSynthesizedCompletion | `src/api/routes/human-feedback.ts` | the same content + single-select rules apply to workflow-synthesized completion questions. |
 | HFB-API-005-NoTimeoutPendingWait | `src/orchestrator/transition-runner.ts` | unresolved feedback remains pending until explicit response/cancellation. |
 | HFB-API-006-ReceivedRespondedLifecycle | `src/api/routes/human-feedback.ts` | accepted response appends `human-feedback.received` and projection status becomes `responded`. |
 | HFB-CLI-001-ListPendingRequests | `apps/workflow-cli/src/commands/feedback-list.ts` | CLI lists pending feedback with status/linkage metadata. |

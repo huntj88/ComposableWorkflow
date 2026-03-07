@@ -96,7 +96,8 @@ export const HumanFeedbackPanel = ({ runId }: HumanFeedbackPanelProps): ReactEle
     selectedItem !== null &&
     selectedDraft !== null &&
     selectedItem.questionId.trim().length > 0 &&
-    selectedDraft.respondedBy.trim().length > 0;
+    selectedDraft.respondedBy.trim().length > 0 &&
+    (selectedDraft.selectedOptionIds.length > 0 || selectedDraft.text.trim().length > 0);
 
   const setDraft = (feedbackRunId: string, patch: Partial<FeedbackDraft>): void => {
     setDraftsByFeedbackRunId((previous) => {

@@ -407,8 +407,9 @@ Behavior:
 - Valid only while feedback run lifecycle is `running` and awaiting response.
 - Missing `questionId` is a request-validation error (`400`).
 - `response` must conform to `docs/schemas/human-input/numbered-options-response-input.schema.json`.
+- A response must include at least one valid `selectedOptionIds` entry or non-empty `text`.
 - If any submitted `selectedOptionIds` do not exist in the request's offered options, return `400` validation error and keep feedback status unchanged (`awaiting_response`).
-- For completion-confirmation numbered questions, `selectedOptionIds` must contain exactly one option; otherwise return `400` validation error and keep feedback status unchanged (`awaiting_response`).
+- `selectedOptionIds` must contain at most one option; otherwise return `400` validation error and keep feedback status unchanged (`awaiting_response`).
 - No protocol-level `response.text` max is enforced in MVP; if an implementation applies local limits, it must return `400` with validation details.
 - First accepted response wins.
 - Any subsequent response submission for the same `feedbackRunId` must return `409` (strict conflict model), including duplicate payloads.

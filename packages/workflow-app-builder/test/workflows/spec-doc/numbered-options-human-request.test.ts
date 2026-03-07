@@ -13,6 +13,7 @@ import {
   appendAnswer,
   createNormalizedAnswer,
   validateCompletionConfirmationCardinality,
+  validateResponseContent,
   validateSelectedOptionIds,
 } from '../../../src/workflows/spec-doc/answers.js';
 import { handleNumberedOptionsHumanRequest } from '../../../src/workflows/spec-doc/states/numbered-options-human-request.js';
@@ -136,6 +137,25 @@ function createMockContext(opts: MockCtxOptions = {}) {
 // Answers Module Tests
 // ===========================================================================
 
+describe('answers – validateResponseContent', () => {
+  const item = makeQueueItem('q-1');
+
+  it('returns undefined when selected options are provided', () => {
+    expect(validateResponseContent(item, [1], undefined)).toBeUndefined();
+  });
+
+  it('returns undefined for text-only responses', () => {
+    expect(validateResponseContent(item, undefined, 'Custom answer')).toBeUndefined();
+    expect(validateResponseContent(item, [], 'Custom answer')).toBeUndefined();
+  });
+
+  it('returns error when both selected options and text are missing', () => {
+    const err = validateResponseContent(item, undefined, '   ');
+    expect(err).toBeDefined();
+    expect(err).toContain('requires either selectedOptionIds');
+  });
+});
+
 describe('answers – validateSelectedOptionIds', () => {
   const item = makeQueueItem('q-1');
 
@@ -145,16 +165,12 @@ describe('answers – validateSelectedOptionIds', () => {
     expect(validateSelectedOptionIds(item, [1, 2, 3])).toBeUndefined();
   });
 
-  it('returns error for undefined selectedOptionIds', () => {
-    const err = validateSelectedOptionIds(item, undefined);
-    expect(err).toBeDefined();
-    expect(err).toContain('No selectedOptionIds');
+  it('returns undefined for undefined selectedOptionIds', () => {
+    expect(validateSelectedOptionIds(item, undefined)).toBeUndefined();
   });
 
-  it('returns error for empty selectedOptionIds', () => {
-    const err = validateSelectedOptionIds(item, []);
-    expect(err).toBeDefined();
-    expect(err).toContain('No selectedOptionIds');
+  it('returns undefined for empty selectedOptionIds', () => {
+    expect(validateSelectedOptionIds(item, [])).toBeUndefined();
   });
 
   it('returns error for out-of-range option IDs', () => {
@@ -183,22 +199,18 @@ describe('answers – validateCompletionConfirmationCardinality', () => {
     expect(validateCompletionConfirmationCardinality(completionItem, [1])).toBeUndefined();
   });
 
-  it('returns error for completion item with zero selections', () => {
-    const err = validateCompletionConfirmationCardinality(completionItem, []);
-    expect(err).toBeDefined();
-    expect(err).toContain('exactly one');
+  it('returns undefined for completion item with zero selections', () => {
+    expect(validateCompletionConfirmationCardinality(completionItem, [])).toBeUndefined();
   });
 
   it('returns error for completion item with multiple selections', () => {
     const err = validateCompletionConfirmationCardinality(completionItem, [1, 2]);
     expect(err).toBeDefined();
-    expect(err).toContain('exactly one');
+    expect(err).toContain('at most one');
   });
 
-  it('returns error for completion item with undefined selections', () => {
-    const err = validateCompletionConfirmationCardinality(completionItem, undefined);
-    expect(err).toBeDefined();
-    expect(err).toContain('exactly one');
+  it('returns undefined for completion item with undefined selections', () => {
+    expect(validateCompletionConfirmationCardinality(completionItem, undefined)).toBeUndefined();
   });
 });
 
@@ -474,7 +486,22 @@ describe('B-SD-HFB-002-InvalidOptionIds', () => {
     expect(transitionSpy).toHaveBeenCalledWith('NumberedOptionsHumanRequest', stateData);
   });
 
-  it('self-loops when selectedOptionIds are undefined', async () => {
+  it('routes text-only responses to ClassifyCustomPrompt', async () => {
+    const stateData = stateDataWithQueue([makeQueueItem('q-1')]);
+
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-1', text: 'Use Redis-backed caching instead' },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(transitionSpy.mock.calls[0]?.[0]).toBe('ClassifyCustomPrompt');
+  });
+
+  it('self-loops when selectedOptionIds are undefined and text is empty', async () => {
     const stateData = stateDataWithQueue([makeQueueItem('q-1')]);
 
     const { ctx, transitionSpy } = createMockContext({
@@ -512,7 +539,7 @@ describe('B-SD-HFB-002-InvalidOptionIds', () => {
 // ---------------------------------------------------------------------------
 
 describe('B-SD-HFB-003-CompletionConfirmationCardinality', () => {
-  it('self-loops when completion-confirmation has zero selections', async () => {
+  it('self-loops when completion-confirmation has zero selections and no text', async () => {
     const stateData = stateDataWithQueue([makeCompletionItem()]);
 
     const { ctx, transitionSpy, failSpy } = createMockContext({
@@ -526,6 +553,25 @@ describe('B-SD-HFB-003-CompletionConfirmationCardinality', () => {
 
     expect(failSpy).not.toHaveBeenCalled();
     expect(transitionSpy).toHaveBeenCalledWith('NumberedOptionsHumanRequest', stateData);
+  });
+
+  it('routes completion-confirmation text-only responses to ClassifyCustomPrompt', async () => {
+    const stateData = stateDataWithQueue([makeCompletionItem()]);
+
+    const { ctx, transitionSpy, failSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: {
+          questionId: COMPLETION_CONFIRMATION_QUESTION_ID,
+          text: 'The data retention policy still needs clarification.',
+        },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(transitionSpy.mock.calls[0]?.[0]).toBe('ClassifyCustomPrompt');
   });
 
   it('self-loops when completion-confirmation has multiple selections', async () => {

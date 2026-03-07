@@ -17,6 +17,30 @@ import type { NormalizedAnswer, QuestionQueueItem } from './contracts.js';
 // ---------------------------------------------------------------------------
 
 /**
+ * Validate that a feedback response contains either selected options or
+ * non-whitespace custom text.
+ *
+ * Returns an error message string if invalid, or `undefined` if valid.
+ */
+export function validateResponseContent(
+  item: QuestionQueueItem,
+  selectedOptionIds: number[] | undefined,
+  text: string | undefined,
+): string | undefined {
+  const hasSelectedOptions = (selectedOptionIds?.length ?? 0) > 0;
+  const hasCustomText = (text?.trim().length ?? 0) > 0;
+
+  if (!hasSelectedOptions && !hasCustomText) {
+    return (
+      `Question "${item.questionId}" requires either selectedOptionIds ` +
+      'or non-empty custom text'
+    );
+  }
+
+  return undefined;
+}
+
+/**
  * Validate that `selectedOptionIds` are all valid for the given queue item.
  *
  * Returns an error message string if invalid, or `undefined` if valid.
@@ -26,7 +50,7 @@ export function validateSelectedOptionIds(
   selectedOptionIds: number[] | undefined,
 ): string | undefined {
   if (!selectedOptionIds || selectedOptionIds.length === 0) {
-    return `No selectedOptionIds provided for question "${item.questionId}"`;
+    return undefined;
   }
 
   const validIds = new Set(item.options.map((o) => o.id));
@@ -42,7 +66,7 @@ export function validateSelectedOptionIds(
 }
 
 /**
- * Validate completion-confirmation cardinality: exactly one selected option.
+ * Validate completion-confirmation cardinality: at most one selected option.
  *
  * Returns an error message string if invalid, or `undefined` if valid.
  */
@@ -54,9 +78,9 @@ export function validateCompletionConfirmationCardinality(
     return undefined;
   }
 
-  if (!selectedOptionIds || selectedOptionIds.length !== 1) {
+  if ((selectedOptionIds?.length ?? 0) > 1) {
     return (
-      `Completion-confirmation question "${item.questionId}" requires exactly one selectedOptionId, ` +
+      `Completion-confirmation question "${item.questionId}" allows at most one selectedOptionId, ` +
       `got ${selectedOptionIds?.length ?? 0}`
     );
   }

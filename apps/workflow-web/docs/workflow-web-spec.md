@@ -194,10 +194,11 @@ Additional normative rules:
 ### 6.3 Human Feedback Contract Rules
 - `response.questionId` is required.
 - If `selectedOptionIds` is provided, each id must exist in the corresponding request option set.
+- A valid submission must include at least one selected option or non-empty `text`.
 - UI allows optional `text`; protocol-level length enforcement is server-driven.
 - First accepted response wins; duplicate post-accept submissions are terminal conflicts.
 - `feedbackRunId` discovery uses `GET /api/v1/workflows/runs/{runId}/feedback-requests` (no manual user entry requirement).
-- `selectedOptionIds` must contain at most one option for all feedback question types; multi-select is not supported. Invalid cardinality (zero when an option is required, or more than one) is a `400` validation error.
+- `selectedOptionIds` must contain at most one option for all feedback question types; multi-select is not supported. Zero selections are allowed when non-empty `text` is provided.
 - The UI must enforce single-select at the control level: option selection controls (e.g., radio buttons) must not allow more than one option to be selected simultaneously. The UI must never send a `selectedOptionIds` array with more than one element.
 - Invalid `selectedOptionIds` or other validation failures must leave feedback request status unchanged as pending (`awaiting_response`) until a valid terminal action is accepted.
 - `409` submit responses are terminal conflicts and must include current feedback status plus terminal timestamp metadata (`respondedAt` or `cancelledAt`) for conflict rendering.
@@ -451,7 +452,7 @@ The Logs panel displays structured log entries correlated with events/transition
   2) timeline entries linked to feedback request creation.
 - Selecting a feedback request opens full prompt/options + response form in-context.
 - When a feedback request includes options, the UI must render them as **single-select radio buttons** (not checkboxes or multi-select controls). Only one option may be selected at a time; selecting a new option deselects the previous one.
-- Submit action must stay disabled until mandatory fields are valid (at minimum `questionId` present, and exactly one option selected when options are present).
+- Submit action must stay disabled until mandatory fields are valid (at minimum `questionId` and `respondedBy` present, plus either one selected option or non-empty response text).
 - On successful submit, UI status transitions to terminal state without page reload and form controls become read-only.
 
 ### 9.2 Tree Navigation

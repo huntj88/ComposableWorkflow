@@ -68,6 +68,28 @@ describe('integration.feedback.ITX-WEB-012', () => {
     expect(parsed.response.questionId).toBe('q_2');
   });
 
+  it('transport client supports text-only feedback payloads', async () => {
+    let capturedBody = '';
+
+    const client = createWorkflowApiClient({
+      fetchImpl: async (_input, init) => {
+        capturedBody = typeof init?.body === 'string' ? init.body : '';
+        return new Response(JSON.stringify(buildFeedbackSubmitResponse()), { status: 200 });
+      },
+      eventSourceFactory: (url) => ({ url, close() {} }) as unknown as EventSource,
+    });
+
+    await client.submitHumanFeedbackResponse('fb_012_text_only', {
+      respondedBy: 'agent',
+      response: { questionId: 'q_text_only', text: 'Please keep the API surface flexible.' },
+    });
+
+    const parsed = JSON.parse(capturedBody);
+    expect(parsed.response.questionId).toBe('q_text_only');
+    expect(parsed.response.text).toBe('Please keep the API surface flexible.');
+    expect(parsed.response).not.toHaveProperty('selectedOptionIds');
+  });
+
   it('400 validation failure produces panel error with status 400', async () => {
     const errorPayload = {
       code: 'VALIDATION_ERROR',

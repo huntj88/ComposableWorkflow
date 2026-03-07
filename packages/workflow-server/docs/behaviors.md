@@ -258,12 +258,15 @@ For parent/child relationships:
 **And** a new question is appended with a new `questionId`
 **And** clarification follow-up is scheduled as the immediate next queue item
 
-## B-HFB-011: Completion-confirmation questions require exactly one selected option
+## B-HFB-011: Feedback responses require content and remain single-select
 **Given** a pending completion-confirmation numbered-options feedback request
-**When** a response is submitted with `selectedOptionIds` containing zero or more than one option
+**When** a response is submitted with neither `selectedOptionIds` nor non-empty `text`
 **Then** response is `400` with validation details
 **And** feedback status remains `awaiting_response`
 **And** no `human-feedback.received` event is emitted
+**When** a response is submitted with more than one `selectedOptionIds` value
+**Then** response is `400` with validation details
+**And** feedback status remains `awaiting_response`
 
 ## B-HFB-012: Feedback response text has no protocol max in MVP
 **Given** a pending feedback request
@@ -412,8 +415,9 @@ Endpoint: `POST /api/v1/human-feedback/requests/{feedbackRunId}/respond`
 - Valid only while feedback run lifecycle is `running` and status is `awaiting_response`.
 - Request body must include `response` conforming to `numbered-options-response-input.schema.json`.
 - Missing `questionId` returns `400`.
+- Empty responses (no selected option and no non-empty text) return `400` without terminalizing feedback.
 - Invalid `selectedOptionIds` (not matching offered options) returns `400` without terminalizing feedback.
-- For completion-confirmation numbered questions, `selectedOptionIds` must contain exactly one option or return `400` without terminalizing feedback.
+- `selectedOptionIds` must contain at most one option or return `400` without terminalizing feedback.
 - Covered `400`/`404` failures for this endpoint use `ErrorEnvelope` with required `code`, `message`, and `requestId` fields.
 - No protocol-level `response.text` maximum is enforced in MVP; implementation-specific limits may return `400` with validation details.
 - First accepted response returns success; subsequent submissions return `409` with current status and terminal timestamps.

@@ -30,39 +30,6 @@ const eventRepository = createEventRepository();
 const runRepository = createRunRepository();
 const projectionRepository = createHumanFeedbackProjectionRepository();
 
-const COMPLETION_CONFIRMATION_MARKERS = [
-  'completion-confirmation',
-  'completion_confirmation',
-  'completion confirmation',
-];
-
-const includesCompletionConfirmationMarker = (value: string): boolean => {
-  const normalized = value.trim().toLowerCase();
-  return COMPLETION_CONFIRMATION_MARKERS.some((marker) => normalized.includes(marker));
-};
-
-const isCompletionConfirmationRequest = (row: {
-  questionId: string;
-  prompt: string;
-  constraints: string[] | null;
-}): boolean => {
-  if (includesCompletionConfirmationMarker(row.questionId)) {
-    return true;
-  }
-
-  if (includesCompletionConfirmationMarker(row.prompt)) {
-    return true;
-  }
-
-  for (const constraint of row.constraints ?? []) {
-    if (includesCompletionConfirmationMarker(constraint)) {
-      return true;
-    }
-  }
-
-  return false;
-};
-
 const eventId = (): string => `evt_${randomUUID()}`;
 
 const getProjectionForUpdate = async (
@@ -174,6 +141,18 @@ const validateRespondRequest = (params: {
 
   const availableIds = new Set((params.row.options ?? []).map((option) => option.id));
   const selectedOptionIds = params.response.selectedOptionIds ?? [];
+  const hasCustomText = (params.response.text?.trim().length ?? 0) > 0;
+
+  if (selectedOptionIds.length === 0 && !hasCustomText) {
+    throw new ApiError({
+      statusCode: 400,
+      code: 'VALIDATION_ERROR',
+      message: 'feedback responses require either one selected option ID or non-empty text',
+      details: {
+        field: 'response',
+      },
+    });
+  }
 
   for (const optionId of selectedOptionIds) {
     if (!availableIds.has(optionId)) {
@@ -189,18 +168,11 @@ const validateRespondRequest = (params: {
     }
   }
 
-  if (
-    isCompletionConfirmationRequest({
-      questionId: params.row.questionId,
-      prompt: params.row.prompt,
-      constraints: params.row.constraints,
-    }) &&
-    selectedOptionIds.length !== 1
-  ) {
+  if (selectedOptionIds.length > 1) {
     throw new ApiError({
       statusCode: 400,
       code: 'VALIDATION_ERROR',
-      message: 'completion-confirmation responses require exactly one selected option ID',
+      message: 'feedback responses support at most one selected option ID',
       details: {
         field: 'response.selectedOptionIds',
       },

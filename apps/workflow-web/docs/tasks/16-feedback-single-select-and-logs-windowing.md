@@ -9,6 +9,7 @@ Tighten feedback option selection to single-select semantics and upgrade the log
 
 ## Fixed Implementation Decisions
 - Feedback options use radio-style single-select controls; the UI never emits a multi-value `selectedOptionIds` payload.
+- Feedback submit validity is content-based: one selected option or non-empty response text is sufficient.
 - Logs keep existing query/filter semantics but move to windowed rendering so the full corpus is not painted at once.
 - Applying or clearing log filters resets both the window and scroll position before new log results are rendered.
 
@@ -19,7 +20,7 @@ Tighten feedback option selection to single-select semantics and upgrade the log
 - `WorkflowStreamFrame`
 
 ## Implementation Tasks
-- [ ] Replace multi-select feedback option affordances with single-select controls and required-option submit gating.
+- [ ] Replace multi-select feedback option affordances with single-select controls and content-aware submit gating.
 - [ ] Ensure feedback submission payloads never contain more than one `selectedOptionIds` element.
 - [ ] Add bounded initial log rendering using the default `GetRunLogsQuery.limit` window and incremental load-more behavior.
 - [ ] Preserve logs-panel independent scrolling and show a non-blocking "new logs" indicator plus jump-to-latest behavior when the user is away from the bottom.
@@ -43,7 +44,7 @@ Tighten feedback option selection to single-select semantics and upgrade the log
 
 ## Acceptance Criteria
 - Feedback option controls are single-select and never allow multi-value `selectedOptionIds` emission.
-- Feedback submit remains disabled until exactly one required option is selected.
+- Feedback submit remains disabled until the response includes either one selected option or non-empty text.
 - Logs render a bounded initial window and load additional entries incrementally rather than rendering the full corpus at once.
 - Logs scrolling remains independent from other dashboard panels.
 - A non-blocking "new logs" indicator appears when the user is away from the latest entries; jump-to-latest and auto-follow semantics remain deterministic.

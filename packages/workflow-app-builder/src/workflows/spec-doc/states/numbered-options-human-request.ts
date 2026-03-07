@@ -19,6 +19,7 @@ import {
   appendAnswer,
   createNormalizedAnswer,
   validateCompletionConfirmationCardinality,
+  validateResponseContent,
   validateSelectedOptionIds,
 } from '../answers.js';
 import { emitQuestionGenerated, emitResponseReceived } from '../observability.js';
@@ -235,10 +236,23 @@ export async function handleNumberedOptionsHumanRequest(
   }
 
   const { selectedOptionIds, text } = childOutput.response;
+  const normalizedSelectedOptionIds = selectedOptionIds ?? [];
 
   // ---------------------------------------------------------------------------
   // SD-HRQ-002: Validate response – invalid submissions produce no mutation
   // ---------------------------------------------------------------------------
+
+  const contentError = validateResponseContent(currentItem, selectedOptionIds, text);
+  if (contentError) {
+    ctx.log({
+      level: 'warn',
+      message: `Invalid feedback response for "${currentItem.questionId}": ${contentError}`,
+      payload: { questionId: currentItem.questionId, selectedOptionIds, text },
+    });
+    // Self-loop with same state data – question remains pending
+    ctx.transition(NUMBERED_OPTIONS_HUMAN_REQUEST_STATE, stateData);
+    return;
+  }
 
   // B-SD-HFB-002: validate selectedOptionIds are within valid set
   const optionError = validateSelectedOptionIds(currentItem, selectedOptionIds);
@@ -275,7 +289,7 @@ export async function handleNumberedOptionsHumanRequest(
   const answeredAt = ctx.now().toISOString();
   const answer = createNormalizedAnswer(
     currentItem.questionId,
-    selectedOptionIds!,
+    normalizedSelectedOptionIds,
     answeredAt,
     text,
   );
@@ -290,7 +304,7 @@ export async function handleNumberedOptionsHumanRequest(
   emitResponseReceived(ctx, {
     state: NUMBERED_OPTIONS_HUMAN_REQUEST_STATE,
     questionId: currentItem.questionId,
-    selectedOptionIds: selectedOptionIds!,
+    selectedOptionIds: normalizedSelectedOptionIds,
     hasCustomText: text !== undefined && text.trim().length > 0,
   });
 
@@ -358,7 +372,7 @@ export async function handleNumberedOptionsHumanRequest(
   // Check for completion confirmation
   if (currentItem.questionId === COMPLETION_CONFIRMATION_QUESTION_ID) {
     // Completion confirmed with option 1 ("Yes, the spec is done")
-    if (selectedOptionIds![0] === 1) {
+    if (normalizedSelectedOptionIds[0] === 1) {
       const updatedStateData: SpecDocStateData = {
         ...stateData,
         queue: updatedQueue,

@@ -11,7 +11,7 @@ Implement deterministic per-question queue execution in `NumberedOptionsHumanReq
 - [x] Launch exactly one `server.human-feedback.v1` child run per queue item (no batching).
 - [x] Pass stable `questionId` through child input and maintain linkage for diagnostics.
 - [x] Validate/record accepted responses as normalized answers with timestamps.
-- [x] Honor feedback API validation boundaries: invalid `selectedOptionIds` and invalid completion-confirmation cardinality do not record answers and keep the question pending.
+- [x] Honor feedback API validation boundaries: empty responses, invalid `selectedOptionIds`, and invalid completion-confirmation multi-select submissions do not record answers and keep the question pending.
 - [x] Enforce self-loop semantics while queued items remain and no custom text classification is pending.
 - [x] Route to `IntegrateIntoSpec` on queue exhaustion when completion was not confirmed.
 
@@ -23,6 +23,7 @@ Implement deterministic per-question queue execution in `NumberedOptionsHumanReq
 ## Acceptance Criteria
 - Queue processor asks one question at a time and preserves per-question immutability.
 - Answer records include `questionId`, `selectedOptionIds`, optional `text`, `answeredAt`.
+- Text-only responses are accepted and preserved as normalized answers with empty `selectedOptionIds`.
 - Invalid feedback submissions produce no answer mutation in workflow state.
 - Queue exhaustion routes either to `Done` candidate path (handled in `SDB-07`) or `IntegrateIntoSpec` updates path.
 
@@ -33,6 +34,7 @@ Implement deterministic per-question queue execution in `NumberedOptionsHumanReq
 ## Fixed Implementation Decisions
 - Queue processor operates on deterministic index pointer in persisted state.
 - Normalized answers append-only; existing records are never rewritten.
+- Valid answers may omit `selectedOptionIds` when non-empty custom text is provided.
 - Child workflow contract boundary is server-owned and consumed via workflow type + schema shape only.
 
 ## Interface/Schema Contracts
