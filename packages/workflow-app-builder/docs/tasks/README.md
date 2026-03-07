@@ -44,6 +44,13 @@ This folder contains the ordered implementation plan for:
 
 No dependency points to a numerically later prerequisite outside this graph.
 
+Delegated-child evolution chain:
+- `SDB-16` -> delegated child baseline
+- `SDB-16A` -> scoped prompt baseline replaces the former combined consistency prompt
+- `SDB-17` -> parity and coverage on the scoped-prompt baseline
+- `SDB-18` -> explicit child runtime states plus stage-specific schema ownership
+- `SDB-19` -> supersession addendum for interpreting older completed task wording
+
 ## Task Index
 
 - `SDB-00` [00-spec-doc-foundation-contracts.md](./00-spec-doc-foundation-contracts.md)
@@ -63,10 +70,10 @@ No dependency points to a numerically later prerequisite outside this graph.
 - `SDB-14` [14-post-spec-update-integration-coverage.md](./14-post-spec-update-integration-coverage.md)
 - `SDB-15` [15-consistency-action-items-integration.md](./15-consistency-action-items-integration.md)
 - `SDB-16` [16-delegated-consistency-follow-up-child.md](./16-delegated-consistency-follow-up-child.md)
-- `SDB-16A` [16a-scoped-consistency-prompt-decoupling.md](./16a-scoped-consistency-prompt-decoupling.md)
+- `SDB-16A` [16a-scoped-consistency-prompt-decoupling.md](./16a-scoped-consistency-prompt-decoupling.md) — scoped-prompt baseline
 - `SDB-17` [17-delegated-child-coverage-and-parity.md](./17-delegated-child-coverage-and-parity.md)
-- `SDB-18` [18-child-fsm-self-loop-refactor.md](./18-child-fsm-self-loop-refactor.md)
-- `SDB-19` [19-task-suite-supersession-notes.md](./19-task-suite-supersession-notes.md)
+- `SDB-18` [18-child-fsm-self-loop-refactor.md](./18-child-fsm-self-loop-refactor.md) — explicit child FSM and stage-specific schema ownership
+- `SDB-19` [19-task-suite-supersession-notes.md](./19-task-suite-supersession-notes.md) — supersession addendum for delegated-child evolution
 
 ## Full Coverage Ownership
 
@@ -83,20 +90,22 @@ No dependency points to a numerically later prerequisite outside this graph.
 - Observability (`B-SD-OBS-001..003`) -> `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-18`, `SDB-19`, `SDB-11`
 - Post-spec-update clarification research + delegated-child deltas -> `SDB-13`, `SDB-14`, `SDB-15`, `SDB-16`, `SDB-16A`, `SDB-17`
 - Scoped consistency prompt decoupling baseline -> `SDB-16A`
-- Explicit child self-loop follow-on -> `SDB-18`
+- Explicit child self-loop delivery -> `SDB-18`
 - Task-suite supersession notes for delegated-child evolution -> `SDB-19`
 
-Current delegated-child alignment:
-- `SDB-16A` defines the scoped-prompt baseline used by the current shipped delegated child.
-- `SDB-17` adds parity and coverage on top of that baseline.
-- `SDB-18` is the follow-on refactor for explicit child runtime self-loop states and for binding each scoped prompt layer to a narrow stage-specific output schema instead of the broad aggregate child schema.
-- `SDB-19` documents supersession and ownership across the evolved task sequence, including the aggregate-schema versus stage-schema split.
+Delegated-child supersession guide:
+- `SDB-16` should be read as the original delegated-child delivery, not as the final word on prompt decomposition or schema ownership.
+- `SDB-16A` is the canonical task for understanding when the former combined consistency prompt was replaced by scoped consistency prompt layers.
+- `SDB-17` captures parity and coverage for the pre-`SDB-18` scoped-prompt baseline; any wording there that describes explicit child runtime states as future work is historical.
+- `SDB-18` is the canonical task for current delegated-child runtime behavior: explicit child `start -> ExecutePromptLayer -> Done` progression, `ExecutePromptLayer` self-loops, and aggregate-only use of `consistency-check-output.schema.json`.
+- `SDB-18` also supersedes any older wording that implied every focused prompt layer should still emit the broad aggregate child schema rather than its own stage-specific schema.
+- `SDB-19` is the addendum task that tells readers how to reconcile those closed tasks without rewriting them.
 
 ### Integration Coverage (`ITX-SD-*`)
 - Harness prerequisites in `ITX` section 3 -> `SDB-09`
 - `ITX-SD-001..014` implementation -> `SDB-10`
 - Post-spec-update `ITX-SD-003/004/005/007/012/013/014/015/016` deltas -> `SDB-14`, `SDB-16A`, `SDB-17`
-- Planned `ITX-SD-017` explicit child-state progression -> `SDB-18`
+- `ITX-SD-017` explicit child-state progression -> `SDB-18`
 
 ### Golden Scenario Coverage (`GS-SD-*`)
 - `GS-SD-001..005` -> `SDB-11`
