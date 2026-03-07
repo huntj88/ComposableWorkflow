@@ -7,12 +7,12 @@
 Extend `IntegrateIntoSpec` so the workflow can immediately apply delegated child `actionableItems` using `source: "consistency-action-items"` while preserving existing first-pass and feedback-pass behavior.
 
 ## Implementation Tasks
-- [ ] Add `source: "consistency-action-items"` handling to `IntegrateIntoSpec` input construction.
-- [ ] Forward `actionableItems` unchanged and in order to the integration prompt/template variables.
-- [ ] Preserve `specPath` carry-forward and prior accepted decisions for immediate-action passes.
-- [ ] Update `IntegrateIntoSpec` state tests to cover the new source mode without regressing existing source handling.
-- [ ] Keep `spec-integration-input.schema.json` / prompt interpolation aligned with the actionable-item contract.
-- [ ] Ensure `actionableItems` is required only for `source: "consistency-action-items"` and remains optional/absent for the other two source modes.
+- [x] Add `source: "consistency-action-items"` handling to `IntegrateIntoSpec` input construction.
+- [x] Forward `actionableItems` unchanged and in order to the integration prompt/template variables.
+- [x] Preserve `specPath` carry-forward and prior accepted decisions for immediate-action passes.
+- [x] Update `IntegrateIntoSpec` state tests to cover the new source mode without regressing existing source handling.
+- [x] Keep `spec-integration-input.schema.json` / prompt interpolation aligned with the actionable-item contract.
+- [x] Ensure `actionableItems` is required only for `source: "consistency-action-items"` and remains optional/absent for the other two source modes.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/states/integrate-into-spec.ts`

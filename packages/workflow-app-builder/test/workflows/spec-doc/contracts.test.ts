@@ -5,6 +5,7 @@ import type {
   SpecDocGenerationOutput,
   IntegrateIntoSpecInput,
   NormalizedAnswer,
+  SpecActionableItem,
   SpecIntegrationOutput,
   ConsistencyCheckOutput,
   CustomPromptClassificationOutput,
@@ -26,6 +27,16 @@ function validNormalizedAnswer(overrides?: Partial<NormalizedAnswer>): Normalize
     questionId: 'q-1',
     selectedOptionIds: [1],
     answeredAt: '2026-03-02T12:00:00Z',
+    ...overrides,
+  };
+}
+
+function validActionableItem(overrides?: Partial<SpecActionableItem>): SpecActionableItem {
+  return {
+    itemId: 'act-1',
+    instruction: 'Add an explicit interfaces section.',
+    rationale: 'The current draft omits integration contract details.',
+    blockingIssueIds: ['issue-interfaces'],
     ...overrides,
   };
 }
@@ -108,6 +119,21 @@ describe('IntegrateIntoSpecInput', () => {
     expect(input.answers).toHaveLength(2);
   });
 
+  it('supports consistency-action-items source with ordered actionableItems', () => {
+    const input: IntegrateIntoSpecInput = {
+      source: 'consistency-action-items',
+      request: 'Build a TODO app',
+      specPath: 'specs/todo.md',
+      actionableItems: [
+        validActionableItem({ itemId: 'act-2' }),
+        validActionableItem({ itemId: 'act-1', instruction: 'Add non-goals.' }),
+      ],
+    };
+    expect(input.source).toBe('consistency-action-items');
+    expect(input.actionableItems).toHaveLength(2);
+    expect(input.actionableItems[0]!.itemId).toBe('act-2');
+  });
+
   it('validates workflow-input against spec-integration-input schema', () => {
     const input: IntegrateIntoSpecInput = {
       source: 'workflow-input',
@@ -130,9 +156,31 @@ describe('IntegrateIntoSpecInput', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('validates consistency-action-items against spec-integration-input schema', () => {
+    const input: IntegrateIntoSpecInput = {
+      source: 'consistency-action-items',
+      request: 'Build a TODO app',
+      specPath: 'specs/todo.md',
+      actionableItems: [validActionableItem()],
+    };
+    const validator = createSpecDocValidator();
+    const result = validator.validateParsed(input, SCHEMA_IDS.specIntegrationInput);
+    expect(result.ok).toBe(true);
+  });
+
   it('rejects numbered-options-feedback without answers', () => {
     const input = {
       source: 'numbered-options-feedback',
+      request: 'Build a TODO app',
+    };
+    const validator = createSpecDocValidator();
+    const result = validator.validateParsed(input, SCHEMA_IDS.specIntegrationInput);
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects consistency-action-items without actionableItems', () => {
+    const input = {
+      source: 'consistency-action-items',
       request: 'Build a TODO app',
     };
     const validator = createSpecDocValidator();

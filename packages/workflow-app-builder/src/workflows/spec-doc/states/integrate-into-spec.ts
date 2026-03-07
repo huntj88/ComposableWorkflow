@@ -16,9 +16,12 @@
 import type { WorkflowContext } from '@composable-workflow/workflow-lib/contracts';
 
 import type {
+  IntegrateIntoSpecInput,
+  IntegrateIntoSpecSource,
   SpecDocGenerationInput,
   SpecDocGenerationOutput,
   SpecIntegrationOutput,
+  SpecActionableItem,
 } from '../contracts.js';
 import { buildDelegationRequest, delegateToCopilot } from '../copilot-delegation.js';
 import { emitDelegationStarted, emitIntegrationPassCompleted } from '../observability.js';
@@ -32,6 +35,79 @@ import { type SpecDocStateData, createInitialStateData } from '../state-data.js'
 // ---------------------------------------------------------------------------
 
 export const INTEGRATE_INTO_SPEC_STATE = 'IntegrateIntoSpec' as const;
+
+interface IntegrateIntoSpecStateOverrides {
+  source?: IntegrateIntoSpecSource;
+  actionableItems?: SpecActionableItem[];
+}
+
+type IntegrateIntoSpecStatePayload = SpecDocStateData & IntegrateIntoSpecStateOverrides;
+
+function resolveIntegrationSource(
+  stateData: SpecDocStateData,
+  payload: unknown,
+): IntegrateIntoSpecSource {
+  const explicitSource = (payload as IntegrateIntoSpecStateOverrides | undefined)?.source;
+
+  if (
+    explicitSource === 'workflow-input' ||
+    explicitSource === 'numbered-options-feedback' ||
+    explicitSource === 'consistency-action-items'
+  ) {
+    return explicitSource;
+  }
+
+  return stateData.normalizedAnswers.length === 0 ? 'workflow-input' : 'numbered-options-feedback';
+}
+
+function buildIntegrateIntoSpecInput(
+  ctx: WorkflowContext<SpecDocGenerationInput, SpecDocGenerationOutput>,
+  stateData: SpecDocStateData,
+  payload: unknown,
+): IntegrateIntoSpecInput {
+  const source = resolveIntegrationSource(stateData, payload);
+  const specPath =
+    stateData.artifacts.specPath ??
+    (source === 'workflow-input' ? (ctx.input.targetPath ?? '') : '');
+
+  const baseInput = {
+    source,
+    request: ctx.input.request,
+    ...(ctx.input.targetPath !== undefined ? { targetPath: ctx.input.targetPath } : {}),
+    ...(ctx.input.constraints !== undefined ? { constraints: ctx.input.constraints } : {}),
+    ...(specPath !== '' ? { specPath } : {}),
+  };
+
+  if (source === 'numbered-options-feedback') {
+    return {
+      ...baseInput,
+      source,
+      answers: stateData.normalizedAnswers,
+    };
+  }
+
+  if (source === 'consistency-action-items') {
+    const actionableItems = (payload as IntegrateIntoSpecStateOverrides | undefined)
+      ?.actionableItems;
+
+    if (!Array.isArray(actionableItems)) {
+      throw new Error(
+        `[${INTEGRATE_INTO_SPEC_STATE}] Missing actionableItems for source "consistency-action-items"`,
+      );
+    }
+
+    return {
+      ...baseInput,
+      source,
+      actionableItems,
+    };
+  }
+
+  return {
+    ...baseInput,
+    source,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // State handler
@@ -53,26 +129,27 @@ export async function handleIntegrateIntoSpec(
   ctx: WorkflowContext<SpecDocGenerationInput, SpecDocGenerationOutput>,
   data?: unknown,
 ): Promise<void> {
-  const stateData: SpecDocStateData =
-    (data as SpecDocStateData | undefined) ?? createInitialStateData();
+  const payload: IntegrateIntoSpecStatePayload =
+    (data as IntegrateIntoSpecStatePayload | undefined) ?? createInitialStateData();
+  const stateData: SpecDocStateData = payload;
 
-  // SD-INT-001 / SD-INT-002: source mode from presence of prior answers
-  const isFirstPass = stateData.normalizedAnswers.length === 0;
-  const source = isFirstPass ? 'workflow-input' : 'numbered-options-feedback';
-
-  // On first pass, pre-seed specPath from targetPath so the copilot knows to
-  // read and iterate on any existing file rather than generating from scratch.
-  const specPath =
-    stateData.artifacts.specPath ?? (isFirstPass ? (ctx.input.targetPath ?? '') : '');
+  let integrationInput: IntegrateIntoSpecInput;
+  try {
+    integrationInput = buildIntegrateIntoSpecInput(ctx, stateData, payload);
+  } catch (err) {
+    ctx.fail(err instanceof Error ? err : new Error(String(err)));
+    return;
+  }
 
   // Build interpolation variables for the prompt template
   const variables: Record<string, string> = {
-    source,
-    request: ctx.input.request,
-    targetPath: ctx.input.targetPath ?? '',
-    constraintsJson: JSON.stringify(ctx.input.constraints ?? []),
-    specPath,
-    answersJson: isFirstPass ? '[]' : JSON.stringify(stateData.normalizedAnswers),
+    source: integrationInput.source,
+    request: integrationInput.request,
+    targetPath: integrationInput.targetPath ?? '',
+    constraintsJson: JSON.stringify(integrationInput.constraints ?? []),
+    specPath: integrationInput.specPath ?? '',
+    answersJson: JSON.stringify(integrationInput.answers ?? []),
+    actionableItemsJson: JSON.stringify(integrationInput.actionableItems ?? []),
   };
 
   // SD-INT-006: inputSchema provided via buildDelegationRequest (inherits from template)
@@ -140,7 +217,7 @@ export async function handleIntegrateIntoSpec(
   // SD-OBS-002: emit integration pass completed event
   emitIntegrationPassCompleted(ctx, {
     state: INTEGRATE_INTO_SPEC_STATE,
-    source,
+    source: integrationInput.source,
     specPath: output.specPath,
     passNumber: updatedStateData.counters.integrationPasses,
     changeSummaryCount: output.changeSummary.length,

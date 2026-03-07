@@ -13,9 +13,10 @@
       "type": "string",
       "enum": [
         "workflow-input",
-        "numbered-options-feedback"
+        "numbered-options-feedback",
+        "consistency-action-items"
       ],
-      "description": "Identifies whether this integration pass is initialized from workflow input or from exhausted numbered-options feedback."
+      "description": "Identifies whether this integration pass is initialized from workflow input, exhausted numbered-options feedback, or delegated consistency-action-item directives."
     },
     "request": {
       "type": "string",
@@ -46,6 +47,13 @@
         "$ref": "#/$defs/normalizedAnswer"
       },
       "description": "Accumulated normalized answers from numbered-options interactions."
+    },
+    "actionableItems": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/specActionableItem"
+      },
+      "description": "Ordered immediate edit directives emitted by consistency checking for the current integration pass."
     }
   },
   "$defs": {
@@ -78,6 +86,41 @@
           "format": "date-time"
         }
       }
+    },
+    "specActionableItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itemId",
+        "instruction",
+        "rationale",
+        "blockingIssueIds"
+      ],
+      "properties": {
+        "itemId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instruction": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targetSection": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blockingIssueIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -95,6 +138,23 @@
       "then": {
         "required": [
           "answers"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "source": {
+            "const": "consistency-action-items"
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "then": {
+        "required": [
+          "actionableItems"
         ]
       }
     }

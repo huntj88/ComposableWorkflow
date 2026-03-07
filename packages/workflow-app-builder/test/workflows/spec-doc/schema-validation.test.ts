@@ -181,6 +181,19 @@ describe('schema validation failures', () => {
     }
   });
 
+  it('rejects spec-integration-input with consistency-action-items and missing actionableItems', () => {
+    const raw = JSON.stringify({
+      source: 'consistency-action-items',
+      request: 'Build a TODO app',
+      specPath: 'specs/todo.md',
+    });
+    const result = validator.validate(raw, SCHEMA_IDS.specIntegrationInput);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe('schema-validation');
+    }
+  });
+
   it('validation error includes expected schema identifier', () => {
     const raw = JSON.stringify({});
     const result = validator.validate(raw, SCHEMA_IDS.clarificationFollowUpOutput);
@@ -337,6 +350,25 @@ describe('successful schema validation', () => {
           questionId: 'q-1',
           selectedOptionIds: [1],
           answeredAt: '2026-03-02T12:00:00Z',
+        },
+      ],
+    });
+    const result = validator.validate(raw, SCHEMA_IDS.specIntegrationInput);
+    expect(result.ok).toBe(true);
+  });
+
+  it('validates valid spec-integration-input (consistency-action-items)', () => {
+    const raw = JSON.stringify({
+      source: 'consistency-action-items',
+      request: 'Build a TODO app',
+      specPath: 'specs/todo.md',
+      actionableItems: [
+        {
+          itemId: 'act-1',
+          instruction: 'Add explicit interface examples.',
+          rationale: 'The draft leaves request and response shapes underspecified.',
+          targetSection: 'Interfaces',
+          blockingIssueIds: ['issue-interfaces'],
         },
       ],
     });

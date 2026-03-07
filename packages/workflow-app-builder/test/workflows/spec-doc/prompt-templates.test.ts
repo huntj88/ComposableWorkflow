@@ -73,6 +73,7 @@ describe('PROMPT_TEMPLATES', () => {
       expect(tpl.requiredVars).toContain('constraintsJson');
       expect(tpl.requiredVars).toContain('specPath');
       expect(tpl.requiredVars).toContain('answersJson');
+      expect(tpl.requiredVars).toContain('actionableItemsJson');
     });
 
     it('body contains key spec 7.2.1 phrases', () => {
@@ -81,6 +82,8 @@ describe('PROMPT_TEMPLATES', () => {
       expect(tpl.body).toContain('{{request}}');
       expect(tpl.body).toContain('{{constraintsJson}}');
       expect(tpl.body).toContain('{{answersJson}}');
+      expect(tpl.body).toContain('{{actionableItemsJson}}');
+      expect(tpl.body).toContain('ordered concrete edit directives');
     });
   });
 

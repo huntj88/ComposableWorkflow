@@ -58,7 +58,7 @@ const INTEGRATE_BODY = `You are generating and maintaining an implementation-rea
 
 You must:
 1) Preserve prior accepted decisions unless explicitly overridden by newer answers.
-2) Integrate all provided constraints and normalized numbered-options answers.
+2) Integrate all provided constraints, normalized numbered-options answers, and immediate actionable items.
 3) Keep the spec concrete and testable.
 4) Ensure sections exist for: objective/scope, non-goals, constraints/assumptions, interfaces/contracts, acceptance criteria.
 5) Write or update the markdown file in the workspace.
@@ -70,12 +70,14 @@ Input context:
 - existingSpecPath: {{specPath}}
 - constraints: {{constraintsJson}}
 - answers: {{answersJson}}
+- actionableItems: {{actionableItemsJson}}
 
 Spec quality requirements:
 - No unresolved contradictions in scope, constraints, or interface contracts.
 - Acceptance criteria must be testable and unambiguous.
 - Keep language implementation-ready and avoid vague statements.
-- Enough detail to implement without ambiguity.`;
+- Enough detail to implement without ambiguity.
+- When actionableItems are present, treat them as ordered concrete edit directives for the current pass.`;
 
 // -- 7.2.2 LogicalConsistencyCheckCreateFollowUpQuestions -------------------
 
@@ -161,7 +163,15 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
     outputSchemaId: SCHEMA_IDS.specIntegrationOutput,
     inputSchemaId: SCHEMA_IDS.specIntegrationInput,
     body: INTEGRATE_BODY,
-    requiredVars: ['request', 'source', 'targetPath', 'constraintsJson', 'specPath', 'answersJson'],
+    requiredVars: [
+      'request',
+      'source',
+      'targetPath',
+      'constraintsJson',
+      'specPath',
+      'answersJson',
+      'actionableItemsJson',
+    ],
   },
   [TEMPLATE_IDS.consistencyCheck]: {
     id: TEMPLATE_IDS.consistencyCheck,

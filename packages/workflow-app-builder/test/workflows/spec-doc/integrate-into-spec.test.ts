@@ -4,9 +4,11 @@ import type { WorkflowContext } from '@composable-workflow/workflow-lib/contract
 
 import type {
   CopilotPromptOptions,
+  IntegrateIntoSpecSource,
   NormalizedAnswer,
   SpecDocGenerationInput,
   SpecDocGenerationOutput,
+  SpecActionableItem,
   SpecIntegrationOutput,
 } from '../../../src/workflows/spec-doc/contracts.js';
 import type { CopilotAppBuilderOutput } from '../../../src/workflows/copilot-prompt.js';
@@ -104,6 +106,29 @@ function stateDataWithAnswers(
   };
 }
 
+type IntegrateIntoSpecTestPayload = SpecDocStateData & {
+  source?: IntegrateIntoSpecSource;
+  actionableItems?: SpecActionableItem[];
+};
+
+function makeActionableItems(): SpecActionableItem[] {
+  return [
+    {
+      itemId: 'act-2',
+      instruction: 'Clarify the API response payload contract.',
+      rationale: 'The current contract leaves response fields ambiguous.',
+      targetSection: 'Interfaces',
+      blockingIssueIds: ['issue-api-payload'],
+    },
+    {
+      itemId: 'act-1',
+      instruction: 'Add an explicit non-goals section.',
+      rationale: 'Scope boundaries are currently missing.',
+      blockingIssueIds: ['issue-non-goals'],
+    },
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // SD-INT-001-FirstPassSource
 // ---------------------------------------------------------------------------
@@ -192,6 +217,70 @@ describe('SD-INT-002-FeedbackPassSource', () => {
 
     const childInput = launchChildSpy.mock.calls[0][0].input;
     expect(childInput.prompt).toContain('specs/prior-draft.md');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SD-ACT-001 / SD-ACT-002 / SD-ACT-003
+// ---------------------------------------------------------------------------
+
+describe('SD-ACT consistency-action-items integration', () => {
+  it('accepts source: consistency-action-items and forwards actionableItems unchanged in order', async () => {
+    const actionableItems = makeActionableItems();
+    const payload: IntegrateIntoSpecTestPayload = {
+      ...createInitialStateData(),
+      source: 'consistency-action-items',
+      actionableItems,
+      artifacts: { specPath: 'specs/prior-draft.md' },
+    };
+    const { ctx, launchChildSpy, transitionSpy } = createMockContext();
+
+    await handleIntegrateIntoSpec(ctx, payload);
+
+    expect(launchChildSpy).toHaveBeenCalledTimes(1);
+    const childInput = launchChildSpy.mock.calls[0][0].input;
+    expect(childInput.prompt).toContain('consistency-action-items');
+    expect(childInput.prompt).toContain('specs/prior-draft.md');
+    expect(childInput.prompt).toContain('actionableItems:');
+
+    const firstIndex = childInput.prompt.indexOf('act-2');
+    const secondIndex = childInput.prompt.indexOf('act-1');
+    expect(firstIndex).toBeGreaterThanOrEqual(0);
+    expect(secondIndex).toBeGreaterThan(firstIndex);
+
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not require answers for consistency-action-items passes', async () => {
+    const payload: IntegrateIntoSpecTestPayload = {
+      ...createInitialStateData(),
+      source: 'consistency-action-items',
+      actionableItems: makeActionableItems(),
+      artifacts: { specPath: 'specs/prior-draft.md' },
+    };
+    const { ctx, launchChildSpy } = createMockContext();
+
+    await handleIntegrateIntoSpec(ctx, payload);
+
+    const childInput = launchChildSpy.mock.calls[0][0].input;
+    expect(childInput.prompt).toContain('answers: []');
+  });
+
+  it('fails fast when consistency-action-items source is missing actionableItems', async () => {
+    const payload: IntegrateIntoSpecTestPayload = {
+      ...createInitialStateData(),
+      source: 'consistency-action-items',
+      artifacts: { specPath: 'specs/prior-draft.md' },
+    };
+    const { ctx, failSpy, launchChildSpy, transitionSpy } = createMockContext();
+
+    await handleIntegrateIntoSpec(ctx, payload);
+
+    expect(failSpy).toHaveBeenCalledTimes(1);
+    expect(launchChildSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).not.toHaveBeenCalled();
+    const error = failSpy.mock.calls[0][0] as Error;
+    expect(error.message).toContain('Missing actionableItems');
   });
 });
 

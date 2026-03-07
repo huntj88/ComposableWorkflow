@@ -65,21 +65,51 @@ export interface NormalizedAnswer {
   answeredAt: string;
 }
 
+/**
+ * Ordered immediate edit directive emitted by consistency checking.
+ * Matches the actionable-item contract used by the delegated child workflow.
+ */
+export interface SpecActionableItem {
+  itemId: string;
+  instruction: string;
+  rationale: string;
+  targetSection?: string;
+  blockingIssueIds: string[];
+}
+
 // ---------------------------------------------------------------------------
 // 6.5 IntegrateIntoSpec Input
 // ---------------------------------------------------------------------------
 
-/**
- * Input consumed by the `IntegrateIntoSpec` state handler (spec section 6.5).
- */
-export interface IntegrateIntoSpecInput {
-  source: 'workflow-input' | 'numbered-options-feedback';
+interface IntegrateIntoSpecBaseInput {
   request: string;
   targetPath?: string;
   constraints?: string[];
   specPath?: string;
-  answers?: NormalizedAnswer[];
 }
+
+/**
+ * Input consumed by the `IntegrateIntoSpec` state handler (spec section 6.5).
+ */
+
+export type IntegrateIntoSpecInput =
+  | (IntegrateIntoSpecBaseInput & {
+      source: 'workflow-input';
+      answers?: NormalizedAnswer[];
+      actionableItems?: never;
+    })
+  | (IntegrateIntoSpecBaseInput & {
+      source: 'numbered-options-feedback';
+      answers: NormalizedAnswer[];
+      actionableItems?: never;
+    })
+  | (IntegrateIntoSpecBaseInput & {
+      source: 'consistency-action-items';
+      answers?: NormalizedAnswer[];
+      actionableItems: SpecActionableItem[];
+    });
+
+export type IntegrateIntoSpecSource = IntegrateIntoSpecInput['source'];
 
 // ---------------------------------------------------------------------------
 // Spec Integration Output
