@@ -142,6 +142,8 @@ describe('PROMPT_TEMPLATES', () => {
       expect(tpl.body).toContain('clarifying-question');
       expect(tpl.body).toContain('unrelated-question');
       expect(tpl.body).toContain('custom-answer');
+      expect(tpl.body).toContain('still count as clarifying-question');
+      expect(tpl.body).toContain('Use unrelated-question only for side research');
     });
   });
 

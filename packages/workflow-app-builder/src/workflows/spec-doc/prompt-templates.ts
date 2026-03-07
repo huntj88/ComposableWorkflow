@@ -120,7 +120,9 @@ Input context:
 
 Classification policy:
 - intent = clarifying-question when the custom text is primarily asking for clarification, disambiguation, or additional information needed to answer the current numbered question.
+- Questions about the existing implementation, repository, or spec draft still count as clarifying-question when that research is being used to answer the current numbered question.
 - intent = unrelated-question when the custom text is primarily a side research task about the spec, implementation, or repository and is not itself an answer to the current numbered question.
+- Use unrelated-question only for side research that does not move the current numbered question toward an answer.
 - intent = custom-answer when the custom text primarily provides an answer, preference, constraint, or detail to be integrated. An actionable item may sometimes be phrased as a question.
 - For question intents, populate \`customQuestionText\` with the normalized question text that should be researched next.
 - Choose exactly one intent.`;

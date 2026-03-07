@@ -255,6 +255,44 @@ describe('Research-only clarification outcomes', () => {
       'q-cc-3',
     ]);
   });
+
+  it('reuses a cached research note for the same source question and question text', async () => {
+    const stateData = {
+      ...stateDataForExpansion('q-cc-1', 'Can the existing implementation answer this?'),
+      researchNotes: [
+        {
+          sourceQuestionId: 'q-cc-1',
+          intent: 'unrelated-question',
+          questionText: '  Can the existing implementation answer this?  ',
+          researchSummary: 'Yes. The existing implementation already answers it.',
+          recordedAt: '2026-03-01T09:00:00.000Z',
+        },
+      ],
+      pendingClarification: {
+        sourceQuestionId: 'q-cc-1',
+        intent: 'clarifying-question',
+        customQuestionText: 'Can the existing implementation answer this?',
+      },
+    } satisfies SpecDocStateData;
+    const { ctx, launchChildSpy, transitionSpy, logSpy } = createMockContext();
+
+    await handleExpandQuestionWithClarification(ctx, stateData);
+
+    expect(launchChildSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledWith('NumberedOptionsHumanRequest', expect.any(Object));
+
+    const updatedState = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(updatedState.queueIndex).toBe(0);
+    expect(updatedState.pendingClarification).toBeUndefined();
+    expect(updatedState.researchNotes).toEqual(stateData.researchNotes);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'info',
+        message:
+          'Reusing cached research result for repeated clarification instead of delegating again',
+      }),
+    );
+  });
 });
 
 // ===========================================================================

@@ -72,6 +72,35 @@ export interface ResearchNote {
   recordedAt: string;
 }
 
+/** Normalize clarification/research question text for cache-key comparisons. */
+export function normalizeResearchQuestionText(questionText: string): string {
+  return questionText.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+/**
+ * Find a previously logged research note for the same source question and
+ * normalized question text, regardless of whether it was labeled clarifying
+ * or unrelated.
+ */
+export function findMatchingResearchNote(
+  researchNotes: readonly ResearchNote[] | undefined,
+  params: {
+    sourceQuestionId: string;
+    questionText: string;
+  },
+): ResearchNote | undefined {
+  const normalizedQuestionText = normalizeResearchQuestionText(params.questionText);
+  const notes = researchNotes ?? [];
+
+  return [...notes]
+    .reverse()
+    .find(
+      (note) =>
+        note.sourceQuestionId === params.sourceQuestionId &&
+        normalizeResearchQuestionText(note.questionText) === normalizedQuestionText,
+    );
+}
+
 /**
  * LIFO stack of deferred source question ids awaiting revisit.
  *

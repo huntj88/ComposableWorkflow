@@ -35,6 +35,7 @@ import { insertImmediateNext } from '../queue.js';
 import { createSpecDocValidator } from '../schema-validation.js';
 import { SCHEMA_IDS } from '../schemas.js';
 import {
+  findMatchingResearchNote,
   peekDeferredQuestionId,
   type SpecDocStateData,
   createInitialStateData,
@@ -126,6 +127,38 @@ export async function handleExpandQuestionWithClarification(
         `[${EXPAND_QUESTION_WITH_CLARIFICATION_STATE}] Source question "${sourceQuestionId}" not found in queue.`,
       ),
     );
+    return;
+  }
+
+  const cachedResearchNote = findMatchingResearchNote(stateData.researchNotes, {
+    sourceQuestionId,
+    questionText: customQuestionText,
+  });
+
+  if (cachedResearchNote) {
+    const deferredQuestionId = peekDeferredQuestionId(stateData.deferredQuestionIds);
+    const resumeIndex =
+      deferredQuestionId === sourceQuestionId ? sourceQuestionIndex : stateData.queueIndex;
+
+    const updatedStateData: SpecDocStateData = {
+      ...stateData,
+      queueIndex: resumeIndex,
+      pendingClarification: undefined,
+    };
+
+    ctx.log({
+      level: 'info',
+      message:
+        'Reusing cached research result for repeated clarification instead of delegating again',
+      payload: {
+        sourceQuestionId,
+        cachedIntent: cachedResearchNote.intent,
+        requestedIntent: intent,
+        questionText: customQuestionText,
+      },
+    });
+
+    ctx.transition('NumberedOptionsHumanRequest', updatedStateData);
     return;
   }
 
