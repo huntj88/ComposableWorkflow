@@ -24,7 +24,7 @@
       "items": {
         "$ref": "#/$defs/specActionableItem"
       },
-      "description": "Ordered immediate edit directives for the current consistency child run. Mutually exclusive with followUpQuestions."
+      "description": "Ordered immediate edit directives for the current consistency child run. The merged aggregate may coexist with earlier followUpQuestions preserved from prior executed stages."
     },
     "followUpQuestions": {
       "type": "array",
@@ -152,45 +152,5 @@
         }
       }
     }
-  },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "actionableItems": {
-            "minItems": 1
-          }
-        },
-        "required": [
-          "actionableItems"
-        ]
-      },
-      "then": {
-        "properties": {
-          "followUpQuestions": {
-            "maxItems": 0
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "followUpQuestions": {
-            "minItems": 1
-          }
-        },
-        "required": [
-          "followUpQuestions"
-        ]
-      },
-      "then": {
-        "properties": {
-          "actionableItems": {
-            "maxItems": 0
-          }
-        }
-      }
-    }
-  ]
+  }
 }

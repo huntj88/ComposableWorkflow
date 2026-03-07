@@ -9,12 +9,12 @@
 Implement the delegated-child follow-on behavior where single-stage mixed outputs remain invalid, but the merged child aggregate may retain earlier `followUpQuestions` when a later executed stage emits `actionableItems`, and the parent must prioritize `IntegrateIntoSpec` for that pass.
 
 ## Implementation Tasks
-- [ ] Update delegated-child aggregate merge logic so earlier-stage `followUpQuestions` are preserved when a later executed stage emits `actionableItems`.
-- [ ] Keep stage-local contract enforcement unchanged: a single `ConsistencyStageOutput` must still fail if it contains both non-empty `actionableItems` and non-empty `followUpQuestions`.
-- [ ] Update parent `LogicalConsistencyCheckCreateFollowUpQuestions` routing so aggregate `actionableItems` always take precedence over queue construction.
-- [ ] Ensure `NumberedOptionsHumanRequest` is not entered for a pass where aggregate `actionableItems` is non-empty, even if aggregate `followUpQuestions` is also non-empty.
-- [ ] Add regression coverage for mixed aggregate child results in unit/state tests.
-- [ ] Extend integration coverage so valid mixed aggregates route to `IntegrateIntoSpec` while stage-local mixed outputs still fail.
+ [x] Update delegated-child aggregate merge logic so earlier-stage `followUpQuestions` are preserved when a later executed stage emits `actionableItems`.
+ [x] Keep stage-local contract enforcement unchanged: a single `ConsistencyStageOutput` must still fail if it contains both non-empty `actionableItems` and non-empty `followUpQuestions`.
+ [x] Update parent `LogicalConsistencyCheckCreateFollowUpQuestions` routing so aggregate `actionableItems` always take precedence over queue construction.
+ [x] Ensure `NumberedOptionsHumanRequest` is not entered for a pass where aggregate `actionableItems` is non-empty, even if aggregate `followUpQuestions` is also non-empty.
+ [x] Add regression coverage for mixed aggregate child results in unit/state tests.
+ [x] Extend integration coverage so valid mixed aggregates route to `IntegrateIntoSpec` while stage-local mixed outputs still fail.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/consistency-follow-up-child.ts`

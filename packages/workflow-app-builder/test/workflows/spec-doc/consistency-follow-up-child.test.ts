@@ -20,6 +20,7 @@ import {
   executeConsistencyFollowUpPromptLayers,
   handleConsistencyFollowUpChild,
   validateConsistencyCheckOutputContract,
+  validateConsistencyStageOutputContract,
 } from '../../../src/workflows/spec-doc/consistency-follow-up-child.js';
 import { TEMPLATE_IDS } from '../../../src/workflows/spec-doc/prompt-templates.js';
 import { SCHEMA_IDS } from '../../../src/workflows/spec-doc/schemas.js';
@@ -147,9 +148,9 @@ function createChildContext(responses: Array<unknown | Error>) {
   return { ctx, launchChildSpy, completeSpy, failSpy, logSpy };
 }
 
-describe('validateConsistencyCheckOutputContract', () => {
-  it('rejects mixed actionable and follow-up output', () => {
-    const violations = validateConsistencyCheckOutputContract(
+describe('validateConsistencyStageOutputContract', () => {
+  it('rejects mixed actionable and follow-up output within one stage', () => {
+    const violations = validateConsistencyStageOutputContract(
       stageOutput({
         actionableItems: [actionableItem()],
         followUpQuestions: [followUpQuestion('q-1')],
@@ -159,6 +160,19 @@ describe('validateConsistencyCheckOutputContract', () => {
     expect(violations).toContain(
       'actionableItems and followUpQuestions must be mutually exclusive',
     );
+  });
+});
+
+describe('validateConsistencyCheckOutputContract', () => {
+  it('allows mixed actionable and follow-up output in the merged aggregate', () => {
+    const violations = validateConsistencyCheckOutputContract(
+      stageOutput({
+        actionableItems: [actionableItem()],
+        followUpQuestions: [followUpQuestion('q-1')],
+      }),
+    );
+
+    expect(violations).toEqual([]);
   });
 });
 
@@ -311,7 +325,7 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     ).rejects.toThrow('duplicate follow-up questionId: q-1');
   });
 
-  it('fails when actionableItems appear after prior follow-up questions', async () => {
+  it('preserves prior follow-up questions when a later stage emits actionableItems', async () => {
     const { ctx } = createChildContext([
       narrowStageOutput(['hasScopeAndObjective'], {
         followUpQuestions: [followUpQuestion('q-1')],
@@ -323,22 +337,23 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
       }),
     ]);
 
-    await expect(
-      executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
-        {
-          stageId: 'stage-1',
-          templateId: TEMPLATE_IDS.consistencyScopeObjective,
-          outputSchema: SCHEMA_IDS.consistencyScopeObjectiveOutput,
-          checklistKeys: ['hasScopeAndObjective'],
-        },
-        {
-          stageId: 'stage-2',
-          templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
-          outputSchema: SCHEMA_IDS.consistencyInterfacesContractsOutput,
-          checklistKeys: ['hasInterfacesOrContracts'],
-        },
-      ]),
-    ).rejects.toThrow('actionableItems cannot appear after followUpQuestions');
+    const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
+      {
+        stageId: 'stage-1',
+        templateId: TEMPLATE_IDS.consistencyScopeObjective,
+        outputSchema: SCHEMA_IDS.consistencyScopeObjectiveOutput,
+        checklistKeys: ['hasScopeAndObjective'],
+      },
+      {
+        stageId: 'stage-2',
+        templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
+        outputSchema: SCHEMA_IDS.consistencyInterfacesContractsOutput,
+        checklistKeys: ['hasInterfacesOrContracts'],
+      },
+    ]);
+
+    expect(result.followUpQuestions).toEqual([followUpQuestion('q-1')]);
+    expect(result.actionableItems).toEqual([actionableItem()]);
   });
 
   it('uses the fine-grained default validation layer list', async () => {

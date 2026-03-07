@@ -174,7 +174,14 @@ export interface NumberedQuestionItem {
   options: NumberedQuestionOption[];
 }
 
-/** Output of `LogicalConsistencyCheckCreateFollowUpQuestions`. */
+/**
+ * Aggregate output of `LogicalConsistencyCheckCreateFollowUpQuestions`.
+ *
+ * Unlike a single `ConsistencyStageOutput`, this merged child result may
+ * contain both non-empty `actionableItems` and non-empty `followUpQuestions`
+ * when earlier executed stages emitted follow-up questions before a later
+ * stage emitted actionable items.
+ */
 export interface ConsistencyCheckOutput {
   blockingIssues: BlockingIssue[];
   actionableItems: SpecActionableItem[];
@@ -182,6 +189,12 @@ export interface ConsistencyCheckOutput {
   readinessChecklist: ReadinessChecklist;
 }
 
+/**
+ * Per-stage child output.
+ *
+ * A single stage must emit at most one non-empty outcome array: either
+ * `actionableItems` or `followUpQuestions`.
+ */
 export interface ConsistencyStageOutput<
   TChecklistKey extends ConsistencyChecklistKey = ConsistencyChecklistKey,
 > {

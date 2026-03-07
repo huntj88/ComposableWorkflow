@@ -263,15 +263,21 @@ function validateProsConsDescriptions(
 }
 
 function validateConsistencyOutputContractCore(
-  output: Pick<ConsistencyStageOutput, 'actionableItems' | 'followUpQuestions'>,
+  output: Pick<ConsistencyStageOutput, 'followUpQuestions'>,
 ): string[] {
   const violations: string[] = [];
+
+  violations.push(...validateProsConsDescriptions(output));
+  return violations;
+}
+
+export function validateConsistencyStageOutputContract(output: ConsistencyStageOutput): string[] {
+  const violations = validateConsistencyOutputContractCore(output);
 
   if (output.actionableItems.length > 0 && output.followUpQuestions.length > 0) {
     violations.push('actionableItems and followUpQuestions must be mutually exclusive');
   }
 
-  violations.push(...validateProsConsDescriptions(output));
   return violations;
 }
 
@@ -375,7 +381,7 @@ async function runPromptLayer(
   }
 
   const stageOutput = validation.value;
-  const stageViolations = validateConsistencyOutputContractCore(stageOutput);
+  const stageViolations = validateConsistencyStageOutputContract(stageOutput);
   if (stageViolations.length > 0) {
     throw new Error(`[${layer.stageId}] Contract violation: ${stageViolations.join('; ')}`);
   }
@@ -392,12 +398,6 @@ function mergeStageOutput(
   const seenBlockingIssueIds = createStateDataSet(stateData.seenBlockingIssueIds);
   const seenActionableIds = createStateDataSet(stateData.seenActionableItemIds);
   const seenQuestionIds = createStateDataSet(stateData.seenFollowUpQuestionIds);
-
-  if (stageOutput.actionableItems.length > 0 && aggregate.followUpQuestions.length > 0) {
-    throw new Error(
-      `[${layer.stageId}] Contract violation: actionableItems cannot appear after followUpQuestions have already been aggregated`,
-    );
-  }
 
   pushUniqueBlockingIssues(aggregate, seenBlockingIssueIds, stageOutput);
   aggregate.readinessChecklist = mergeReadinessChecklist(

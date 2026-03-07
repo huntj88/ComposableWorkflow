@@ -154,4 +154,51 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
     expect(result.failedError?.message).toContain('actionableItems');
     expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].stageId);
   });
+
+  it('allows mixed aggregate preservation across stages while still short-circuiting later layers', async () => {
+    const actionableItems = [makeActionableItem('act-mixed-aggregate-001')];
+
+    copilotDouble.reset({
+      ExecutePromptLayer: [
+        {
+          structuredOutput: narrowStageOutput(
+            0,
+            makeConsistencyOutput({
+              followUpQuestions: [makeQuestionItem('q-mixed-aggregate-001')],
+            }),
+          ),
+        },
+        {
+          structuredOutput: narrowStageOutput(
+            1,
+            makeConsistencyOutput({
+              actionableItems,
+            }),
+          ),
+        },
+        { failure: new Error('later stage should not execute') },
+      ],
+    });
+
+    const input = makeDefaultInput();
+    const stateData = makeStateDataAfterIntegration();
+    const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink, {
+      executeConsistencyChild: true,
+    });
+
+    await handleLogicalConsistencyCheck(ctx, stateData);
+
+    expect(result.failedError).toBeUndefined();
+    expect(result.transitions).toHaveLength(1);
+    expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(2);
+
+    const nextData = result.transitions[0].data as SpecDocStateData & {
+      source: 'consistency-action-items';
+      actionableItems: typeof actionableItems;
+    };
+    expect(nextData.source).toBe('consistency-action-items');
+    expect(nextData.actionableItems).toEqual(actionableItems);
+    expect(nextData.queue).toEqual([]);
+  });
 });

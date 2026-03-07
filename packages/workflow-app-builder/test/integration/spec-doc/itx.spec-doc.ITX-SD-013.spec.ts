@@ -103,6 +103,59 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(nextData.queue).toEqual([]);
   });
 
+  it('prioritizes IntegrateIntoSpec for mixed aggregate child results and suppresses queue entry for that pass', async () => {
+    const actionableItems = [
+      makeActionableItem('act-mixed-route-001', {
+        instruction: 'Apply the concrete contract fix before collecting more feedback.',
+        blockingIssueIds: ['bi-mixed-route-001'],
+      }),
+    ];
+
+    copilotDouble.reset({
+      ExecutePromptLayer: [
+        {
+          structuredOutput: narrowStageOutput(
+            0,
+            makeConsistencyOutput({
+              followUpQuestions: [makeQuestionItem('q-mixed-route-001')],
+            }),
+          ),
+        },
+        {
+          structuredOutput: narrowStageOutput(
+            1,
+            makeConsistencyOutput({
+              actionableItems,
+            }),
+          ),
+        },
+        { failure: new Error('unreachable later stage') },
+      ],
+    });
+
+    const input = makeDefaultInput();
+    const stateData = makeStateDataAfterIntegration();
+    const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink, {
+      executeConsistencyChild: true,
+    });
+
+    await handleLogicalConsistencyCheck(ctx, stateData);
+
+    expect(result.failedError).toBeUndefined();
+    expect(result.transitions).toHaveLength(1);
+    expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(2);
+
+    const nextData = result.transitions[0].data as SpecDocStateData & {
+      source: 'consistency-action-items';
+      actionableItems: typeof actionableItems;
+    };
+    expect(nextData.source).toBe('consistency-action-items');
+    expect(nextData.actionableItems).toEqual(actionableItems);
+    expect(nextData.queue).toEqual([]);
+    expect(nextData.queueIndex).toBe(0);
+  });
+
   it('routes to NumberedOptionsHumanRequest when the child aggregate contains follow-up questions', async () => {
     copilotDouble.reset({
       ExecutePromptLayer: makeStageResponses([
