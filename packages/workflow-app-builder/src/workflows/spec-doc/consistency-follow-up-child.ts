@@ -32,10 +32,40 @@ export const CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_VERSION = '1.0.0' as const;
 export interface ConsistencyFollowUpPromptLayer {
   stageId: string;
   templateId: PromptTemplateId;
+  checklistKeys: readonly (keyof ReadinessChecklist)[];
 }
 
 export const CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS = [
-  { stageId: 'baseline-consistency', templateId: TEMPLATE_IDS.consistencyCheck },
+  {
+    stageId: 'scope-objective-consistency',
+    templateId: TEMPLATE_IDS.consistencyScopeObjective,
+    checklistKeys: ['hasScopeAndObjective'],
+  },
+  {
+    stageId: 'non-goals-consistency',
+    templateId: TEMPLATE_IDS.consistencyNonGoals,
+    checklistKeys: ['hasNonGoals'],
+  },
+  {
+    stageId: 'constraints-assumptions-consistency',
+    templateId: TEMPLATE_IDS.consistencyConstraintsAssumptions,
+    checklistKeys: ['hasConstraintsAndAssumptions'],
+  },
+  {
+    stageId: 'interfaces-contracts-consistency',
+    templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
+    checklistKeys: ['hasInterfacesOrContracts'],
+  },
+  {
+    stageId: 'acceptance-criteria-consistency',
+    templateId: TEMPLATE_IDS.consistencyAcceptanceCriteria,
+    checklistKeys: ['hasTestableAcceptanceCriteria'],
+  },
+  {
+    stageId: 'contradictions-completeness-consistency',
+    templateId: TEMPLATE_IDS.consistencyContradictionsCompleteness,
+    checklistKeys: ['hasNoContradictions', 'hasSufficientDetail'],
+  },
 ] as const satisfies readonly ConsistencyFollowUpPromptLayer[];
 
 const CHILD_EXECUTION_STATE = 'ExecutePromptLayer' as const;
@@ -59,18 +89,15 @@ function cloneDefaultReadinessChecklist(): ReadinessChecklist {
 function mergeReadinessChecklist(
   aggregate: ReadinessChecklist,
   stage: ReadinessChecklist,
+  checklistKeys: readonly (keyof ReadinessChecklist)[],
 ): ReadinessChecklist {
-  return {
-    hasScopeAndObjective: aggregate.hasScopeAndObjective && stage.hasScopeAndObjective,
-    hasNonGoals: aggregate.hasNonGoals && stage.hasNonGoals,
-    hasConstraintsAndAssumptions:
-      aggregate.hasConstraintsAndAssumptions && stage.hasConstraintsAndAssumptions,
-    hasInterfacesOrContracts: aggregate.hasInterfacesOrContracts && stage.hasInterfacesOrContracts,
-    hasTestableAcceptanceCriteria:
-      aggregate.hasTestableAcceptanceCriteria && stage.hasTestableAcceptanceCriteria,
-    hasNoContradictions: aggregate.hasNoContradictions && stage.hasNoContradictions,
-    hasSufficientDetail: aggregate.hasSufficientDetail && stage.hasSufficientDetail,
-  };
+  const nextAggregate = { ...aggregate };
+
+  for (const checklistKey of checklistKeys) {
+    nextAggregate[checklistKey] = aggregate[checklistKey] && stage[checklistKey];
+  }
+
+  return nextAggregate;
 }
 
 function pushUniqueBlockingIssues(
@@ -95,6 +122,11 @@ function ensureUniqueStageIds(layers: readonly ConsistencyFollowUpPromptLayer[])
     }
     if (seenStageIds.has(layer.stageId)) {
       throw new Error(`Duplicate prompt-layer stageId: ${layer.stageId}`);
+    }
+    if (layer.checklistKeys.length === 0) {
+      throw new Error(
+        `Prompt layer ${layer.stageId} must declare at least one readinessChecklist key`,
+      );
     }
     seenStageIds.add(layer.stageId);
   }
@@ -267,6 +299,7 @@ export async function executeConsistencyFollowUpPromptLayers(
     aggregate.readinessChecklist = mergeReadinessChecklist(
       aggregate.readinessChecklist,
       stageOutput.readinessChecklist,
+      layer.checklistKeys,
     );
 
     for (const item of stageOutput.actionableItems) {

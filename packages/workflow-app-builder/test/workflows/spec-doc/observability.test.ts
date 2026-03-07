@@ -42,7 +42,7 @@ describe('spec-doc observability', () => {
 
     const payload = emitDelegationStarted(ctx, {
       state: 'ExecutePromptLayer',
-      promptTemplateId: TEMPLATE_IDS.consistencyCheck,
+      promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
       outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
       stageId: 'baseline-consistency',
@@ -68,7 +68,7 @@ describe('spec-doc observability', () => {
       actionableItemsCount: 1,
       followUpQuestionsCount: 0,
       passNumber: 3,
-      promptTemplateId: TEMPLATE_IDS.consistencyCheck,
+      promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
       stageId: 'baseline-consistency',
     });
@@ -92,13 +92,13 @@ describe('spec-doc observability', () => {
 
     emitDelegationStarted(ctx, {
       state: 'LogicalConsistencyCheckCreateFollowUpQuestions',
-      promptTemplateId: TEMPLATE_IDS.consistencyCheck,
+      promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
       outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
     });
     emitDelegationStarted(ctx, {
       state: 'ExecutePromptLayer',
-      promptTemplateId: TEMPLATE_IDS.consistencyCheck,
+      promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
       outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
       stageId: 'baseline-consistency',
@@ -109,7 +109,7 @@ describe('spec-doc observability', () => {
       actionableItemsCount: 0,
       followUpQuestionsCount: 2,
       passNumber: 1,
-      promptTemplateId: TEMPLATE_IDS.consistencyCheck,
+      promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
     });
 

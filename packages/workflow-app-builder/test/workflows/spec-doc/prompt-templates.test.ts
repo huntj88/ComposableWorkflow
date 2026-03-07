@@ -16,24 +16,42 @@ import { SCHEMA_IDS } from '../../../src/workflows/spec-doc/schemas.js';
 // ---------------------------------------------------------------------------
 
 describe('TEMPLATE_IDS', () => {
-  it('contains exactly four required template IDs matching spec section 7.2', () => {
+  it('contains the required core and scoped consistency template IDs', () => {
     expect(TEMPLATE_IDS.integrate).toBe('spec-doc.integrate.v1');
-    expect(TEMPLATE_IDS.consistencyCheck).toBe('spec-doc.consistency-check.v1');
+    expect(TEMPLATE_IDS.consistencyScopeObjective).toBe('spec-doc.consistency-scope-objective.v1');
+    expect(TEMPLATE_IDS.consistencyNonGoals).toBe('spec-doc.consistency-non-goals.v1');
+    expect(TEMPLATE_IDS.consistencyConstraintsAssumptions).toBe(
+      'spec-doc.consistency-constraints-assumptions.v1',
+    );
+    expect(TEMPLATE_IDS.consistencyInterfacesContracts).toBe(
+      'spec-doc.consistency-interfaces-contracts.v1',
+    );
+    expect(TEMPLATE_IDS.consistencyAcceptanceCriteria).toBe(
+      'spec-doc.consistency-acceptance-criteria.v1',
+    );
+    expect(TEMPLATE_IDS.consistencyContradictionsCompleteness).toBe(
+      'spec-doc.consistency-contradictions-completeness.v1',
+    );
     expect(TEMPLATE_IDS.classifyCustomPrompt).toBe('spec-doc.classify-custom-prompt.v1');
     expect(TEMPLATE_IDS.expandClarification).toBe('spec-doc.expand-clarification.v1');
   });
 
-  it('has exactly four entries', () => {
-    expect(Object.keys(TEMPLATE_IDS)).toHaveLength(4);
+  it('has exactly nine entries', () => {
+    expect(Object.keys(TEMPLATE_IDS)).toHaveLength(9);
   });
 });
 
 describe('getAllTemplateIds', () => {
-  it('returns all four template IDs', () => {
+  it('returns all template IDs including the scoped consistency layers', () => {
     const ids = getAllTemplateIds();
-    expect(ids).toHaveLength(4);
+    expect(ids).toHaveLength(9);
     expect(ids).toContain(TEMPLATE_IDS.integrate);
-    expect(ids).toContain(TEMPLATE_IDS.consistencyCheck);
+    expect(ids).toContain(TEMPLATE_IDS.consistencyScopeObjective);
+    expect(ids).toContain(TEMPLATE_IDS.consistencyNonGoals);
+    expect(ids).toContain(TEMPLATE_IDS.consistencyConstraintsAssumptions);
+    expect(ids).toContain(TEMPLATE_IDS.consistencyInterfacesContracts);
+    expect(ids).toContain(TEMPLATE_IDS.consistencyAcceptanceCriteria);
+    expect(ids).toContain(TEMPLATE_IDS.consistencyContradictionsCompleteness);
     expect(ids).toContain(TEMPLATE_IDS.classifyCustomPrompt);
     expect(ids).toContain(TEMPLATE_IDS.expandClarification);
   });
@@ -87,36 +105,51 @@ describe('PROMPT_TEMPLATES', () => {
     });
   });
 
-  describe('spec-doc.consistency-check.v1', () => {
-    const tpl: PromptTemplate = PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyCheck];
+  describe('scoped consistency templates', () => {
+    const scopedTemplateIds = [
+      TEMPLATE_IDS.consistencyScopeObjective,
+      TEMPLATE_IDS.consistencyNonGoals,
+      TEMPLATE_IDS.consistencyConstraintsAssumptions,
+      TEMPLATE_IDS.consistencyInterfacesContracts,
+      TEMPLATE_IDS.consistencyAcceptanceCriteria,
+      TEMPLATE_IDS.consistencyContradictionsCompleteness,
+    ] as const;
 
-    it('has the correct template ID', () => {
-      expect(tpl.id).toBe('spec-doc.consistency-check.v1');
+    it('all map to consistencyCheckOutput and use shared interpolation variables', () => {
+      for (const templateId of scopedTemplateIds) {
+        const tpl = PROMPT_TEMPLATES[templateId];
+        expect(tpl.outputSchemaId).toBe(SCHEMA_IDS.consistencyCheckOutput);
+        expect(tpl.inputSchemaId).toBeUndefined();
+        expect(tpl.requiredVars).toEqual([
+          'request',
+          'specPath',
+          'constraintsJson',
+          'loopCount',
+          'remainingQuestionIdsJson',
+          'stageId',
+        ]);
+      }
     });
 
-    it('maps outputSchemaId to consistencyCheckOutput', () => {
-      expect(tpl.outputSchemaId).toBe(SCHEMA_IDS.consistencyCheckOutput);
-    });
-
-    it('has no inputSchemaId', () => {
-      expect(tpl.inputSchemaId).toBeUndefined();
-    });
-
-    it('declares all required interpolation variables', () => {
-      expect(tpl.requiredVars).toContain('request');
-      expect(tpl.requiredVars).toContain('specPath');
-      expect(tpl.requiredVars).toContain('constraintsJson');
-      expect(tpl.requiredVars).toContain('loopCount');
-      expect(tpl.requiredVars).toContain('remainingQuestionIdsJson');
-      expect(tpl.requiredVars).toContain('stageId');
-    });
-
-    it('body contains key spec 7.2.2 phrases', () => {
-      expect(tpl.body).toContain('validating a spec document for implementation readiness');
-      expect(tpl.body).toContain('{{specPath}}');
-      expect(tpl.body).toContain('{{loopCount}}');
-      expect(tpl.body).toContain('{{stageId}}');
-      expect(tpl.body).toContain('actionableItems');
+    it('narrow the validation scope for each stage', () => {
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyScopeObjective].body).toContain(
+        'scope and objective clarity',
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyNonGoals].body).toContain(
+        'non-goals and exclusions',
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyConstraintsAssumptions].body).toContain(
+        'constraints and assumptions',
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyInterfacesContracts].body).toContain(
+        'interfaces and contracts',
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyAcceptanceCriteria].body).toContain(
+        'acceptance criteria and testability',
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyContradictionsCompleteness].body).toContain(
+        'contradictions and implementation completeness',
+      );
     });
   });
 

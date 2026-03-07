@@ -113,13 +113,14 @@ describe('CopilotDouble', () => {
         outputSchema:
           '{"$id":"https://composable-workflow.local/schemas/app-builder/spec-doc/consistency-check-output.schema.json"}',
       },
-      correlationId: 'LogicalConsistencyCheckCreateFollowUpQuestions:spec-doc.consistency-check.v1',
+      correlationId:
+        'LogicalConsistencyCheckCreateFollowUpQuestions:spec-doc.consistency-scope-objective.v1',
     });
 
     expect(double.callCount).toBe(1);
     const call = double.calls[0];
     expect(call.state).toBe('LogicalConsistencyCheckCreateFollowUpQuestions');
-    expect(call.templateId).toBe('spec-doc.consistency-check.v1');
+    expect(call.templateId).toBe('spec-doc.consistency-scope-objective.v1');
     expect(call.outputSchemaId).toBe(
       'https://composable-workflow.local/schemas/app-builder/spec-doc/consistency-check-output.schema.json',
     );
@@ -212,14 +213,15 @@ describe('CopilotDouble', () => {
     await double.resolve({
       workflowType: 'app-builder.copilot.prompt.v1',
       input: { prompt: 'p2' },
-      correlationId: 'LogicalConsistencyCheckCreateFollowUpQuestions:spec-doc.consistency-check.v1',
+      correlationId:
+        'LogicalConsistencyCheckCreateFollowUpQuestions:spec-doc.consistency-scope-objective.v1',
     });
 
     expect(double.callsByState('IntegrateIntoSpec')).toHaveLength(1);
     expect(double.callsByState('LogicalConsistencyCheckCreateFollowUpQuestions')).toHaveLength(1);
     expect(double.callsByTemplateId('spec-doc.integrate.v1' as PromptTemplateId)).toHaveLength(1);
     expect(
-      double.callsByTemplateId('spec-doc.consistency-check.v1' as PromptTemplateId),
+      double.callsByTemplateId('spec-doc.consistency-scope-objective.v1' as PromptTemplateId),
     ).toHaveLength(1);
   });
 
@@ -1057,8 +1059,8 @@ describe('ObservabilitySink', () => {
       });
 
       expect(() =>
-        sink.assertTemplateIdUsed('spec-doc.consistency-check.v1' as PromptTemplateId),
-      ).toThrow(/Template ID "spec-doc.consistency-check.v1" not found/);
+        sink.assertTemplateIdUsed('spec-doc.consistency-scope-objective.v1' as PromptTemplateId),
+      ).toThrow(/Template ID "spec-doc.consistency-scope-objective.v1" not found/);
     });
 
     it('assertEventSequence passes for matching sequence', () => {

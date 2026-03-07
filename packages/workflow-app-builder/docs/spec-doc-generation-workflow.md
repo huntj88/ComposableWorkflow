@@ -26,6 +26,7 @@ In scope:
 ### Constraints and Assumptions
 - `LogicalConsistencyCheckCreateFollowUpQuestions` remains a parent FSM state but delegates its substantive validation/question-generation work to an internal child workflow FSM.
 - The child workflow executes an ordered hardcoded prompt-layer array in code; adding another validation/question-generation layer must only require appending a new entry to that array.
+- The child workflow should model prompt-layer execution as real child-FSM state transitions rather than an in-memory loop inside a single `start` handler.
 - Parent-state branching is limited to: `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`, then `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` when immediate actionable items exist, otherwise `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest`.
 - The parent FSM change surface is intentionally minimal: prompt-layer execution, issue splitting, and follow-up generation remain child-owned implementation details rather than new parent states or parent-managed prompt sequencing.
 - Immediate actionable items are integration directives that do not require a new human decision and must be applied before asking more numbered questions.
@@ -159,7 +160,8 @@ title App Builder Spec Generation Workflow (app-builder.spec-doc.v1)
 IntegrateIntoSpec --> LogicalConsistencyCheckCreateFollowUpQuestions : integration pass complete
 
 LogicalConsistencyCheckCreateFollowUpQuestions : delegates validation/question planning to child FSM
-LogicalConsistencyCheckCreateFollowUpQuestions : child runs ordered hardcoded prompt layers
+LogicalConsistencyCheckCreateFollowUpQuestions : child runs scoped prompt layers in delegated child runtime
+LogicalConsistencyCheckCreateFollowUpQuestions : explicit child self-loop states are a follow-on refactor target
 LogicalConsistencyCheckCreateFollowUpQuestions --> IntegrateIntoSpec : child returns actionableItems[]
 LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest : child returns no actionableItems[]
 
@@ -247,20 +249,17 @@ The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions
 1. It executes `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` as an ordered hardcoded array of prompt stages.
 2. Each stage uses `app-builder.copilot.prompt.v1` with the shared `consistency-check-output.schema.json` contract.
 3. Each executed stage is responsible for splitting any issues it finds into either immediate `actionableItems` for `IntegrateIntoSpec` or human `followUpQuestions` for `NumberedOptionsHumanRequest`.
-4. The child FSM has these implementation-relevant states:
-   - `LoadChildContext`: validate `ConsistencyFollowUpChildInput`, initialize empty aggregate collections, and load the ordered prompt-layer array.
-   - `ExecutePromptLayer(stageIndex)`: run the current prompt layer with the shared child input plus current stage metadata.
-   - `MergeStageOutput`: validate schema output, append unique `blockingIssues` by `blockingIssues[].id`, merge readiness-checklist failures with field-wise logical AND semantics, and inspect `actionableItems` vs `followUpQuestions`.
-   - `EmitActionableItems`: terminal child state used when the current stage returned one or more `actionableItems`; child returns accumulated actionable items and an empty `followUpQuestions` array.
-   - `EmitFollowUpQuestions`: terminal child state used after the last configured stage completes with zero actionable items; child returns aggregated follow-up questions and an empty `actionableItems` array.
-   - `FailContractViolation`: terminal child failure state for duplicate ids, invalid mixed actionable/question output, or schema/contract violations.
+4. Current shipped baseline: the child owns prompt-layer progression internally and may execute the ordered stage list within a single delegated child handler as long as the aggregate contract and short-circuit semantics are preserved.
+5. Planned explicit-state refactor target: promote prompt-layer progression into child workflow runtime states `start`, `ExecutePromptLayer`, `Done`, and `failed`, with `ExecutePromptLayer` self-looping once per configured prompt layer.
 5. The child evaluates stages in array order and aggregates `blockingIssues` plus readiness-checklist failures from every executed stage.
 6. If any executed stage returns one or more `actionableItems`, the child stops before running later stages, returns the accumulated actionable items in stage order, and returns an empty `followUpQuestions` array.
 7. If no executed stage returns actionable items, the child aggregates `followUpQuestions` from all executed stages in stage order and returns an empty `actionableItems` array.
 8. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` or `-> NumberedOptionsHumanRequest` transition.
 9. The child must fail explicitly on duplicate `itemId` or `questionId` values across executed stages.
 10. Appending another prompt layer to `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` must not require any parent-FSM transition changes.
-11. `MergeStageOutput` transitions to `FailContractViolation` for schema validation failures, duplicate ids, or mixed non-empty `actionableItems` plus `followUpQuestions`; otherwise it transitions to `EmitActionableItems` when `actionableItems` is non-empty, to `EmitFollowUpQuestions` when the current stage is the last configured stage, or back to `ExecutePromptLayer(stageIndex + 1)` when additional stages remain.
+11. Until the explicit-state refactor lands, the current baseline must still preserve equivalent ordered-stage execution, aggregate result merging, and duplicate-detection semantics within a single child run.
+12. After the explicit-state refactor lands, `ExecutePromptLayer` becomes the only looping child state and persists `stageIndex`, the aggregate result, and duplicate-detection sets across self-loop transitions.
+13. After the explicit-state refactor lands, `ExecutePromptLayer` transitions to `failed` for schema validation failures, duplicate ids, or mixed non-empty `actionableItems` plus `followUpQuestions`; otherwise it transitions to `Done` when `actionableItems` is non-empty or the current stage is the last configured stage, or back to `ExecutePromptLayer(stageIndex + 1)` when additional stages remain.
 
 ## 6.3 Transition Rules and Guards
 
@@ -544,81 +543,81 @@ Spec quality requirements:
 - When actionableItems are present, treat them as ordered concrete edit directives for the current pass.
 ```
 
-### 7.2.2 `LogicalConsistencyCheckCreateFollowUpQuestions` baseline layer prompt (`spec-doc.consistency-check.v1`)
+### 7.2.2 `LogicalConsistencyCheckCreateFollowUpQuestions` scoped prompt templates
 
-Usage:
-- delegated child workflow: `app-builder.spec-doc.consistency-follow-up.v1`
-- output schema: `consistency-check-output.schema.json`
+The delegated child workflow does not use a single combined consistency prompt. Instead it executes a series of narrower scoped prompts that all share the same `consistency-check-output.schema.json` output contract.
 
-Required runtime interpolation variables:
-- `{{stageId}}`
+Scoped template IDs:
+- `spec-doc.consistency-scope-objective.v1`
+- `spec-doc.consistency-non-goals.v1`
+- `spec-doc.consistency-constraints-assumptions.v1`
+- `spec-doc.consistency-interfaces-contracts.v1`
+- `spec-doc.consistency-acceptance-criteria.v1`
+- `spec-doc.consistency-contradictions-completeness.v1`
+
+Common runtime interpolation variables:
 - `{{request}}`
 - `{{specPath}}`
 - `{{constraintsJson}}`
 - `{{loopCount}}`
 - `{{remainingQuestionIdsJson}}` (from latest integration metadata)
+- `{{stageId}}`
 
-Prompt text:
-
-```text
-You are validating a spec document for implementation readiness and producing either immediate actionable integration items or deterministic numbered follow-up questions.
-
-Input context:
-- stageId: {{stageId}}
-- request: {{request}}
-- specPath: {{specPath}}
-- constraints: {{constraintsJson}}
-- currentLoopCount: {{loopCount}}
-- remainingQuestionIdsFromIntegration: {{remainingQuestionIdsJson}}
-
-Evaluation checklist (must map to readinessChecklist booleans):
-1) Scope/objective present.
-2) Non-goals present.
-3) Constraints/assumptions explicit.
-4) Interfaces/contracts defined where needed.
-5) Acceptance criteria testable.
-6) No contradictions or unresolved issues.
-7) Enough detail to implement without ambiguity.
-
-Action/question-generation rules:
-- Split discovered issues into `actionableItems` when `IntegrateIntoSpec` can resolve them immediately, otherwise into `followUpQuestions` when a human decision is still required.
-- Prefer `actionableItems` when the spec can be improved immediately without a new human decision.
-- Use `followUpQuestions` only for true decision gaps that require human input.
-- If no blocking issues remain: return empty `actionableItems` and empty `followUpQuestions` (completion-confirmation is synthesized by parent workflow logic).
-- Never emit non-empty `actionableItems` and non-empty `followUpQuestions` in the same result.
-- Each actionable item must include:
-  - stable deterministic `itemId`,
-  - `instruction`,
-  - `rationale`,
-  - optional `targetSection`,
-  - related `blockingIssueIds`.
-- Each follow-up question must include:
-  - stable deterministic `questionId`,
-  - prompt,
-  - options with unique contiguous integer ids starting at 1,
-  - per-option `description` that includes concise `Pros:` and `Cons:`,
-  - kind set to `issue-resolution`.
-- Keep all output ordering deterministic.
-```
+Common prompt rules:
+- Each scoped prompt inspects only its assigned concern area.
+- Each scoped prompt splits surfaced issues into exactly one of: `actionableItems`, `followUpQuestions`, or no output.
+- `actionableItems` and `followUpQuestions` remain mutually exclusive for a single stage output.
+- Each stage must return deterministic ordering and the shared readiness-checklist surface.
 
 ### 7.2.2.1 `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` implementation contract
 
 ```ts
 const CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS = [
-  { stageId: 'baseline-consistency', templateId: 'spec-doc.consistency-check.v1' },
-  // append additional validation/question-generation layers here
+  {
+    stageId: 'scope-objective-consistency',
+    templateId: 'spec-doc.consistency-scope-objective.v1',
+    checklistKeys: ['hasScopeAndObjective'],
+  },
+  {
+    stageId: 'non-goals-consistency',
+    templateId: 'spec-doc.consistency-non-goals.v1',
+    checklistKeys: ['hasNonGoals'],
+  },
+  {
+    stageId: 'constraints-assumptions-consistency',
+    templateId: 'spec-doc.consistency-constraints-assumptions.v1',
+    checklistKeys: ['hasConstraintsAndAssumptions'],
+  },
+  {
+    stageId: 'interfaces-contracts-consistency',
+    templateId: 'spec-doc.consistency-interfaces-contracts.v1',
+    checklistKeys: ['hasInterfacesOrContracts'],
+  },
+  {
+    stageId: 'acceptance-criteria-consistency',
+    templateId: 'spec-doc.consistency-acceptance-criteria.v1',
+    checklistKeys: ['hasTestableAcceptanceCriteria'],
+  },
+  {
+    stageId: 'contradictions-completeness-consistency',
+    templateId: 'spec-doc.consistency-contradictions-completeness.v1',
+    checklistKeys: ['hasNoContradictions', 'hasSufficientDetail'],
+  },
 ] as const;
 ```
 
 Rules:
 - The delegated child workflow executes entries in array order.
+- Current shipped baseline may execute these entries inside a single delegated child handler; explicit self-loop child-state progression is a planned follow-on refactor.
+- The intended child-FSM implementation initializes into `ExecutePromptLayer` once and then self-loops that state once per configured array entry.
 - Adding another validation/question-generation layer is an append-only change to this hardcoded array; parent transition logic stays unchanged.
 - Each appended layer may introduce additional validation or question-generation coverage without changing parent state semantics.
 - Every entry must produce the shared `consistency-check-output.schema.json` contract.
 - Every executed entry receives the shared child input (`request`, `specPath`, `constraints`, `loopCount`, `remainingQuestionIds`) plus its own `stageId`.
 - Later stages execute only if all earlier executed stages returned zero `actionableItems`.
 - `stageId` values must be unique.
-- `readinessChecklist` aggregation across executed layers is field-wise logical AND; once any layer marks a checklist field `false`, the aggregate field remains `false` for the rest of that child run.
+- `checklistKeys` must be non-empty for every configured layer.
+- `readinessChecklist` aggregation applies only to the current layer's declared `checklistKeys`; each focused field is merged with logical AND across the executed layers that own that field.
 
 ### 7.2.3 `ClassifyCustomPrompt` prompt (`spec-doc.classify-custom-prompt.v1`)
 
@@ -759,7 +758,7 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - **AC-4 Completion-confirmation path:** if the child returns zero `actionableItems` and zero `followUpQuestions`, the parent synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
 - **AC-5 Prompt-layer extensibility:** the child workflow executes `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` in array order, and adding a new prompt layer requires only appending a new hardcoded entry plus its prompt template; parent transition logic remains unchanged.
 - **AC-6 Short-circuit behavior:** once any executed child prompt layer emits one or more `actionableItems`, later prompt layers in that child run are not executed.
-- **AC-7 Contract enforcement:** duplicate `itemId` or `questionId` values across executed child prompt layers fail the run explicitly; the implementation must not silently deduplicate or overwrite them. Example: if layer `baseline-consistency` emits `questionId: "issue.api-shape"` and a later executed layer with zero `actionableItems` emits the same `questionId`, the child run fails before returning a result.
+- **AC-7 Contract enforcement:** duplicate `itemId` or `questionId` values across executed child prompt layers fail the run explicitly; the implementation must not silently deduplicate or overwrite them. Example: if layer `scope-objective-consistency` emits `questionId: "issue.api-shape"` and a later executed layer with zero `actionableItems` emits the same `questionId`, the child run fails before returning a result.
 - **AC-8 Integration behavior:** when `IntegrateIntoSpec` receives `source: "consistency-action-items"`, it applies the provided `actionableItems` in array order while preserving prior accepted decisions unless explicitly overridden by newer inputs.
 - **AC-9 Invalid mixed-result rejection:** if any child stage or final child aggregate would produce both non-empty `actionableItems` and non-empty `followUpQuestions`, the child run fails before the parent chooses a next state.
 - **AC-10 Minimal parent change surface:** the parent FSM implementation for this iteration introduces no additional outbound transitions from `LogicalConsistencyCheckCreateFollowUpQuestions` beyond `-> IntegrateIntoSpec` for non-empty `actionableItems` and `-> NumberedOptionsHumanRequest` otherwise; prompt layering and issue splitting remain child-owned behavior.

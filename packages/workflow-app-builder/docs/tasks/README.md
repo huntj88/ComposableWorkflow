@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in numeric order (`SDB-00` -> `SDB-17`).
+1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -37,7 +37,10 @@ This folder contains the ordered implementation plan for:
 - `SDB-14` -> `SDB-09`, `SDB-10`, `SDB-11`, `SDB-13`
 - `SDB-15` -> `SDB-03`
 - `SDB-16` -> `SDB-04`, `SDB-08`, `SDB-15`
-- `SDB-17` -> `SDB-09`, `SDB-10`, `SDB-11`, `SDB-14`, `SDB-16`
+- `SDB-16A` -> `SDB-16`
+- `SDB-17` -> `SDB-09`, `SDB-10`, `SDB-11`, `SDB-14`, `SDB-16`, `SDB-16A`
+- `SDB-18` -> `SDB-16`, `SDB-16A`, `SDB-17`
+- `SDB-19` -> `SDB-16`, `SDB-16A`, `SDB-18`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
@@ -60,7 +63,10 @@ No dependency points to a numerically later prerequisite outside this graph.
 - `SDB-14` [14-post-spec-update-integration-coverage.md](./14-post-spec-update-integration-coverage.md)
 - `SDB-15` [15-consistency-action-items-integration.md](./15-consistency-action-items-integration.md)
 - `SDB-16` [16-delegated-consistency-follow-up-child.md](./16-delegated-consistency-follow-up-child.md)
+- `SDB-16A` [16a-scoped-consistency-prompt-decoupling.md](./16a-scoped-consistency-prompt-decoupling.md)
 - `SDB-17` [17-delegated-child-coverage-and-parity.md](./17-delegated-child-coverage-and-parity.md)
+- `SDB-18` [18-child-fsm-self-loop-refactor.md](./18-child-fsm-self-loop-refactor.md)
+- `SDB-19` [19-task-suite-supersession-notes.md](./19-task-suite-supersession-notes.md)
 
 ## Full Coverage Ownership
 
@@ -68,19 +74,29 @@ No dependency points to a numerically later prerequisite outside this graph.
 - FSM transitions (`B-SD-TRANS-001..015`) -> `SDB-02`, `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`
 - Human feedback integration (`B-SD-HFB-001..005`) -> `SDB-05`, `SDB-13`, `SDB-17`
 - Schema validation (`B-SD-SCHEMA-001..006`) -> `SDB-00`, `SDB-03`, `SDB-04`, `SDB-06`, `SDB-10`
-- Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001..003`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-17`
+- Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001..003`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`
 - Queue processing (`B-SD-QUEUE-001..005`) -> `SDB-04`, `SDB-05`, `SDB-06`, `SDB-10`
 - Done/terminal (`B-SD-DONE-001..003`) -> `SDB-02`, `SDB-07`, `SDB-10`, `SDB-11`
 - Loop/failure (`B-SD-TRANS-012..015`, `B-SD-FAIL-001`) -> `SDB-07`, `SDB-10`, `SDB-11`
 - Feedback cancellation lifecycle (`B-SD-FAIL-002`) -> `SDB-11`
 - Integrate input normalization (`B-SD-INPUT-001..004`) -> `SDB-03`, `SDB-15`, `SDB-17`
-- Observability (`B-SD-OBS-001..003`) -> `SDB-08`, `SDB-16`, `SDB-17`, `SDB-11`
-- Post-spec-update clarification research + delegated-child deltas -> `SDB-13`, `SDB-14`, `SDB-15`, `SDB-16`, `SDB-17`
+- Observability (`B-SD-OBS-001..003`) -> `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-18`, `SDB-19`, `SDB-11`
+- Post-spec-update clarification research + delegated-child deltas -> `SDB-13`, `SDB-14`, `SDB-15`, `SDB-16`, `SDB-16A`, `SDB-17`
+- Scoped consistency prompt decoupling baseline -> `SDB-16A`
+- Explicit child self-loop follow-on -> `SDB-18`
+- Task-suite supersession notes for delegated-child evolution -> `SDB-19`
+
+Current delegated-child alignment:
+- `SDB-16A` defines the scoped-prompt baseline used by the current shipped delegated child.
+- `SDB-17` adds parity and coverage on top of that baseline.
+- `SDB-18` is the follow-on refactor for explicit child runtime self-loop states.
+- `SDB-19` documents supersession and ownership across the evolved task sequence.
 
 ### Integration Coverage (`ITX-SD-*`)
 - Harness prerequisites in `ITX` section 3 -> `SDB-09`
 - `ITX-SD-001..014` implementation -> `SDB-10`
-- Post-spec-update `ITX-SD-003/004/005/007/012/013/014/015/016` deltas -> `SDB-14`, `SDB-17`
+- Post-spec-update `ITX-SD-003/004/005/007/012/013/014/015/016` deltas -> `SDB-14`, `SDB-16A`, `SDB-17`
+- Planned `ITX-SD-017` explicit child-state progression -> `SDB-18`
 
 ### Golden Scenario Coverage (`GS-SD-*`)
 - `GS-SD-001..005` -> `SDB-11`

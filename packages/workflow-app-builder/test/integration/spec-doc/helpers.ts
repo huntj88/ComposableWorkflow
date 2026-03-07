@@ -320,7 +320,7 @@ export function createMockContext(
         if (childResult.structuredOutput == null) {
           throw new Error(
             '[ExecutePromptLayer] Copilot prompt did not return structuredOutput ' +
-              `(template: spec-doc.consistency-check.v1). Raw: ${childResult.structuredOutputRaw ?? '<empty>'}`,
+              `(template: spec-doc.consistency-scope-objective.v1). Raw: ${childResult.structuredOutputRaw ?? '<empty>'}`,
           );
         }
         return childResult.structuredOutput as CO;
@@ -424,7 +424,7 @@ export async function runFSM(
           if (childResult.structuredOutput == null) {
             throw new Error(
               '[ExecutePromptLayer] Copilot prompt did not return structuredOutput ' +
-                `(template: spec-doc.consistency-check.v1). Raw: ${childResult.structuredOutputRaw ?? '<empty>'}`,
+                `(template: spec-doc.consistency-scope-objective.v1). Raw: ${childResult.structuredOutputRaw ?? '<empty>'}`,
             );
           }
           return childResult.structuredOutput as CO;

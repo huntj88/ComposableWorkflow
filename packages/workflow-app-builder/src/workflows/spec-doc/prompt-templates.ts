@@ -15,7 +15,12 @@ import { SCHEMA_IDS, type SpecDocSchemaId } from './schemas.js';
 
 export const TEMPLATE_IDS = {
   integrate: 'spec-doc.integrate.v1',
-  consistencyCheck: 'spec-doc.consistency-check.v1',
+  consistencyScopeObjective: 'spec-doc.consistency-scope-objective.v1',
+  consistencyNonGoals: 'spec-doc.consistency-non-goals.v1',
+  consistencyConstraintsAssumptions: 'spec-doc.consistency-constraints-assumptions.v1',
+  consistencyInterfacesContracts: 'spec-doc.consistency-interfaces-contracts.v1',
+  consistencyAcceptanceCriteria: 'spec-doc.consistency-acceptance-criteria.v1',
+  consistencyContradictionsCompleteness: 'spec-doc.consistency-contradictions-completeness.v1',
   classifyCustomPrompt: 'spec-doc.classify-custom-prompt.v1',
   expandClarification: 'spec-doc.expand-clarification.v1',
 } as const;
@@ -79,9 +84,14 @@ Spec quality requirements:
 - Enough detail to implement without ambiguity.
 - When actionableItems are present, treat them as ordered concrete edit directives for the current pass.`;
 
-// -- 7.2.2 LogicalConsistencyCheckCreateFollowUpQuestions -------------------
+function createScopedConsistencyBody(params: {
+  focusTitle: string;
+  focusInstructions: string[];
+  checklistFocus: string[];
+}): string {
+  return `You are validating a spec document for implementation readiness and generating deterministic numbered follow-up questions for a single focused validation pass.
 
-const CONSISTENCY_CHECK_BODY = `You are validating a spec document for implementation readiness and generating deterministic numbered follow-up questions.
+Stage focus: ${params.focusTitle}
 
 Input context:
 - request: {{request}}
@@ -89,18 +99,16 @@ Input context:
 - constraints: {{constraintsJson}}
 - currentLoopCount: {{loopCount}}
 - remainingQuestionIdsFromIntegration: {{remainingQuestionIdsJson}}
-- currentStageId: {{stageId}}
 
-Evaluation checklist (must map to readinessChecklist booleans):
-1) Scope/objective present.
-2) Non-goals present.
-3) Constraints/assumptions explicit.
-4) Interfaces/contracts defined where needed.
-5) Acceptance criteria testable.
-6) No contradictions or unresolved issues.
-7) Enough detail to implement without ambiguity.
+Inspect only the following concern area:
+${params.focusInstructions.map((instruction, index) => `${index + 1}) ${instruction}`).join('\n')}
 
-Question-generation rules:
+Checklist focus for this stage:
+${params.checklistFocus.map((item, index) => `${index + 1}) ${item}`).join('\n')}
+
+Stage rules:
+- Emit issues, actionable items, and follow-up questions only for this stage's focus area.
+- Ignore issues outside this focus area.
 - For each issue surfaced in this stage, choose exactly one outcome: immediate \`actionableItems\`, human \`followUpQuestions\`, or no output for that issue.
 - If you emit any \`actionableItems\`, return an empty \`followUpQuestions\` array for this stage.
 - If you emit any \`followUpQuestions\`, return an empty \`actionableItems\` array for this stage.
@@ -112,7 +120,63 @@ Question-generation rules:
   - options with unique contiguous integer ids starting at 1,
   - per-option \`description\` that includes concise \`Pros:\` and \`Cons:\`,
   - kind set to \`issue-resolution\`.
+- Set readinessChecklist booleans for this stage carefully. Focused checklist fields should reflect this stage's findings. Non-focused fields may remain \`true\` unless this stage directly proves them false.
 - Keep followUpQuestions ordering deterministic.`;
+}
+
+const CONSISTENCY_SCOPE_OBJECTIVE_BODY = createScopedConsistencyBody({
+  focusTitle: 'scope and objective clarity',
+  focusInstructions: [
+    'Verify that the spec states what is being built, why it exists, and what outcome defines success.',
+    'Look for ambiguous or conflicting statements about scope boundaries or core purpose.',
+  ],
+  checklistFocus: ['hasScopeAndObjective'],
+});
+
+const CONSISTENCY_NON_GOALS_BODY = createScopedConsistencyBody({
+  focusTitle: 'non-goals and exclusions',
+  focusInstructions: [
+    'Verify that the spec explicitly states what is out of scope or intentionally deferred.',
+    'Look for missing exclusions that could cause implementation ambiguity or scope creep.',
+  ],
+  checklistFocus: ['hasNonGoals'],
+});
+
+const CONSISTENCY_CONSTRAINTS_ASSUMPTIONS_BODY = createScopedConsistencyBody({
+  focusTitle: 'constraints and assumptions',
+  focusInstructions: [
+    'Verify that technical, operational, product, and environment constraints are explicit.',
+    'Look for assumptions that should be stated because they affect implementation choices or risk.',
+  ],
+  checklistFocus: ['hasConstraintsAndAssumptions'],
+});
+
+const CONSISTENCY_INTERFACES_CONTRACTS_BODY = createScopedConsistencyBody({
+  focusTitle: 'interfaces and contracts',
+  focusInstructions: [
+    'Verify that external interfaces, data contracts, integration points, and key inputs/outputs are specified where needed.',
+    'Look for missing API, schema, event, storage, or workflow contract detail that would block implementation.',
+  ],
+  checklistFocus: ['hasInterfacesOrContracts'],
+});
+
+const CONSISTENCY_ACCEPTANCE_CRITERIA_BODY = createScopedConsistencyBody({
+  focusTitle: 'acceptance criteria and testability',
+  focusInstructions: [
+    'Verify that acceptance criteria are concrete, verifiable, and aligned with the requested behavior.',
+    'Look for vague success criteria or requirements that cannot be tested objectively.',
+  ],
+  checklistFocus: ['hasTestableAcceptanceCriteria'],
+});
+
+const CONSISTENCY_CONTRADICTIONS_COMPLETENESS_BODY = createScopedConsistencyBody({
+  focusTitle: 'contradictions and implementation completeness',
+  focusInstructions: [
+    'Verify that the spec has no internal contradictions across goals, constraints, interfaces, and acceptance criteria.',
+    'Assess whether the combined document has enough implementation detail to proceed without avoidable ambiguity.',
+  ],
+  checklistFocus: ['hasNoContradictions', 'hasSufficientDetail'],
+});
 
 // -- 7.2.3 ClassifyCustomPrompt --------------------------------------------
 
@@ -177,10 +241,75 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
       'actionableItemsJson',
     ],
   },
-  [TEMPLATE_IDS.consistencyCheck]: {
-    id: TEMPLATE_IDS.consistencyCheck,
+  [TEMPLATE_IDS.consistencyScopeObjective]: {
+    id: TEMPLATE_IDS.consistencyScopeObjective,
     outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
-    body: CONSISTENCY_CHECK_BODY,
+    body: CONSISTENCY_SCOPE_OBJECTIVE_BODY,
+    requiredVars: [
+      'request',
+      'specPath',
+      'constraintsJson',
+      'loopCount',
+      'remainingQuestionIdsJson',
+      'stageId',
+    ],
+  },
+  [TEMPLATE_IDS.consistencyNonGoals]: {
+    id: TEMPLATE_IDS.consistencyNonGoals,
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    body: CONSISTENCY_NON_GOALS_BODY,
+    requiredVars: [
+      'request',
+      'specPath',
+      'constraintsJson',
+      'loopCount',
+      'remainingQuestionIdsJson',
+      'stageId',
+    ],
+  },
+  [TEMPLATE_IDS.consistencyConstraintsAssumptions]: {
+    id: TEMPLATE_IDS.consistencyConstraintsAssumptions,
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    body: CONSISTENCY_CONSTRAINTS_ASSUMPTIONS_BODY,
+    requiredVars: [
+      'request',
+      'specPath',
+      'constraintsJson',
+      'loopCount',
+      'remainingQuestionIdsJson',
+      'stageId',
+    ],
+  },
+  [TEMPLATE_IDS.consistencyInterfacesContracts]: {
+    id: TEMPLATE_IDS.consistencyInterfacesContracts,
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    body: CONSISTENCY_INTERFACES_CONTRACTS_BODY,
+    requiredVars: [
+      'request',
+      'specPath',
+      'constraintsJson',
+      'loopCount',
+      'remainingQuestionIdsJson',
+      'stageId',
+    ],
+  },
+  [TEMPLATE_IDS.consistencyAcceptanceCriteria]: {
+    id: TEMPLATE_IDS.consistencyAcceptanceCriteria,
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    body: CONSISTENCY_ACCEPTANCE_CRITERIA_BODY,
+    requiredVars: [
+      'request',
+      'specPath',
+      'constraintsJson',
+      'loopCount',
+      'remainingQuestionIdsJson',
+      'stageId',
+    ],
+  },
+  [TEMPLATE_IDS.consistencyContradictionsCompleteness]: {
+    id: TEMPLATE_IDS.consistencyContradictionsCompleteness,
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    body: CONSISTENCY_CONTRADICTIONS_COMPLETENESS_BODY,
     requiredVars: [
       'request',
       'specPath',

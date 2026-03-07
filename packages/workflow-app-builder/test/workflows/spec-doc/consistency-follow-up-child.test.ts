@@ -155,17 +155,25 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     ]);
 
     const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
-      { stageId: 'baseline-consistency', templateId: TEMPLATE_IDS.consistencyCheck },
-      { stageId: 'deep-consistency', templateId: TEMPLATE_IDS.consistencyCheck },
+      {
+        stageId: 'scope-objective-consistency',
+        templateId: TEMPLATE_IDS.consistencyScopeObjective,
+        checklistKeys: ['hasScopeAndObjective'],
+      },
+      {
+        stageId: 'interfaces-contracts-consistency',
+        templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
+        checklistKeys: ['hasInterfacesOrContracts'],
+      },
     ]);
 
     expect(launchChildSpy).toHaveBeenCalledTimes(2);
     expect(launchChildSpy.mock.calls[0][0].workflowType).toBe('app-builder.copilot.prompt.v1');
     expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain(
-      'currentStageId: baseline-consistency',
+      'Stage focus: scope and objective clarity',
     );
     expect(launchChildSpy.mock.calls[1][0].input.prompt).toContain(
-      'currentStageId: deep-consistency',
+      'Stage focus: interfaces and contracts',
     );
     expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain('currentLoopCount: 3');
     expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain(
@@ -190,9 +198,21 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     ]);
 
     const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
-      { stageId: 'baseline-consistency', templateId: TEMPLATE_IDS.consistencyCheck },
-      { stageId: 'action-layer', templateId: TEMPLATE_IDS.consistencyCheck },
-      { stageId: 'should-not-run', templateId: TEMPLATE_IDS.consistencyCheck },
+      {
+        stageId: 'interfaces-contracts-consistency',
+        templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
+        checklistKeys: ['hasInterfacesOrContracts'],
+      },
+      {
+        stageId: 'contradictions-completeness-consistency',
+        templateId: TEMPLATE_IDS.consistencyContradictionsCompleteness,
+        checklistKeys: ['hasNoContradictions', 'hasSufficientDetail'],
+      },
+      {
+        stageId: 'should-not-run',
+        templateId: TEMPLATE_IDS.consistencyAcceptanceCriteria,
+        checklistKeys: ['hasTestableAcceptanceCriteria'],
+      },
     ]);
 
     expect(launchChildSpy).toHaveBeenCalledTimes(2);
@@ -211,8 +231,16 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
 
     await expect(
       executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
-        { stageId: 'stage-1', templateId: TEMPLATE_IDS.consistencyCheck },
-        { stageId: 'stage-2', templateId: TEMPLATE_IDS.consistencyCheck },
+        {
+          stageId: 'stage-1',
+          templateId: TEMPLATE_IDS.consistencyScopeObjective,
+          checklistKeys: ['hasScopeAndObjective'],
+        },
+        {
+          stageId: 'stage-2',
+          templateId: TEMPLATE_IDS.consistencyNonGoals,
+          checklistKeys: ['hasNonGoals'],
+        },
       ]),
     ).rejects.toThrow('duplicate follow-up questionId: q-1');
   });
@@ -225,10 +253,39 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
 
     await expect(
       executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
-        { stageId: 'stage-1', templateId: TEMPLATE_IDS.consistencyCheck },
-        { stageId: 'stage-2', templateId: TEMPLATE_IDS.consistencyCheck },
+        {
+          stageId: 'stage-1',
+          templateId: TEMPLATE_IDS.consistencyScopeObjective,
+          checklistKeys: ['hasScopeAndObjective'],
+        },
+        {
+          stageId: 'stage-2',
+          templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
+          checklistKeys: ['hasInterfacesOrContracts'],
+        },
       ]),
     ).rejects.toThrow('actionableItems cannot appear after followUpQuestions');
+  });
+
+  it('uses the fine-grained default validation layer list', async () => {
+    const { ctx, launchChildSpy } = createChildContext([
+      stageOutput({ followUpQuestions: [], blockingIssues: [] }),
+      stageOutput({ followUpQuestions: [], blockingIssues: [] }),
+      stageOutput({ followUpQuestions: [], blockingIssues: [] }),
+      stageOutput({ followUpQuestions: [], blockingIssues: [] }),
+      stageOutput({ followUpQuestions: [], blockingIssues: [] }),
+      stageOutput({ followUpQuestions: [], blockingIssues: [] }),
+    ]);
+
+    await executeConsistencyFollowUpPromptLayers(ctx, ctx.input);
+
+    expect(launchChildSpy).toHaveBeenCalledTimes(6);
+    expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain(
+      'Stage focus: scope and objective clarity',
+    );
+    expect(launchChildSpy.mock.calls[5][0].input.prompt).toContain(
+      'Stage focus: contradictions and implementation completeness',
+    );
   });
 });
 

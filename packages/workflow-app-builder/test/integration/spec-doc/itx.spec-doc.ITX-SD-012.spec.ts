@@ -68,7 +68,7 @@ describe('ITX-SD-012: Prompt template ID traceability', () => {
     expect(delegations[0].payload.promptTemplateId).toBe(TEMPLATE_IDS.integrate);
   });
 
-  it('LogicalConsistencyCheck delegation emits spec-doc.consistency-check.v1 template ID', async () => {
+  it('LogicalConsistencyCheck delegation emits the first scoped consistency template ID', async () => {
     copilotDouble.reset({
       LogicalConsistencyCheckCreateFollowUpQuestions: [
         {
@@ -87,7 +87,7 @@ describe('ITX-SD-012: Prompt template ID traceability', () => {
 
     const delegations = obsSink.delegationEvents();
     expect(delegations).toHaveLength(1);
-    expect(delegations[0].payload.promptTemplateId).toBe(TEMPLATE_IDS.consistencyCheck);
+    expect(delegations[0].payload.promptTemplateId).toBe(TEMPLATE_IDS.consistencyScopeObjective);
   });
 
   it('ClassifyCustomPrompt delegation emits spec-doc.classify-custom-prompt.v1 template ID', async () => {
@@ -176,7 +176,7 @@ describe('ITX-SD-012: Prompt template ID traceability', () => {
     // Assert all template IDs were used
     obsSink.assertAllDelegationsHaveTemplateId();
     obsSink.assertTemplateIdUsed(TEMPLATE_IDS.integrate);
-    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.consistencyCheck);
+    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.consistencyScopeObjective);
     obsSink.assertTemplateIdUsed(TEMPLATE_IDS.classifyCustomPrompt);
     obsSink.assertTemplateIdUsed(TEMPLATE_IDS.expandClarification);
   });

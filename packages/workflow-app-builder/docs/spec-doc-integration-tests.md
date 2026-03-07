@@ -274,7 +274,7 @@ A behavior is integration-primary when one or more is true:
 - Capture all observability events.
 
 **Assertions**
-- Each copilot delegation event includes the prompt template ID (e.g., `spec-doc.integrate.v1`, `spec-doc.consistency-check.v1`, `spec-doc.classify-custom-prompt.v1`, `spec-doc.expand-clarification.v1`).
+- Each copilot delegation event includes the prompt template ID (e.g., `spec-doc.integrate.v1`, `spec-doc.consistency-scope-objective.v1`, `spec-doc.classify-custom-prompt.v1`, `spec-doc.expand-clarification.v1`).
 - Template IDs are stable and match documented identifiers from section 7.2 of the workflow spec.
 - Template ID is present in both event payloads and structured log records.
 - Research-only clarification outcomes emit `spec-doc.research.logged` with the same prompt-template traceability as the originating clarification delegation.
@@ -334,6 +334,27 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-SD-CHILD-001`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-FAIL-001`.
 
+## ITX-SD-017: Delegated child explicit-state self-loop progression
+**Why not E2E-only:** requires inspection of child-workflow runtime state transitions or harness-visible child-state progression.
+
+This is planned follow-on coverage for the explicit child-state refactor. It does not apply to the current shipped delegated-child baseline when prompt-layer progression still happens inside a single child handler.
+
+**Setup**
+- Use the delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` with at least three configured prompt layers.
+- Provide stage outputs that exercise:
+  - one or more self-loop iterations with empty `actionableItems`,
+  - termination at the last stage with `followUpQuestions`,
+  - termination before the last stage with non-empty `actionableItems`.
+
+**Assertions**
+- Child workflow transitions `start -> ExecutePromptLayer` exactly once at the beginning of a run.
+- Each `ExecutePromptLayer` state entry executes exactly one configured prompt layer.
+- When more stages remain and no actionable items are produced, `ExecutePromptLayer` transitions to itself with incremented `stageIndex`.
+- When actionable items are produced, child transitions from `ExecutePromptLayer` to `Done` without visiting later stages.
+- When the final stage completes without actionable items, child transitions from `ExecutePromptLayer` to `Done` and returns the aggregate follow-up result.
+
+**Related behaviors:** `B-SD-CHILD-001A`, `B-SD-CHILD-001`, `B-SD-OBS-003`.
+
 ## ITX-SD-014: Done state invariants hold across all paths
 **Why not E2E-only:** requires exhaustive path verification for terminal state reachability.
 
@@ -357,6 +378,9 @@ A behavior is integration-primary when one or more is true:
 
 ## 5.1 Integration-Primary
 - ITX-SD-001, 002, 004, 005, 007, 008, 010, 011, 012, 013, 014, 015, 016.
+
+## 5.1.1 Planned Integration Follow-On
+- ITX-SD-017 becomes integration-primary after the explicit delegated-child self-loop refactor lands.
 
 ## 5.2 Shared Coverage (Integration + E2E)
 - ITX-SD-003, 006, 009.

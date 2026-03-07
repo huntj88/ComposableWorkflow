@@ -86,8 +86,15 @@ describe('buildDelegationRequest', () => {
 
   it('inherits undefined inputSchemaId for templates without it', () => {
     const req = buildDelegationRequest(
-      TEMPLATE_IDS.consistencyCheck,
-      { request: 'Check spec' },
+      TEMPLATE_IDS.consistencyScopeObjective,
+      {
+        request: 'Check spec',
+        specPath: 'specs/todo.md',
+        constraintsJson: '[]',
+        loopCount: '1',
+        remainingQuestionIdsJson: '[]',
+        stageId: 'scope-objective-consistency',
+      },
       'LogicalConsistencyCheck',
     );
 
@@ -187,13 +194,14 @@ describe('delegateToCopilot - child workflow invocation', () => {
     const { ctx, launchChildSpy } = createMockContext();
 
     const request = buildDelegationRequest(
-      TEMPLATE_IDS.consistencyCheck,
+      TEMPLATE_IDS.consistencyScopeObjective,
       {
         request: 'Check',
         specPath: 'specs/todo.md',
         constraintsJson: '[]',
         loopCount: '1',
         remainingQuestionIdsJson: '[]',
+        stageId: 'scope-objective-consistency',
       },
       'LogicalConsistencyCheck',
     );
@@ -428,13 +436,14 @@ describe('delegateToCopilot - structuredOutput validation', () => {
     });
 
     const request = buildDelegationRequest(
-      TEMPLATE_IDS.consistencyCheck,
+      TEMPLATE_IDS.consistencyScopeObjective,
       {
         request: 'Check',
         specPath: 'specs/todo.md',
         constraintsJson: '[]',
         loopCount: '1',
         remainingQuestionIdsJson: '[]',
+        stageId: 'scope-objective-consistency',
       },
       'LogicalConsistencyCheck',
     );
@@ -529,13 +538,14 @@ describe('delegateToCopilot - inputSchema support', () => {
     const { ctx, logSpy } = createMockContext();
 
     const request = buildDelegationRequest(
-      TEMPLATE_IDS.consistencyCheck,
+      TEMPLATE_IDS.consistencyScopeObjective,
       {
         request: 'Check',
         specPath: 'specs/todo.md',
         constraintsJson: '[]',
         loopCount: '1',
         remainingQuestionIdsJson: '[]',
+        stageId: 'scope-objective-consistency',
       },
       'LogicalConsistencyCheck',
     );
@@ -611,13 +621,14 @@ describe('delegateToCopilot - all four templates', () => {
     },
     {
       label: 'LogicalConsistencyCheck',
-      templateId: TEMPLATE_IDS.consistencyCheck,
+      templateId: TEMPLATE_IDS.consistencyScopeObjective,
       variables: {
         request: 'Check spec',
         specPath: 'specs/todo.md',
         constraintsJson: '[]',
         loopCount: '1',
         remainingQuestionIdsJson: '[]',
+        stageId: 'scope-objective-consistency',
       },
       state: 'LogicalConsistencyCheck',
     },

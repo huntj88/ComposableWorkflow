@@ -151,6 +151,15 @@ Each behavior should validate all relevant dimensions:
 **Then** later prompt layers are not executed in that child run
 **And** the child returns the accumulated `actionableItems` in stage order
 **And** the child returns an empty `followUpQuestions` array
+**And** this behavior remains valid whether prompt-layer progression is implemented inside one child handler or across explicit child runtime states
+
+## B-SD-CHILD-001A: Delegated child executes one prompt layer per self-loop state entry
+**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` has been refactored to use explicit workflow states
+**When** child execution begins
+**Then** `start` initializes child state data and transitions to `ExecutePromptLayer`
+**And** each entry to `ExecutePromptLayer` executes exactly one configured prompt layer
+**And** if additional prompt layers remain and no `actionableItems` were emitted, `ExecutePromptLayer` transitions to itself with the next `stageIndex`
+**And** child completion occurs only after transition to `Done`
 
 ## B-SD-CHILD-002: Delegated child fails on duplicate ids
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` executes multiple prompt layers
@@ -433,7 +442,8 @@ All events include `runId`, `workflowType`, `state`, and sequence ordering. Chil
 **When** child-workflow or prompt-layer observability events are emitted
 **Then** each child event includes `childWorkflowType`
 **And** each prompt-layer event includes `stageId` when applicable
-**And** prompt-layer events preserve execution order, including skipped later stages after child short-circuiting
+**And** prompt-layer events preserve execution order
+**And** later stages after child short-circuiting are externally observable either as skipped stages or by their absence from the executed prompt-layer sequence
 
 ---
 

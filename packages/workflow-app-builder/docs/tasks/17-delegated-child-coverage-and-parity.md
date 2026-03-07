@@ -6,9 +6,12 @@
 - `SDB-11`
 - `SDB-14`
 - `SDB-16`
+- `SDB-16A`
 
 ## Objective
 Close the remaining deterministic integration and production-parity gaps introduced by delegated child routing, immediate-action integration, child contract enforcement, deferred revisit feedback attempts, and the new immediate-action golden path.
+
+This task stays scoped to the currently shipped delegated-child architecture established by `SDB-16A`. Explicit child-FSM self-loop runtime states are deferred to `SDB-18`.
 
 ## Implementation Tasks
 - [ ] Extend `ITX-SD-007` to cover `source: "consistency-action-items"`.
@@ -33,6 +36,8 @@ Close the remaining deterministic integration and production-parity gaps introdu
 - Black-box `GS-SD-004` proves `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → IntegrateIntoSpec` parity for the immediate-action path.
 - `ITX-SD-016` explicitly covers both duplicate-id failure and mixed-result failure paths for the delegated child contract.
 - `ITX-SD-012` explicitly covers child-workflow start/complete events and prompt-layer `stageId` observability.
+- `ITX-SD-017`-style explicit child runtime-state progression is not required here and remains owned by `SDB-18`.
+- Coverage in this task remains valid against the current scoped-prompt baseline even when prompt-layer progression is still implemented inside one child handler.
 - Coverage metadata references all newly added `ITX-SD-*` / `GS-SD-*` assets.
 
 ## Spec/Behavior Links
@@ -45,11 +50,16 @@ Close the remaining deterministic integration and production-parity gaps introdu
 - Black-box parity stays HTTP-only and runs against an externally started production server.
 - Immediate-action parity must verify the absence of `NumberedOptionsHumanRequest` for that pass, not merely successful completion.
 - Deferred revisit idempotency assertions inspect child-launch metadata rather than inferring behavior from terminal output alone.
+- Current parity work treats the child as an implementation-owned delegating loop; no explicit child `ExecutePromptLayer -> ExecutePromptLayer` runtime transition assertions are introduced in this task.
+
+## Follow-On Task Boundary
+- `SDB-18` owns the future refactor to explicit child workflow states and any test/docs updates that require observing child self-loop runtime progression.
 
 ## Interface/Schema Contracts
 - `ITX-SD-015` must assert `spec-doc:feedback:{runId}:{questionId}:pass-{consistencyCheckPasses}:attempt-{feedbackAttempt}` idempotency-key evolution across defer/revisit cycles.
 - `ITX-SD-016` must inject child-layer outputs that trigger duplicate-id and mixed-result contract violations.
 - `GS-SD-004` uses only public run/events/children APIs and public terminal payloads.
+- `ITX-SD-012` assertions must tolerate the current baseline where later prompt layers may be observable by ordered execution events or by their absence after short-circuiting.
 - Targeted verification commands must run exact spec files rather than broad suite patterns.
 
 ## File Plan (Exact)

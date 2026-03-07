@@ -23,15 +23,17 @@ import type {
   SpecDocGenerationOutput,
 } from '../contracts.js';
 import {
+  CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS,
   CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
   validateConsistencyCheckOutputContract,
 } from '../consistency-follow-up-child.js';
 import { emitDelegationStarted, emitConsistencyOutcome } from '../observability.js';
-import { TEMPLATE_IDS } from '../prompt-templates.js';
 import { buildQuestionQueue } from '../queue.js';
 import { createSpecDocValidator } from '../schema-validation.js';
 import { SCHEMA_IDS } from '../schemas.js';
 import { type SpecDocStateData, createInitialStateData } from '../state-data.js';
+
+const PARENT_CONSISTENCY_TEMPLATE_ID = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].templateId;
 
 export const LOGICAL_CONSISTENCY_CHECK_STATE =
   'LogicalConsistencyCheckCreateFollowUpQuestions' as const;
@@ -59,7 +61,7 @@ export async function handleLogicalConsistencyCheck(
 
   emitDelegationStarted(ctx, {
     state: LOGICAL_CONSISTENCY_CHECK_STATE,
-    promptTemplateId: TEMPLATE_IDS.consistencyCheck,
+    promptTemplateId: PARENT_CONSISTENCY_TEMPLATE_ID,
     outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
     childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
   });
@@ -124,7 +126,7 @@ export async function handleLogicalConsistencyCheck(
     actionableItemsCount: output.actionableItems.length,
     followUpQuestionsCount: output.followUpQuestions.length,
     passNumber: updatedStateData.counters.consistencyCheckPasses,
-    promptTemplateId: TEMPLATE_IDS.consistencyCheck,
+    promptTemplateId: PARENT_CONSISTENCY_TEMPLATE_ID,
     childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
   });
 

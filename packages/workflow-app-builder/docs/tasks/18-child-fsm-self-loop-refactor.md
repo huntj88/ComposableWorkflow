@@ -1,0 +1,60 @@
+# SDB-18 - Child FSM Self-Loop Refactor
+
+## Depends On
+- `SDB-16`
+- `SDB-16A`
+- `SDB-17`
+
+## Objective
+Refactor `app-builder.spec-doc.consistency-follow-up.v1` from a single `start`-handler loop into an explicit child FSM that executes one prompt layer per `ExecutePromptLayer` state entry and self-loops until completion.
+
+This task also becomes the canonical follow-on for any legacy task text that still described a single combined consistency prompt or parent-owned prompt sequencing.
+It starts from the scoped-prompt baseline established in `SDB-16A`, not from the retired combined-prompt architecture.
+
+## Implementation Tasks
+- [ ] Introduce persisted child state data carrying `stageIndex`, aggregate output, and duplicate-detection sets.
+- [ ] Refactor child workflow definition so `start` initializes state and transitions to `ExecutePromptLayer`.
+- [ ] Implement `ExecutePromptLayer` as a real child workflow state that executes exactly one configured prompt layer per entry.
+- [ ] Add self-loop transition from `ExecutePromptLayer` to itself when more stages remain and no actionable items were emitted.
+- [ ] Add terminal `Done` child state that completes with the aggregate result.
+- [ ] Preserve current contract enforcement, short-circuit semantics, and parent routing behavior.
+- [ ] Extend observability and integration coverage to assert explicit child-state progression.
+
+## Required Artifacts
+- `packages/workflow-app-builder/src/workflows/spec-doc/consistency-follow-up-child.ts`
+- `packages/workflow-app-builder/src/workflows/spec-doc/workflow.ts`
+- `packages/workflow-app-builder/test/workflows/spec-doc/consistency-follow-up-child.test.ts`
+- `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-017.spec.ts`
+- `packages/workflow-app-builder/docs/spec-doc-generation-workflow.md`
+- `packages/workflow-app-builder/docs/spec-doc-behaviors.md`
+- `packages/workflow-app-builder/docs/spec-doc-integration-tests.md`
+
+## Acceptance Criteria
+- Child workflow has explicit runtime states `start`, `ExecutePromptLayer`, and `Done`.
+- `start` performs initialization only and transitions immediately to `ExecutePromptLayer`.
+- Each `ExecutePromptLayer` entry executes exactly one scoped consistency prompt layer.
+- `ExecutePromptLayer` transitions to itself when more stages remain and the current aggregate has no actionable items.
+- `ExecutePromptLayer` transitions to `Done` when actionable items short-circuit or the last stage completes.
+- Parent workflow behavior remains unchanged: parent still routes only from the child aggregate result.
+- Scoped prompt/template behavior introduced by `SDB-16A` remains unchanged except for how child runtime state progression is modeled.
+
+## Spec/Behavior Links
+- Spec: sections 6.2.1, 7.2.2, 7.2.2.1.
+- Behaviors: `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-OBS-003`.
+
+## Fixed Implementation Decisions
+- The self-looping child FSM remains implementation-owned and not runtime-configurable.
+- Prompt-layer ordering remains append-only through `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS`.
+- Terminal child states do not perform parent business routing; they only complete the child run.
+- Completed tasks are not retroactively rewritten here; this task supersedes older task-language where the delegated child architecture has evolved.
+- This task refactors runtime control flow only; it does not reintroduce any combined consistency prompt.
+
+## Supersedes / Clarifies
+- Supersedes legacy assumptions that a single combined consistency prompt is the authoritative delegated-child model.
+- Clarifies that parent workflow semantics stay unchanged while child-owned prompt-layer execution becomes explicit runtime state progression.
+
+## Verification
+- Command: `pnpm --filter @composable-workflow/workflow-app-builder exec vitest run test/workflows/spec-doc/consistency-follow-up-child.test.ts`
+  - Expected: explicit child state progression, self-loop behavior, and contract enforcement pass.
+- Command: `pnpm --filter @composable-workflow/workflow-app-builder exec vitest run test/integration/spec-doc/itx.spec-doc.ITX-SD-017.spec.ts`
+  - Expected: child runtime state progression is externally observable and deterministic.
