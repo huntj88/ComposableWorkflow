@@ -175,7 +175,7 @@ IntegrateIntoSpec --> LogicalConsistencyCheckCreateFollowUpQuestions : integrati
 
 LogicalConsistencyCheckCreateFollowUpQuestions : delegates validation/question planning to child FSM
 LogicalConsistencyCheckCreateFollowUpQuestions : child runs scoped prompt layers in delegated child runtime
-LogicalConsistencyCheckCreateFollowUpQuestions : explicit child self-loop states are a follow-on refactor target
+LogicalConsistencyCheckCreateFollowUpQuestions : child runtime uses start -> ExecutePromptLayer -> Done with ExecutePromptLayer self-loops
 LogicalConsistencyCheckCreateFollowUpQuestions --> IntegrateIntoSpec : child returns actionableItems[]
 LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest : child returns no actionableItems[]
 
@@ -264,17 +264,16 @@ The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions
 2. Each stage uses `app-builder.copilot.prompt.v1` with its own stage-specific output schema that narrows the contract to that layer's concern area and owned `readinessChecklist` keys.
 3. Each executed stage is responsible for splitting any issues it finds into either immediate `actionableItems` for `IntegrateIntoSpec` or human `followUpQuestions` for `NumberedOptionsHumanRequest`.
 4. The stage-specific schemas must reuse the shared issue/question/actionable-item definitions from the aggregate child contract rather than redefining equivalent shapes independently.
-5. Current shipped baseline: the child owns prompt-layer progression internally and may execute the ordered stage list within a single delegated child handler as long as the aggregate contract and short-circuit semantics are preserved.
-6. Planned explicit-state refactor target: promote prompt-layer progression into child workflow runtime states `start`, `ExecutePromptLayer`, `Done`, and `failed`, with `ExecutePromptLayer` self-looping once per configured prompt layer.
-7. The child evaluates stages in array order and aggregates `blockingIssues` plus readiness-checklist failures from every executed stage into the full `ConsistencyCheckOutput` result.
-8. If any executed stage returns one or more `actionableItems`, the child stops before running later stages, returns the accumulated actionable items in stage order, and returns an empty `followUpQuestions` array.
-9. If no executed stage returns actionable items, the child aggregates `followUpQuestions` from all executed stages in stage order and returns an empty `actionableItems` array.
-10. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` or `-> NumberedOptionsHumanRequest` transition.
-11. The child must fail explicitly on duplicate `itemId` or `questionId` values across executed stages.
-12. Appending another prompt layer to `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` must require only appending a new layer entry, prompt template, and matching narrow stage schema; it must not require any parent-FSM transition changes.
-13. Until the explicit-state refactor lands, the current baseline must still preserve equivalent ordered-stage execution, aggregate result merging, and duplicate-detection semantics within a single child run.
-14. After the explicit-state refactor lands, `ExecutePromptLayer` becomes the only looping child state and persists `stageIndex`, the aggregate result, and duplicate-detection sets across self-loop transitions.
-15. After the explicit-state refactor lands, `ExecutePromptLayer` transitions to `failed` for schema validation failures, duplicate ids, or mixed non-empty `actionableItems` plus `followUpQuestions`; otherwise it transitions to `Done` when `actionableItems` is non-empty or the current stage is the last configured stage, or back to `ExecutePromptLayer(stageIndex + 1)` when additional stages remain.
+5. The child runtime states are `start`, `ExecutePromptLayer`, and `Done`.
+6. `start` performs initialization only and transitions immediately to `ExecutePromptLayer`.
+7. `ExecutePromptLayer` becomes the only looping child state and persists `stageIndex`, the aggregate result, and duplicate-detection sets across self-loop transitions.
+8. The child evaluates stages in array order and aggregates `blockingIssues` plus readiness-checklist failures from every executed stage into the full `ConsistencyCheckOutput` result.
+9. If any executed stage returns one or more `actionableItems`, the child stops before running later stages, transitions to `Done`, returns the accumulated actionable items in stage order, and returns an empty `followUpQuestions` array.
+10. If no executed stage returns actionable items, the child self-loops `ExecutePromptLayer` until the last configured stage completes, then transitions to `Done` and returns the aggregate `followUpQuestions` in stage order with an empty `actionableItems` array.
+11. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` or `-> NumberedOptionsHumanRequest` transition.
+12. The child must fail explicitly on duplicate `itemId` or `questionId` values across executed stages.
+13. Appending another prompt layer to `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` must require only appending a new layer entry, prompt template, and matching narrow stage schema; it must not require any parent-FSM transition changes.
+14. `ExecutePromptLayer` transitions to `Done` when `actionableItems` is non-empty or the current stage is the last configured stage, or back to `ExecutePromptLayer(stageIndex + 1)` when additional stages remain.
 
 ## 6.3 Transition Rules and Guards
 
@@ -638,8 +637,7 @@ const CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS = [
 
 Rules:
 - The delegated child workflow executes entries in array order.
-- Current shipped baseline may execute these entries inside a single delegated child handler; explicit self-loop child-state progression is a planned follow-on refactor.
-- The intended child-FSM implementation initializes into `ExecutePromptLayer` once and then self-loops that state once per configured array entry.
+- The child-FSM initializes into `ExecutePromptLayer` once and then self-loops that state once per configured array entry.
 - Adding another validation/question-generation layer is an append-only change to this hardcoded array plus its matching narrow output schema; parent transition logic stays unchanged.
 - Each appended layer may introduce additional validation or question-generation coverage without changing parent state semantics.
 - Every entry must produce its own declared stage-specific output schema, and the child must merge executed stage outputs into the aggregate `consistency-check-output.schema.json` contract before returning.

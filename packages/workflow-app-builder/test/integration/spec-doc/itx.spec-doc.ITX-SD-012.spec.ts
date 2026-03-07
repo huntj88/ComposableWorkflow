@@ -45,11 +45,22 @@ let copilotDouble: CopilotDouble;
 let feedbackController: FeedbackController;
 let obsSink: ObservabilitySink;
 
+const narrowStageOutput = (index: number, overrides?: ReturnType<typeof makeConsistencyOutput>) => {
+  const output = overrides ?? makeConsistencyOutput();
+  const layer = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[index];
+  return {
+    ...output,
+    readinessChecklist: Object.fromEntries(
+      layer.checklistKeys.map((key) => [key, output.readinessChecklist[key]]),
+    ),
+  };
+};
+
 const makeStageResponses = (
   overridesByIndex: Array<ReturnType<typeof makeConsistencyOutput> | undefined>,
 ) =>
   CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((_, index) => ({
-    structuredOutput: overridesByIndex[index] ?? makeConsistencyOutput(),
+    structuredOutput: narrowStageOutput(index, overridesByIndex[index]),
   }));
 
 beforeEach(() => {
@@ -117,10 +128,13 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
     expect(stageDelegations.map((event) => event.payload.stageId)).toEqual(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer) => layer.stageId),
     );
+    expect(stageDelegations.map((event) => event.payload.outputSchemaId)).toEqual(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer) => layer.outputSchema),
+    );
 
     const stageConsistencyOutcome = obsSink
       .consistencyOutcomeEvents()
-      .find((event) => event.state === 'EmitFollowUpQuestions');
+      .find((event) => event.state === 'Done');
     expect(stageConsistencyOutcome?.payload.childWorkflowType).toBe(
       CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
     );
@@ -129,15 +143,18 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
   it('child short-circuiting is externally visible by later stage absence after actionable items appear (B-SD-OBS-003)', async () => {
     copilotDouble.reset({
       ExecutePromptLayer: [
-        { structuredOutput: makeConsistencyOutput() },
+        { structuredOutput: narrowStageOutput(0) },
         {
-          structuredOutput: makeConsistencyOutput({
-            actionableItems: [
-              makeActionableItem('act-obs-001', {
-                instruction: 'Rewrite the objective section to resolve the ambiguity.',
-              }),
-            ],
-          }),
+          structuredOutput: narrowStageOutput(
+            1,
+            makeConsistencyOutput({
+              actionableItems: [
+                makeActionableItem('act-obs-001', {
+                  instruction: 'Rewrite the objective section to resolve the ambiguity.',
+                }),
+              ],
+            }),
+          ),
         },
         { failure: new Error('later prompt layer should not execute after short-circuit') },
       ],
@@ -166,7 +183,7 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
 
     const actionableOutcome = obsSink
       .consistencyOutcomeEvents()
-      .find((event) => event.state === 'EmitActionableItems');
+      .find((event) => event.state === 'Done');
     expect(actionableOutcome?.payload.stageId).toBe(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
     expect(actionableOutcome?.payload.actionableItemsCount).toBe(1);
   });

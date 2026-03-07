@@ -115,10 +115,28 @@ describe('PROMPT_TEMPLATES', () => {
       TEMPLATE_IDS.consistencyContradictionsCompleteness,
     ] as const;
 
-    it('all map to consistencyCheckOutput and use shared interpolation variables', () => {
+    it('all map to their matching narrow stage schemas and use shared interpolation variables', () => {
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyScopeObjective].outputSchemaId).toBe(
+        SCHEMA_IDS.consistencyScopeObjectiveOutput,
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyNonGoals].outputSchemaId).toBe(
+        SCHEMA_IDS.consistencyNonGoalsOutput,
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyConstraintsAssumptions].outputSchemaId).toBe(
+        SCHEMA_IDS.consistencyConstraintsAssumptionsOutput,
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyInterfacesContracts].outputSchemaId).toBe(
+        SCHEMA_IDS.consistencyInterfacesContractsOutput,
+      );
+      expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyAcceptanceCriteria].outputSchemaId).toBe(
+        SCHEMA_IDS.consistencyAcceptanceCriteriaOutput,
+      );
+      expect(
+        PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyContradictionsCompleteness].outputSchemaId,
+      ).toBe(SCHEMA_IDS.consistencyContradictionsCompletenessOutput);
+
       for (const templateId of scopedTemplateIds) {
         const tpl = PROMPT_TEMPLATES[templateId];
-        expect(tpl.outputSchemaId).toBe(SCHEMA_IDS.consistencyCheckOutput);
         expect(tpl.inputSchemaId).toBeUndefined();
         expect(tpl.requiredVars).toEqual([
           'request',

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://composable-workflow.local/schemas/app-builder/spec-doc/consistency-scope-objective-output.schema.json",
+  "title": "SpecConsistencyScopeObjectiveOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "blockingIssues",
+    "actionableItems",
+    "followUpQuestions",
+    "readinessChecklist"
+  ],
+  "properties": {
+    "blockingIssues": {
+      "type": "array",
+      "items": {
+        "$ref": "./consistency-check-output.schema.json#/$defs/blockingIssue"
+      }
+    },
+    "actionableItems": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "./consistency-check-output.schema.json#/$defs/specActionableItem"
+      }
+    },
+    "followUpQuestions": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "allOf": [
+          {
+            "$ref": "./numbered-question-item.schema.json"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "issue-resolution"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        ]
+      }
+    },
+    "readinessChecklist": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hasScopeAndObjective"
+      ],
+      "properties": {
+        "hasScopeAndObjective": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "actionableItems": {
+            "minItems": 1
+          }
+        },
+        "required": [
+          "actionableItems"
+        ]
+      },
+      "then": {
+        "properties": {
+          "followUpQuestions": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "followUpQuestions": {
+            "minItems": 1
+          }
+        },
+        "required": [
+          "followUpQuestions"
+        ]
+      },
+      "then": {
+        "properties": {
+          "actionableItems": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

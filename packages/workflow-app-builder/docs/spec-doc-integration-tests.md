@@ -340,8 +340,6 @@ A behavior is integration-primary when one or more is true:
 ## ITX-SD-017: Delegated child explicit-state self-loop progression
 **Why not E2E-only:** requires inspection of child-workflow runtime state transitions or harness-visible child-state progression.
 
-This is planned follow-on coverage for the explicit child-state refactor. It does not apply to the current shipped delegated-child baseline when prompt-layer progression still happens inside a single child handler.
-
 **Setup**
 - Use the delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` with at least three configured prompt layers.
 - Provide stage outputs that exercise:

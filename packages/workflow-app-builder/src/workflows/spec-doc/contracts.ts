@@ -154,6 +154,8 @@ export interface ReadinessChecklist {
   hasSufficientDetail: boolean;
 }
 
+export type ConsistencyChecklistKey = keyof ReadinessChecklist;
+
 /** A numbered-option for a question item. */
 export interface NumberedQuestionOption {
   id: number;
@@ -178,6 +180,15 @@ export interface ConsistencyCheckOutput {
   actionableItems: SpecActionableItem[];
   followUpQuestions: NumberedQuestionItem[];
   readinessChecklist: ReadinessChecklist;
+}
+
+export interface ConsistencyStageOutput<
+  TChecklistKey extends ConsistencyChecklistKey = ConsistencyChecklistKey,
+> {
+  blockingIssues: BlockingIssue[];
+  actionableItems: SpecActionableItem[];
+  followUpQuestions: NumberedQuestionItem[];
+  readinessChecklist: Pick<ReadinessChecklist, TChecklistKey>;
 }
 
 // ---------------------------------------------------------------------------

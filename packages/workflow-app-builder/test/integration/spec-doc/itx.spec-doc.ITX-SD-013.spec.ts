@@ -32,11 +32,22 @@ let copilotDouble: CopilotDouble;
 let feedbackController: FeedbackController;
 let obsSink: ObservabilitySink;
 
+const narrowStageOutput = (index: number, overrides?: ReturnType<typeof makeConsistencyOutput>) => {
+  const output = overrides ?? makeConsistencyOutput();
+  const layer = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[index];
+  return {
+    ...output,
+    readinessChecklist: Object.fromEntries(
+      layer.checklistKeys.map((key) => [key, output.readinessChecklist[key]]),
+    ),
+  };
+};
+
 const makeStageResponses = (
   overridesByIndex: Array<ReturnType<typeof makeConsistencyOutput> | undefined>,
 ) =>
   CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((_, index) => ({
-    structuredOutput: overridesByIndex[index] ?? makeConsistencyOutput(),
+    structuredOutput: narrowStageOutput(index, overridesByIndex[index]),
   }));
 
 beforeEach(() => {
@@ -61,9 +72,12 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     copilotDouble.reset({
       ExecutePromptLayer: [
         {
-          structuredOutput: makeConsistencyOutput({
-            actionableItems,
-          }),
+          structuredOutput: narrowStageOutput(
+            0,
+            makeConsistencyOutput({
+              actionableItems,
+            }),
+          ),
         },
       ],
     });

@@ -28,6 +28,18 @@ export const SCHEMA_IDS = {
   specIntegrationOutput: `${SPEC_DOC_SCHEMA_PREFIX}/spec-integration-output.schema.json`,
   /** LogicalConsistencyCheckCreateFollowUpQuestions output. */
   consistencyCheckOutput: `${SPEC_DOC_SCHEMA_PREFIX}/consistency-check-output.schema.json`,
+  /** Scoped consistency output for scope/objective validation. */
+  consistencyScopeObjectiveOutput: `${SPEC_DOC_SCHEMA_PREFIX}/consistency-scope-objective-output.schema.json`,
+  /** Scoped consistency output for non-goals validation. */
+  consistencyNonGoalsOutput: `${SPEC_DOC_SCHEMA_PREFIX}/consistency-non-goals-output.schema.json`,
+  /** Scoped consistency output for constraints/assumptions validation. */
+  consistencyConstraintsAssumptionsOutput: `${SPEC_DOC_SCHEMA_PREFIX}/consistency-constraints-assumptions-output.schema.json`,
+  /** Scoped consistency output for interfaces/contracts validation. */
+  consistencyInterfacesContractsOutput: `${SPEC_DOC_SCHEMA_PREFIX}/consistency-interfaces-contracts-output.schema.json`,
+  /** Scoped consistency output for acceptance criteria validation. */
+  consistencyAcceptanceCriteriaOutput: `${SPEC_DOC_SCHEMA_PREFIX}/consistency-acceptance-criteria-output.schema.json`,
+  /** Scoped consistency output for contradictions/completeness validation. */
+  consistencyContradictionsCompletenessOutput: `${SPEC_DOC_SCHEMA_PREFIX}/consistency-contradictions-completeness-output.schema.json`,
   /** ClassifyCustomPrompt output. */
   customPromptClassificationOutput: `${SPEC_DOC_SCHEMA_PREFIX}/custom-prompt-classification-output.schema.json`,
   /** ExpandQuestionWithClarification output. */
@@ -87,6 +99,42 @@ const SCHEMA_FILE_MAP: Record<SpecDocSchemaId, string> = {
     'spec-doc',
     'consistency-check-output.schema.json',
   ),
+  [SCHEMA_IDS.consistencyScopeObjectiveOutput]: fromPackageRoot(
+    'docs',
+    'schemas',
+    'spec-doc',
+    'consistency-scope-objective-output.schema.json',
+  ),
+  [SCHEMA_IDS.consistencyNonGoalsOutput]: fromPackageRoot(
+    'docs',
+    'schemas',
+    'spec-doc',
+    'consistency-non-goals-output.schema.json',
+  ),
+  [SCHEMA_IDS.consistencyConstraintsAssumptionsOutput]: fromPackageRoot(
+    'docs',
+    'schemas',
+    'spec-doc',
+    'consistency-constraints-assumptions-output.schema.json',
+  ),
+  [SCHEMA_IDS.consistencyInterfacesContractsOutput]: fromPackageRoot(
+    'docs',
+    'schemas',
+    'spec-doc',
+    'consistency-interfaces-contracts-output.schema.json',
+  ),
+  [SCHEMA_IDS.consistencyAcceptanceCriteriaOutput]: fromPackageRoot(
+    'docs',
+    'schemas',
+    'spec-doc',
+    'consistency-acceptance-criteria-output.schema.json',
+  ),
+  [SCHEMA_IDS.consistencyContradictionsCompletenessOutput]: fromPackageRoot(
+    'docs',
+    'schemas',
+    'spec-doc',
+    'consistency-contradictions-completeness-output.schema.json',
+  ),
   [SCHEMA_IDS.customPromptClassificationOutput]: fromPackageRoot(
     'docs',
     'schemas',
@@ -136,7 +184,21 @@ const REF_FILE_TO_ID: Record<string, SpecDocSchemaId> = {
   '../../../../workflow-server/docs/schemas/human-input/numbered-question-item.schema.json':
     SCHEMA_IDS.serverNumberedQuestionItem,
   './numbered-question-item.schema.json': SCHEMA_IDS.numberedQuestionItem,
+  './consistency-check-output.schema.json': SCHEMA_IDS.consistencyCheckOutput,
 };
+
+function rewriteRefValue(ref: string): string {
+  for (const [fileRef, schemaId] of Object.entries(REF_FILE_TO_ID)) {
+    if (ref === fileRef) {
+      return schemaId;
+    }
+    if (ref.startsWith(`${fileRef}#`)) {
+      return `${schemaId}${ref.slice(fileRef.length)}`;
+    }
+  }
+
+  return ref;
+}
 
 /**
  * Recursively rewrite `$ref` values in a schema object, replacing
@@ -149,8 +211,8 @@ function rewriteRefs(obj: unknown): unknown {
   const record = obj as Record<string, unknown>;
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(record)) {
-    if (key === '$ref' && typeof value === 'string' && value in REF_FILE_TO_ID) {
-      result[key] = REF_FILE_TO_ID[value];
+    if (key === '$ref' && typeof value === 'string') {
+      result[key] = rewriteRefValue(value);
     } else {
       result[key] = rewriteRefs(value);
     }
@@ -221,6 +283,28 @@ export function bundleSchemaForExport(schemaId: SpecDocSchemaId): Record<string,
   return inlineRefs(loadSchemaById(schemaId), allSchemas, visited) as Record<string, unknown>;
 }
 
+function resolveJsonPointer(target: unknown, pointer: string): unknown {
+  if (pointer === '' || pointer === '#') {
+    return target;
+  }
+
+  const normalizedPointer = pointer.startsWith('#') ? pointer.slice(1) : pointer;
+  if (!normalizedPointer.startsWith('/')) {
+    return undefined;
+  }
+
+  return normalizedPointer
+    .slice(1)
+    .split('/')
+    .map((segment) => segment.replace(/~1/g, '/').replace(/~0/g, '~'))
+    .reduce<unknown>((current, segment) => {
+      if (current === null || typeof current !== 'object') {
+        return undefined;
+      }
+      return (current as Record<string, unknown>)[segment];
+    }, target);
+}
+
 /**
  * Recursively walk a schema object and replace external `$ref` values with
  * the full definition of the referenced schema (also recursively resolved).
@@ -238,16 +322,24 @@ function inlineRefs(
   // If this node is a $ref to an external schema, inline it
   if (typeof record.$ref === 'string' && !record.$ref.startsWith('#')) {
     const refId = record.$ref as string;
+    const [baseId, fragment = ''] = refId.split('#', 2);
     // Prevent infinite circular inlining
     if (visited.has(refId)) return record;
-    const referenced = allSchemas.get(refId as SpecDocSchemaId);
+    const referenced = allSchemas.get(baseId as SpecDocSchemaId);
     if (referenced) {
       visited.add(refId);
-      // Inline the full referenced schema (strip its $id/$schema to avoid conflicts)
-      const { $id: _, $schema: __, ...rest } = referenced;
-      void _;
-      void __;
-      return inlineRefs(rest, allSchemas, visited);
+      const target =
+        fragment.length > 0 ? resolveJsonPointer(referenced, `#${fragment}`) : referenced;
+      if (target && typeof target === 'object' && !Array.isArray(target) && fragment.length === 0) {
+        const { $id: _, $schema: __, ...rest } = target as Record<string, unknown>;
+        void _;
+        void __;
+        return inlineRefs(rest, allSchemas, visited);
+      }
+
+      if (target !== undefined) {
+        return inlineRefs(target, allSchemas, visited);
+      }
     }
     // Unknown $ref — leave as-is
     return record;

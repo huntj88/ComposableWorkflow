@@ -23,13 +23,13 @@ import {
 describe('schema registry', () => {
   it('resolves all section 7.1 schema IDs', () => {
     const ids = getAllSchemaIds();
-    // 7 app-builder schemas + 2 server-owned = 9 total
-    expect(ids).toHaveLength(9);
+    // 13 app-builder schemas + 2 server-owned = 15 total
+    expect(ids).toHaveLength(15);
   });
 
   it('loads every registered schema without error', () => {
     const schemas = loadAllSchemas();
-    expect(schemas.size).toBe(9);
+    expect(schemas.size).toBe(15);
     for (const [, schema] of schemas) {
       expect(schema).toBeDefined();
       expect(typeof schema).toBe('object');
@@ -273,6 +273,30 @@ describe('successful schema validation', () => {
       },
     });
     const result = validator.validate(raw, SCHEMA_IDS.consistencyCheckOutput);
+    expect(result.ok).toBe(true);
+  });
+
+  it('validates a valid stage-specific consistency output with only owned checklist keys', () => {
+    const raw = JSON.stringify({
+      blockingIssues: [{ id: 'issue-stage-1', description: 'Missing scope', severity: 'high' }],
+      actionableItems: [],
+      followUpQuestions: [
+        {
+          questionId: 'q-stage-1',
+          kind: 'issue-resolution',
+          prompt: 'What is the primary objective?',
+          options: [
+            { id: 1, label: 'A', description: 'Pros: focused. Cons: narrow.' },
+            { id: 2, label: 'B', description: 'Pros: broad. Cons: vague.' },
+          ],
+        },
+      ],
+      readinessChecklist: {
+        hasScopeAndObjective: false,
+      },
+    });
+
+    const result = validator.validate(raw, SCHEMA_IDS.consistencyScopeObjectiveOutput);
     expect(result.ok).toBe(true);
   });
 
@@ -583,6 +607,34 @@ describe('bundleSchemaForExport', () => {
 
     const result = validator.validate(raw, SCHEMA_IDS.consistencyCheckOutput);
     expect(result.ok).toBe(false);
+  });
+
+  it('rejects unrelated readiness checklist keys in a narrow stage schema', () => {
+    const validator = createSpecDocValidator();
+    const raw = JSON.stringify({
+      blockingIssues: [],
+      actionableItems: [],
+      followUpQuestions: [],
+      readinessChecklist: {
+        hasScopeAndObjective: true,
+        hasNonGoals: false,
+      },
+    });
+
+    const result = validator.validate(raw, SCHEMA_IDS.consistencyScopeObjectiveOutput);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.schemaId).toBe(SCHEMA_IDS.consistencyScopeObjectiveOutput);
+    }
+  });
+
+  it('bundles stage-specific schemas with external aggregate $defs fully inlined', () => {
+    const bundled = bundleSchemaForExport(SCHEMA_IDS.consistencyInterfacesContractsOutput);
+    const json = JSON.stringify(bundled);
+    const refMatches = [...json.matchAll(/"\$ref"\s*:\s*"([^"]+)"/g)];
+    for (const match of refMatches) {
+      expect(match[1]).toMatch(/^#/);
+    }
   });
 
   it('preserves internal #/ refs without inlining', () => {

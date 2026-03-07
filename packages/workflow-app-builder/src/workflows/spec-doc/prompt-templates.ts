@@ -243,7 +243,7 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
   },
   [TEMPLATE_IDS.consistencyScopeObjective]: {
     id: TEMPLATE_IDS.consistencyScopeObjective,
-    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    outputSchemaId: SCHEMA_IDS.consistencyScopeObjectiveOutput,
     body: CONSISTENCY_SCOPE_OBJECTIVE_BODY,
     requiredVars: [
       'request',
@@ -256,7 +256,7 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
   },
   [TEMPLATE_IDS.consistencyNonGoals]: {
     id: TEMPLATE_IDS.consistencyNonGoals,
-    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    outputSchemaId: SCHEMA_IDS.consistencyNonGoalsOutput,
     body: CONSISTENCY_NON_GOALS_BODY,
     requiredVars: [
       'request',
@@ -269,7 +269,7 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
   },
   [TEMPLATE_IDS.consistencyConstraintsAssumptions]: {
     id: TEMPLATE_IDS.consistencyConstraintsAssumptions,
-    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    outputSchemaId: SCHEMA_IDS.consistencyConstraintsAssumptionsOutput,
     body: CONSISTENCY_CONSTRAINTS_ASSUMPTIONS_BODY,
     requiredVars: [
       'request',
@@ -282,7 +282,7 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
   },
   [TEMPLATE_IDS.consistencyInterfacesContracts]: {
     id: TEMPLATE_IDS.consistencyInterfacesContracts,
-    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    outputSchemaId: SCHEMA_IDS.consistencyInterfacesContractsOutput,
     body: CONSISTENCY_INTERFACES_CONTRACTS_BODY,
     requiredVars: [
       'request',
@@ -295,7 +295,7 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
   },
   [TEMPLATE_IDS.consistencyAcceptanceCriteria]: {
     id: TEMPLATE_IDS.consistencyAcceptanceCriteria,
-    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    outputSchemaId: SCHEMA_IDS.consistencyAcceptanceCriteriaOutput,
     body: CONSISTENCY_ACCEPTANCE_CRITERIA_BODY,
     requiredVars: [
       'request',
@@ -308,7 +308,7 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
   },
   [TEMPLATE_IDS.consistencyContradictionsCompleteness]: {
     id: TEMPLATE_IDS.consistencyContradictionsCompleteness,
-    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    outputSchemaId: SCHEMA_IDS.consistencyContradictionsCompletenessOutput,
     body: CONSISTENCY_CONTRADICTIONS_COMPLETENESS_BODY,
     requiredVars: [
       'request',

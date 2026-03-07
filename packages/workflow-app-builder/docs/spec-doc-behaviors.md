@@ -151,10 +151,10 @@ Each behavior should validate all relevant dimensions:
 **Then** later prompt layers are not executed in that child run
 **And** the child returns the accumulated `actionableItems` in stage order
 **And** the child returns an empty `followUpQuestions` array
-**And** this behavior remains valid whether prompt-layer progression is implemented inside one child handler or across explicit child runtime states
+**And** the child transitions from `ExecutePromptLayer` to `Done` without visiting later stages
 
 ## B-SD-CHILD-001A: Delegated child executes one prompt layer per self-loop state entry
-**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` has been refactored to use explicit workflow states
+**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` uses explicit workflow states
 **When** child execution begins
 **Then** `start` initializes child state data and transitions to `ExecutePromptLayer`
 **And** each entry to `ExecutePromptLayer` executes exactly one configured prompt layer

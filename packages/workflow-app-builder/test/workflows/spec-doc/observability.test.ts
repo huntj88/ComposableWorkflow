@@ -43,7 +43,7 @@ describe('spec-doc observability', () => {
     const payload = emitDelegationStarted(ctx, {
       state: 'ExecutePromptLayer',
       promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
-      outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+      outputSchemaId: SCHEMA_IDS.consistencyScopeObjectiveOutput,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
       stageId: 'baseline-consistency',
     });
@@ -99,12 +99,12 @@ describe('spec-doc observability', () => {
     emitDelegationStarted(ctx, {
       state: 'ExecutePromptLayer',
       promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
-      outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+      outputSchemaId: SCHEMA_IDS.consistencyScopeObjectiveOutput,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
       stageId: 'baseline-consistency',
     });
     emitConsistencyOutcome(ctx, {
-      state: 'EmitFollowUpQuestions',
+      state: 'Done',
       blockingIssuesCount: 0,
       actionableItemsCount: 0,
       followUpQuestionsCount: 2,

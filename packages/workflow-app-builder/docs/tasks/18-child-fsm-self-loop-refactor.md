@@ -13,15 +13,15 @@ It starts from the scoped-prompt baseline established in `SDB-16A`, not from the
 It also owns the schema-binding cleanup that keeps each focused prompt layer on a narrow stage-specific output schema while preserving the broad aggregate child result contract for parent routing.
 
 ## Implementation Tasks
-- [ ] Introduce persisted child state data carrying `stageIndex`, aggregate output, and duplicate-detection sets.
-- [ ] Introduce stage-specific consistency output schemas and bind each `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` entry to its matching narrow `outputSchema`.
-- [ ] Refactor child workflow definition so `start` initializes state and transitions to `ExecutePromptLayer`.
-- [ ] Implement `ExecutePromptLayer` as a real child workflow state that executes exactly one configured prompt layer per entry.
-- [ ] Validate each `ExecutePromptLayer` result against the stage-specific schema, then merge it into the aggregate `ConsistencyCheckOutput` state.
-- [ ] Add self-loop transition from `ExecutePromptLayer` to itself when more stages remain and no actionable items were emitted.
-- [ ] Add terminal `Done` child state that completes with the aggregate result.
-- [ ] Preserve current contract enforcement, short-circuit semantics, and parent routing behavior.
-- [ ] Extend observability and integration coverage to assert explicit child-state progression.
+- [x] Introduce persisted child state data carrying `stageIndex`, aggregate output, and duplicate-detection sets.
+- [x] Introduce stage-specific consistency output schemas and bind each `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` entry to its matching narrow `outputSchema`.
+- [x] Refactor child workflow definition so `start` initializes state and transitions to `ExecutePromptLayer`.
+- [x] Implement `ExecutePromptLayer` as a real child workflow state that executes exactly one configured prompt layer per entry.
+- [x] Validate each `ExecutePromptLayer` result against the stage-specific schema, then merge it into the aggregate `ConsistencyCheckOutput` state.
+- [x] Add self-loop transition from `ExecutePromptLayer` to itself when more stages remain and no actionable items were emitted.
+- [x] Add terminal `Done` child state that completes with the aggregate result.
+- [x] Preserve current contract enforcement, short-circuit semantics, and parent routing behavior.
+- [x] Extend observability and integration coverage to assert explicit child-state progression.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/consistency-follow-up-child.ts`

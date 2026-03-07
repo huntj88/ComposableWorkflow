@@ -15,34 +15,7 @@
       "type": "array",
       "description": "Authoritative list of unresolved blocking issues for this pass.",
       "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "description",
-          "severity"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1
-          },
-          "severity": {
-            "type": "string",
-            "enum": [
-              "low",
-              "medium",
-              "high"
-            ]
-          },
-          "section": {
-            "type": "string"
-          }
-        }
+        "$ref": "#/$defs/blockingIssue"
       }
     },
     "actionableItems": {
@@ -114,6 +87,36 @@
     }
   },
   "$defs": {
+    "blockingIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "description",
+        "severity"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "section": {
+          "type": "string"
+        }
+      }
+    },
     "specActionableItem": {
       "type": "object",
       "additionalProperties": false,

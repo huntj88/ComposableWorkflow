@@ -31,11 +31,22 @@ let copilotDouble: CopilotDouble;
 let feedbackController: FeedbackController;
 let obsSink: ObservabilitySink;
 
+const narrowStageOutput = (index: number, overrides?: ReturnType<typeof makeConsistencyOutput>) => {
+  const output = overrides ?? makeConsistencyOutput();
+  const layer = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[index];
+  return {
+    ...output,
+    readinessChecklist: Object.fromEntries(
+      layer.checklistKeys.map((key) => [key, output.readinessChecklist[key]]),
+    ),
+  };
+};
+
 const makeStageResponses = (
   overridesByIndex: Array<ReturnType<typeof makeConsistencyOutput> | undefined>,
 ) =>
   CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((_, index) => ({
-    structuredOutput: overridesByIndex[index] ?? makeConsistencyOutput(),
+    structuredOutput: narrowStageOutput(index, overridesByIndex[index]),
   }));
 
 beforeEach(() => {
@@ -55,9 +66,12 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
     copilotDouble.reset({
       ExecutePromptLayer: [
         {
-          structuredOutput: makeConsistencyOutput({
-            actionableItems,
-          }),
+          structuredOutput: narrowStageOutput(
+            0,
+            makeConsistencyOutput({
+              actionableItems,
+            }),
+          ),
         },
         { failure: new Error('unreachable later stage') },
       ],
@@ -114,10 +128,13 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
     copilotDouble.reset({
       ExecutePromptLayer: [
         {
-          structuredOutput: makeConsistencyOutput({
-            actionableItems: [makeActionableItem('act-mixed-001')],
-            followUpQuestions: [makeQuestionItem('q-mixed-001')],
-          }),
+          structuredOutput: narrowStageOutput(
+            0,
+            makeConsistencyOutput({
+              actionableItems: [makeActionableItem('act-mixed-001')],
+              followUpQuestions: [makeQuestionItem('q-mixed-001')],
+            }),
+          ),
         },
       ],
     });
