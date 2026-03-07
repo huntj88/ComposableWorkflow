@@ -120,6 +120,7 @@ export function makeConsistencyOutput(
 ): ConsistencyCheckOutput {
   return {
     blockingIssues: [],
+    actionableItems: [],
     followUpQuestions: [],
     readinessChecklist: makeReadinessChecklist(),
     ...overrides,
@@ -308,6 +309,22 @@ export function createMockContext(
           correlationId: req.correlationId,
         }) as unknown as CO;
       }
+      if (req.workflowType === 'app-builder.spec-doc.consistency-follow-up.v1') {
+        const childResult = await copilotDouble.resolve({
+          workflowType: 'app-builder.copilot.prompt.v1',
+          input: {
+            prompt: JSON.stringify(req.input),
+          },
+          correlationId: req.correlationId,
+        });
+        if (childResult.structuredOutput == null) {
+          throw new Error(
+            '[ExecutePromptLayer] Copilot prompt did not return structuredOutput ' +
+              `(template: spec-doc.consistency-check.v1). Raw: ${childResult.structuredOutputRaw ?? '<empty>'}`,
+          );
+        }
+        return childResult.structuredOutput as CO;
+      }
       if (req.workflowType === 'server.human-feedback.v1') {
         return feedbackController.resolve({
           workflowType: req.workflowType,
@@ -395,6 +412,22 @@ export async function runFSM(
             input: req.input as { prompt: string; outputSchema?: string },
             correlationId: req.correlationId,
           }) as unknown as CO;
+        }
+        if (req.workflowType === 'app-builder.spec-doc.consistency-follow-up.v1') {
+          const childResult = await copilotDouble.resolve({
+            workflowType: 'app-builder.copilot.prompt.v1',
+            input: {
+              prompt: JSON.stringify(req.input),
+            },
+            correlationId: req.correlationId,
+          });
+          if (childResult.structuredOutput == null) {
+            throw new Error(
+              '[ExecutePromptLayer] Copilot prompt did not return structuredOutput ' +
+                `(template: spec-doc.consistency-check.v1). Raw: ${childResult.structuredOutputRaw ?? '<empty>'}`,
+            );
+          }
+          return childResult.structuredOutput as CO;
         }
         if (req.workflowType === 'server.human-feedback.v1') {
           return feedbackController.resolve({

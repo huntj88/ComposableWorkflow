@@ -77,6 +77,16 @@ export interface SpecActionableItem {
   blockingIssueIds: string[];
 }
 
+/** Input contract for the delegated consistency/follow-up child workflow. */
+export interface ConsistencyFollowUpChildInput {
+  request: string;
+  specPath: string;
+  constraints: string[];
+  loopCount: number;
+  remainingQuestionIds: string[];
+  copilotPromptOptions?: CopilotPromptOptions;
+}
+
 // ---------------------------------------------------------------------------
 // 6.5 IntegrateIntoSpec Input
 // ---------------------------------------------------------------------------
@@ -165,6 +175,7 @@ export interface NumberedQuestionItem {
 /** Output of `LogicalConsistencyCheckCreateFollowUpQuestions`. */
 export interface ConsistencyCheckOutput {
   blockingIssues: BlockingIssue[];
+  actionableItems: SpecActionableItem[];
   followUpQuestions: NumberedQuestionItem[];
   readinessChecklist: ReadinessChecklist;
 }

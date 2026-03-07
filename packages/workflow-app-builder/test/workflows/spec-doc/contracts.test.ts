@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   SpecDocGenerationInput,
   SpecDocGenerationOutput,
+  ConsistencyFollowUpChildInput,
   IntegrateIntoSpecInput,
   NormalizedAnswer,
   SpecActionableItem,
@@ -90,6 +91,22 @@ describe('SpecDocGenerationOutput', () => {
     const validator = createSpecDocValidator();
     const result = validator.validateParsed(output, SCHEMA_IDS.specDocGenerationOutput);
     expect(result.ok).toBe(true);
+  });
+});
+
+describe('ConsistencyFollowUpChildInput', () => {
+  it('captures the delegated child input contract', () => {
+    const input: ConsistencyFollowUpChildInput = {
+      request: 'Build a TODO app',
+      specPath: 'specs/todo.md',
+      constraints: ['React'],
+      loopCount: 2,
+      remainingQuestionIds: ['q-1', 'q-2'],
+    };
+
+    expect(input.specPath).toBe('specs/todo.md');
+    expect(input.loopCount).toBe(2);
+    expect(input.remainingQuestionIds).toEqual(['q-1', 'q-2']);
   });
 });
 
@@ -237,6 +254,7 @@ describe('ConsistencyCheckOutput', () => {
       blockingIssues: [
         { id: 'issue-1', description: 'Missing scope', severity: 'high', section: 'scope' },
       ],
+      actionableItems: [],
       followUpQuestions: [
         {
           questionId: 'q-1',
@@ -265,6 +283,7 @@ describe('ConsistencyCheckOutput', () => {
   it('allows empty follow-up questions (completion path)', () => {
     const output: ConsistencyCheckOutput = {
       blockingIssues: [],
+      actionableItems: [],
       followUpQuestions: [],
       readinessChecklist: {
         hasScopeAndObjective: true,
@@ -276,6 +295,26 @@ describe('ConsistencyCheckOutput', () => {
         hasSufficientDetail: true,
       },
     };
+    expect(output.followUpQuestions).toHaveLength(0);
+  });
+
+  it('supports actionable-items-only aggregate results', () => {
+    const output: ConsistencyCheckOutput = {
+      blockingIssues: [{ id: 'issue-1', description: 'Missing API example', severity: 'medium' }],
+      actionableItems: [validActionableItem()],
+      followUpQuestions: [],
+      readinessChecklist: {
+        hasScopeAndObjective: true,
+        hasNonGoals: true,
+        hasConstraintsAndAssumptions: true,
+        hasInterfacesOrContracts: false,
+        hasTestableAcceptanceCriteria: true,
+        hasNoContradictions: true,
+        hasSufficientDetail: false,
+      },
+    };
+
+    expect(output.actionableItems).toHaveLength(1);
     expect(output.followUpQuestions).toHaveLength(0);
   });
 });

@@ -9,12 +9,15 @@ import {
 } from './workflows/copilot-prompt.js';
 import {
   SPEC_DOC_WORKFLOW_TYPE,
+  CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+  consistencyFollowUpChildWorkflowRegistration,
   specDocWorkflowRegistration,
 } from './workflows/spec-doc/workflow.js';
 
 export const APP_BUILDER_WORKFLOW_TYPES = [
   COPILOT_APP_BUILDER_WORKFLOW_TYPE,
   SPEC_DOC_WORKFLOW_TYPE,
+  CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
 ] as const;
 
 export const workflowPackageManifest: WorkflowPackageManifest = {
@@ -23,6 +26,7 @@ export const workflowPackageManifest: WorkflowPackageManifest = {
   workflows: [
     copilotAppBuilderWorkflowRegistration as WorkflowRegistration,
     specDocWorkflowRegistration as WorkflowRegistration,
+    consistencyFollowUpChildWorkflowRegistration as WorkflowRegistration,
   ],
 };
 

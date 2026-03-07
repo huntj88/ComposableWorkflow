@@ -14,6 +14,10 @@ import type {
 } from '@composable-workflow/workflow-lib/contracts';
 
 import type { SpecDocGenerationInput, SpecDocGenerationOutput } from './contracts.js';
+import {
+  CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+  consistencyFollowUpChildWorkflowRegistration,
+} from './consistency-follow-up-child.js';
 import type { SpecDocState } from './state-data.js';
 import { createInitialStateData } from './state-data.js';
 import { handleClassifyCustomPrompt } from './states/classify-custom-prompt.js';
@@ -59,6 +63,13 @@ export const specDocTransitions: WorkflowTransitionDescriptor[] = [
     from: 'LogicalConsistencyCheckCreateFollowUpQuestions' satisfies SpecDocState,
     to: 'NumberedOptionsHumanRequest' satisfies SpecDocState,
     name: 'consistency-check-complete',
+  },
+
+  // LogicalConsistencyCheckCreateFollowUpQuestions → IntegrateIntoSpec
+  {
+    from: 'LogicalConsistencyCheckCreateFollowUpQuestions' satisfies SpecDocState,
+    to: 'IntegrateIntoSpec' satisfies SpecDocState,
+    name: 'consistency-action-items-identified',
   },
 
   // NumberedOptionsHumanRequest → NumberedOptionsHumanRequest (self-loop)
@@ -177,3 +188,5 @@ export const specDocWorkflowRegistration: WorkflowRegistration<
   },
   factory: () => createSpecDocWorkflowDefinition(),
 };
+
+export { CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE, consistencyFollowUpChildWorkflowRegistration };

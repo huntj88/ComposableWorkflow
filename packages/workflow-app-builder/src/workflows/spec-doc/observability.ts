@@ -63,6 +63,8 @@ export interface ObsPayloadBase {
   [key: string]: unknown;
   observabilityType: ObservabilityType;
   state: string;
+  childWorkflowType?: string;
+  stageId?: string;
 }
 
 /** Payload for copilot delegation started events. */
@@ -89,6 +91,7 @@ export interface IntegrationPassCompletedPayload extends ObsPayloadBase {
 export interface ConsistencyOutcomePayload extends ObsPayloadBase {
   observabilityType: typeof OBS_TYPES.consistencyOutcome;
   blockingIssuesCount: number;
+  actionableItemsCount: number;
   followUpQuestionsCount: number;
   passNumber: number;
   promptTemplateId: PromptTemplateId;
@@ -173,6 +176,8 @@ export function emitDelegationStarted(
     promptTemplateId: PromptTemplateId;
     outputSchemaId: SpecDocSchemaId;
     inputSchemaId?: SpecDocSchemaId;
+    childWorkflowType?: string;
+    stageId?: string;
   },
 ): DelegationStartedPayload {
   const payload: DelegationStartedPayload = {
@@ -181,6 +186,8 @@ export function emitDelegationStarted(
     promptTemplateId: params.promptTemplateId,
     outputSchemaId: params.outputSchemaId,
     ...(params.inputSchemaId != null && { inputSchemaId: params.inputSchemaId }),
+    ...(params.childWorkflowType != null && { childWorkflowType: params.childWorkflowType }),
+    ...(params.stageId != null && { stageId: params.stageId }),
   };
   ctx.log({
     level: 'info',
@@ -233,18 +240,24 @@ export function emitConsistencyOutcome(
   params: {
     state: string;
     blockingIssuesCount: number;
+    actionableItemsCount: number;
     followUpQuestionsCount: number;
     passNumber: number;
     promptTemplateId: PromptTemplateId;
+    childWorkflowType?: string;
+    stageId?: string;
   },
 ): ConsistencyOutcomePayload {
   const payload: ConsistencyOutcomePayload = {
     observabilityType: OBS_TYPES.consistencyOutcome,
     state: params.state,
     blockingIssuesCount: params.blockingIssuesCount,
+    actionableItemsCount: params.actionableItemsCount,
     followUpQuestionsCount: params.followUpQuestionsCount,
     passNumber: params.passNumber,
     promptTemplateId: params.promptTemplateId,
+    ...(params.childWorkflowType != null && { childWorkflowType: params.childWorkflowType }),
+    ...(params.stageId != null && { stageId: params.stageId }),
   };
   ctx.log({
     level: 'info',

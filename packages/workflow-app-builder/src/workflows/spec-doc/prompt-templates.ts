@@ -89,6 +89,7 @@ Input context:
 - constraints: {{constraintsJson}}
 - currentLoopCount: {{loopCount}}
 - remainingQuestionIdsFromIntegration: {{remainingQuestionIdsJson}}
+- currentStageId: {{stageId}}
 
 Evaluation checklist (must map to readinessChecklist booleans):
 1) Scope/objective present.
@@ -100,8 +101,11 @@ Evaluation checklist (must map to readinessChecklist booleans):
 7) Enough detail to implement without ambiguity.
 
 Question-generation rules:
-- If blocking issues exist: generate issue-resolution questions for each blocking decision gap.
-- If no blocking issues remain: return an empty \`followUpQuestions\` array (completion-confirmation question is synthesized by workflow logic).
+- For each issue surfaced in this stage, choose exactly one outcome: immediate \`actionableItems\`, human \`followUpQuestions\`, or no output for that issue.
+- If you emit any \`actionableItems\`, return an empty \`followUpQuestions\` array for this stage.
+- If you emit any \`followUpQuestions\`, return an empty \`actionableItems\` array for this stage.
+- If no blocking issues remain for this stage: return empty \`actionableItems\` and empty \`followUpQuestions\` arrays.
+- \`actionableItems\` must contain only concrete edits that can be integrated without another human decision.
 - Each question must include:
   - stable deterministic questionId,
   - prompt,
@@ -183,6 +187,7 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
       'constraintsJson',
       'loopCount',
       'remainingQuestionIdsJson',
+      'stageId',
     ],
   },
   [TEMPLATE_IDS.classifyCustomPrompt]: {

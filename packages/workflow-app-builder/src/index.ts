@@ -25,12 +25,22 @@ export {
 export {
   SPEC_DOC_WORKFLOW_TYPE,
   SPEC_DOC_WORKFLOW_VERSION,
+  CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
   specDocTransitions,
   ALLOWED_EDGES,
   isAllowedTransition,
   createSpecDocWorkflowDefinition,
   specDocWorkflowRegistration,
+  consistencyFollowUpChildWorkflowRegistration,
 } from './workflows/spec-doc/workflow.js';
+export {
+  CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS,
+  createConsistencyFollowUpChildDefinition,
+  executeConsistencyFollowUpPromptLayers,
+  handleConsistencyFollowUpChild,
+  validateConsistencyCheckOutputContract,
+  validateConsistencyFollowUpChildInput,
+} from './workflows/spec-doc/consistency-follow-up-child.js';
 
 // Prompt template catalog and copilot delegation (TSD01)
 export {

@@ -9,15 +9,15 @@
 Replace the current single-pass consistency-check behavior with the delegated child workflow contract from the spec, including layered prompt execution, contract enforcement, parent routing from the child aggregate result, and child/stage observability.
 
 ## Implementation Tasks
-- [ ] Implement internal child workflow `app-builder.spec-doc.consistency-follow-up.v1` with ordered prompt-layer execution.
-- [ ] Add `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` support and stage metadata propagation.
-- [ ] Aggregate executed-layer outputs, including `blockingIssues`, `actionableItems`, `followUpQuestions`, and readiness-checklist logical-AND merging.
-- [ ] Enforce child input rules: `specPath` comes from the latest integration pass, `remainingQuestionIds` comes from latest integration metadata, and `loopCount` is forwarded unchanged to every executed layer.
-- [ ] Fail explicitly on duplicate `itemId` / `questionId`, mixed actionable/question output, and other child contract violations.
-- [ ] Short-circuit later prompt layers when any executed layer returns non-empty `actionableItems`.
-- [ ] Update parent `LogicalConsistencyCheckCreateFollowUpQuestions` to route to `IntegrateIntoSpec` for non-empty `actionableItems`, otherwise to `NumberedOptionsHumanRequest`.
-- [ ] Emit delegated child workflow and per-stage observability with `childWorkflowType` and `stageId` metadata.
-- [ ] Extend unit/state tests for parent routing and child contract enforcement.
+- [x] Implement internal child workflow `app-builder.spec-doc.consistency-follow-up.v1` with ordered prompt-layer execution.
+- [x] Add `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` support and stage metadata propagation.
+- [x] Aggregate executed-layer outputs, including `blockingIssues`, `actionableItems`, `followUpQuestions`, and readiness-checklist logical-AND merging.
+- [x] Enforce child input rules: `specPath` comes from the latest integration pass, `remainingQuestionIds` comes from latest integration metadata, and `loopCount` is forwarded unchanged to every executed layer.
+- [x] Fail explicitly on duplicate `itemId` / `questionId`, mixed actionable/question output, and other child contract violations.
+- [x] Short-circuit later prompt layers when any executed layer returns non-empty `actionableItems`.
+- [x] Update parent `LogicalConsistencyCheckCreateFollowUpQuestions` to route to `IntegrateIntoSpec` for non-empty `actionableItems`, otherwise to `NumberedOptionsHumanRequest`.
+- [x] Emit delegated child workflow and per-stage observability with `childWorkflowType` and `stageId` metadata.
+- [x] Extend unit/state tests for parent routing and child contract enforcement.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/consistency-follow-up-child.ts`

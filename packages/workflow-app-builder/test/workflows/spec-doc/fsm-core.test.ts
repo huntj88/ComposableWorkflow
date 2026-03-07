@@ -120,8 +120,9 @@ describe('SD-FSM-003 – Guarded Transitions', () => {
   it('LogicalConsistencyCheckCreateFollowUpQuestions transitions only to NumberedOptionsHumanRequest (section 10.1)', () => {
     const targets = specDocTransitions
       .filter((t) => t.from === 'LogicalConsistencyCheckCreateFollowUpQuestions')
-      .map((t) => t.to);
-    expect(targets).toEqual(['NumberedOptionsHumanRequest']);
+      .map((t) => t.to)
+      .sort();
+    expect(targets).toEqual(['IntegrateIntoSpec', 'NumberedOptionsHumanRequest'].sort());
   });
 
   it('ClassifyCustomPrompt transitions only to NumberedOptionsHumanRequest or ExpandQuestionWithClarification', () => {
@@ -164,7 +165,6 @@ describe('SD-FSM-003 – Guarded Transitions', () => {
       ['IntegrateIntoSpec', 'NumberedOptionsHumanRequest'],
       ['IntegrateIntoSpec', 'ClassifyCustomPrompt'],
       ['LogicalConsistencyCheckCreateFollowUpQuestions', 'Done'],
-      ['LogicalConsistencyCheckCreateFollowUpQuestions', 'IntegrateIntoSpec'],
       ['LogicalConsistencyCheckCreateFollowUpQuestions', 'ClassifyCustomPrompt'],
       ['ClassifyCustomPrompt', 'Done'],
       ['ClassifyCustomPrompt', 'IntegrateIntoSpec'],

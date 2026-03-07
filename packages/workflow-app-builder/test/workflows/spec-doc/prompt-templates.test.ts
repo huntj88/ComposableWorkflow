@@ -108,12 +108,15 @@ describe('PROMPT_TEMPLATES', () => {
       expect(tpl.requiredVars).toContain('constraintsJson');
       expect(tpl.requiredVars).toContain('loopCount');
       expect(tpl.requiredVars).toContain('remainingQuestionIdsJson');
+      expect(tpl.requiredVars).toContain('stageId');
     });
 
     it('body contains key spec 7.2.2 phrases', () => {
       expect(tpl.body).toContain('validating a spec document for implementation readiness');
       expect(tpl.body).toContain('{{specPath}}');
       expect(tpl.body).toContain('{{loopCount}}');
+      expect(tpl.body).toContain('{{stageId}}');
+      expect(tpl.body).toContain('actionableItems');
     });
   });
 

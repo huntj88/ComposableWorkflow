@@ -231,6 +231,7 @@ describe('successful schema validation', () => {
   it('validates valid consistency-check-output with empty follow-ups', () => {
     const raw = JSON.stringify({
       blockingIssues: [],
+      actionableItems: [],
       followUpQuestions: [],
       readinessChecklist: {
         hasScopeAndObjective: true,
@@ -249,6 +250,7 @@ describe('successful schema validation', () => {
   it('validates valid consistency-check-output with follow-up questions', () => {
     const raw = JSON.stringify({
       blockingIssues: [{ id: 'issue-1', description: 'Missing scope', severity: 'high' }],
+      actionableItems: [],
       followUpQuestions: [
         {
           questionId: 'q-1',
@@ -533,6 +535,7 @@ describe('bundleSchemaForExport', () => {
 
     const valid = {
       blockingIssues: [],
+      actionableItems: [],
       followUpQuestions: [],
       readinessChecklist: {
         hasScopeAndObjective: true,
@@ -545,6 +548,41 @@ describe('bundleSchemaForExport', () => {
       },
     };
     expect(validate(valid)).toBe(true);
+  });
+
+  it('rejects mixed actionableItems and followUpQuestions', () => {
+    const validator = createSpecDocValidator();
+    const raw = JSON.stringify({
+      blockingIssues: [],
+      actionableItems: [
+        {
+          itemId: 'act-1',
+          instruction: 'Add an interfaces section',
+          rationale: 'The API contract is underspecified.',
+          blockingIssueIds: ['issue-1'],
+        },
+      ],
+      followUpQuestions: [
+        {
+          questionId: 'q-1',
+          kind: 'issue-resolution',
+          prompt: 'Which API format should be used?',
+          options: [{ id: 1, label: 'REST', description: 'Pros: common. Cons: verbose.' }],
+        },
+      ],
+      readinessChecklist: {
+        hasScopeAndObjective: true,
+        hasNonGoals: true,
+        hasConstraintsAndAssumptions: true,
+        hasInterfacesOrContracts: false,
+        hasTestableAcceptanceCriteria: true,
+        hasNoContradictions: true,
+        hasSufficientDetail: false,
+      },
+    });
+
+    const result = validator.validate(raw, SCHEMA_IDS.consistencyCheckOutput);
+    expect(result.ok).toBe(false);
   });
 
   it('preserves internal #/ refs without inlining', () => {
