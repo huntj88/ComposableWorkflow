@@ -2,9 +2,9 @@
  * Delegated consistency/follow-up child workflow for `app-builder.spec-doc.v1`.
  *
  * Executes one scoped prompt layer per `ExecutePromptLayer` state entry,
- * validates each stage against its narrow schema, merges outputs into the
- * aggregate child result, and self-loops until every configured stage has
- * executed exactly once for the current child pass.
+ * validates each stage against its narrow schema, accumulates deterministic
+ * full-sweep coverage state, then delegates one `PlanResolution` prompt that
+ * authors the only final child result consumed by the parent.
  *
  * @module spec-doc/consistency-follow-up-child
  */
@@ -35,11 +35,14 @@ export const CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_VERSION = '1.0.0' as const;
 
 export const CONSISTENCY_FOLLOW_UP_CHILD_START_STATE = 'start' as const;
 export const CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE = 'ExecutePromptLayer' as const;
+export const CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE = 'PlanResolution' as const;
 export const CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE = 'Done' as const;
+export const CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID = 'plan-resolution' as const;
 
 export type ConsistencyFollowUpChildState =
   | typeof CONSISTENCY_FOLLOW_UP_CHILD_START_STATE
   | typeof CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE
+  | typeof CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE
   | typeof CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE;
 
 export interface ConsistencyFollowUpPromptLayer {
@@ -56,6 +59,7 @@ export interface ConsistencyFollowUpChildStateData {
   seenActionableItemIds: string[];
   seenFollowUpQuestionIds: string[];
   executedStages: ConsistencyFollowUpStageExecution[];
+  finalOutput?: ConsistencyCheckOutput;
 }
 
 export interface ConsistencyFollowUpStageExecution {
@@ -117,8 +121,13 @@ export const consistencyFollowUpChildTransitions: WorkflowTransitionDescriptor[]
   },
   {
     from: CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+    to: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
+    name: 'full-sweep-complete',
+  },
+  {
+    from: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
     to: CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
-    name: 'child-run-complete',
+    name: 'resolution-authored',
   },
 ] as const;
 
@@ -347,9 +356,57 @@ function cloneExecutedStages(
   }));
 }
 
+function cloneChildStateData(
+  stateData: ConsistencyFollowUpChildStateData,
+): ConsistencyFollowUpChildStateData {
+  return {
+    stageIndex: stateData.stageIndex,
+    aggregateOutput: cloneAggregateOutput(stateData.aggregateOutput),
+    seenBlockingIssueIds: [...stateData.seenBlockingIssueIds],
+    seenActionableItemIds: [...stateData.seenActionableItemIds],
+    seenFollowUpQuestionIds: [...stateData.seenFollowUpQuestionIds],
+    executedStages: cloneExecutedStages(stateData.executedStages),
+    ...(stateData.finalOutput ? { finalOutput: cloneAggregateOutput(stateData.finalOutput) } : {}),
+  };
+}
+
+interface ConsistencyResolutionCoverageStageSummary {
+  order: number;
+  stageId: string;
+  promptTemplateId: PromptTemplateId;
+  outputSchemaId: SpecDocSchemaId;
+  output: ConsistencyStageOutput;
+}
+
+interface ConsistencyResolutionCoverageSummary {
+  aggregateCoverage: ConsistencyCheckOutput;
+  executedStageCount: number;
+  executedStageIds: string[];
+  executedStages: ConsistencyResolutionCoverageStageSummary[];
+}
+
+function buildConsistencyResolutionCoverageSummary(
+  stateData: ConsistencyFollowUpChildStateData,
+): ConsistencyResolutionCoverageSummary {
+  return {
+    aggregateCoverage: cloneAggregateOutput(stateData.aggregateOutput),
+    executedStageCount: stateData.executedStages.length,
+    executedStageIds: stateData.executedStages.map((stage) => stage.stageId),
+    executedStages: stateData.executedStages.map((stage, index) => ({
+      order: index + 1,
+      stageId: stage.stageId,
+      promptTemplateId: stage.templateId,
+      outputSchemaId: stage.outputSchema,
+      output: cloneStageOutput(stage.output),
+    })),
+  };
+}
+
 function coerceStateData(data: unknown): ConsistencyFollowUpChildStateData {
   if (!data || typeof data !== 'object') {
-    throw new Error('Child state data is required for ExecutePromptLayer and Done');
+    throw new Error(
+      'Child state data is required for ExecutePromptLayer, PlanResolution, and Done',
+    );
   }
 
   const candidate = data as Partial<ConsistencyFollowUpChildStateData>;
@@ -417,6 +474,65 @@ async function runPromptLayer(
   }
 
   return stageOutput;
+}
+
+async function runPlanResolution(
+  ctx: WorkflowContext<ConsistencyFollowUpChildInput, ConsistencyCheckOutput>,
+  input: ConsistencyFollowUpChildInput,
+  stateData: ConsistencyFollowUpChildStateData,
+): Promise<ConsistencyCheckOutput> {
+  if (stateData.executedStages.length === 0) {
+    throw new Error('PlanResolution requires at least one executed prompt layer');
+  }
+
+  const request = {
+    ...buildDelegationRequest(
+      TEMPLATE_IDS.consistencyResolution,
+      {
+        request: input.request,
+        specPath: input.specPath,
+        constraintsJson: JSON.stringify(input.constraints),
+        loopCount: String(input.loopCount),
+        remainingQuestionIdsJson: JSON.stringify(input.remainingQuestionIds),
+        coverageSummaryJson: JSON.stringify(buildConsistencyResolutionCoverageSummary(stateData)),
+      },
+      CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
+      input.copilotPromptOptions,
+    ),
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+  };
+
+  emitDelegationStarted(ctx, {
+    state: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
+    promptTemplateId: TEMPLATE_IDS.consistencyResolution,
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+    stageId: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
+  });
+
+  const result = await delegateToCopilot<ConsistencyCheckOutput>(ctx, request);
+  const validation = createSpecDocValidator().validateParsed<ConsistencyCheckOutput>(
+    result.structuredOutput,
+    SCHEMA_IDS.consistencyCheckOutput,
+  );
+
+  if (!validation.ok) {
+    throw new Error(
+      `[${CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE}] Output schema validation failed: ` +
+        `${validation.error.details} (schema: ${validation.error.schemaId})`,
+    );
+  }
+
+  const output = validation.value;
+  const finalViolations = validateConsistencyCheckOutputContract(output);
+  if (finalViolations.length > 0) {
+    throw new Error(
+      `[${CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE}] Contract violation: ` +
+        finalViolations.join('; '),
+    );
+  }
+
+  return output;
 }
 
 function mergeStageOutput(
@@ -517,10 +633,39 @@ function createExecutePromptLayerHandler(
 
       ctx.transition(
         lastStageCompleted
-          ? CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE
+          ? CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE
           : CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
         nextStateData,
       );
+    } catch (err) {
+      ctx.fail(err instanceof Error ? err : new Error(String(err)));
+    }
+  };
+}
+
+function createPlanResolutionHandler(
+  _layers: readonly ConsistencyFollowUpPromptLayer[],
+): WorkflowDefinition<ConsistencyFollowUpChildInput, ConsistencyCheckOutput>['states'][string] {
+  return async (ctx, data) => {
+    try {
+      const stateData = coerceStateData(data);
+      const output = await runPlanResolution(ctx, ctx.input, stateData);
+      const nextStateData = cloneChildStateData(stateData);
+      nextStateData.finalOutput = cloneAggregateOutput(output);
+
+      emitConsistencyOutcome(ctx, {
+        state: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
+        blockingIssuesCount: output.blockingIssues.length,
+        actionableItemsCount: output.actionableItems.length,
+        followUpQuestionsCount: output.followUpQuestions.length,
+        passNumber: ctx.input.loopCount,
+        promptTemplateId: TEMPLATE_IDS.consistencyResolution,
+        childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+        stageId: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
+        stageSequence: stateData.executedStages.map((stage) => stage.stageId),
+      });
+
+      ctx.transition(CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE, nextStateData);
     } catch (err) {
       ctx.fail(err instanceof Error ? err : new Error(String(err)));
     }
@@ -533,8 +678,12 @@ function createDoneHandler(
   return async (ctx, data) => {
     try {
       const stateData = coerceStateData(data);
+      if (!stateData.finalOutput) {
+        throw new Error('Done requires a final PlanResolution output');
+      }
+
       const aggregateValidation = createSpecDocValidator().validateParsed<ConsistencyCheckOutput>(
-        stateData.aggregateOutput,
+        stateData.finalOutput,
         SCHEMA_IDS.consistencyCheckOutput,
       );
 
@@ -550,24 +699,6 @@ function createDoneHandler(
       if (finalViolations.length > 0) {
         throw new Error(`Aggregate contract violation: ${finalViolations.join('; ')}`);
       }
-
-      if (stateData.executedStages.length === 0) {
-        throw new Error('Child workflow completed without executing any prompt layers');
-      }
-
-      const finalLayer = stateData.executedStages[stateData.executedStages.length - 1];
-
-      emitConsistencyOutcome(ctx, {
-        state: CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
-        blockingIssuesCount: output.blockingIssues.length,
-        actionableItemsCount: output.actionableItems.length,
-        followUpQuestionsCount: output.followUpQuestions.length,
-        passNumber: ctx.input.loopCount,
-        promptTemplateId: finalLayer.templateId,
-        childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
-        stageId: finalLayer.stageId,
-        stageSequence: stateData.executedStages.map((stage) => stage.stageId),
-      });
 
       ctx.complete(output);
     } catch (err) {
@@ -644,7 +775,7 @@ export async function executeConsistencyFollowUpPromptLayers(
   return runChildStateMachine(
     statefulCtx,
     createConsistencyFollowUpChildDefinition(layers),
-    layers.length + 3,
+    layers.length + 4,
   );
 }
 
@@ -668,6 +799,7 @@ export function createConsistencyFollowUpChildDefinition(
     states: {
       [CONSISTENCY_FOLLOW_UP_CHILD_START_STATE]: createStartHandler(layers),
       [CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE]: createExecutePromptLayerHandler(layers),
+      [CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE]: createPlanResolutionHandler(layers),
       [CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE]: createDoneHandler(layers),
     },
   };

@@ -15,6 +15,8 @@ import {
   CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS,
   CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
   CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+  CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
+  CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
   CONSISTENCY_FOLLOW_UP_CHILD_START_STATE,
   CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
   createConsistencyFollowUpChildDefinition,
@@ -103,6 +105,13 @@ function narrowStageOutput(
   };
 }
 
+function withPlanResolutionResponse(
+  stageResponses: Array<unknown | Error>,
+  finalOutputOverrides?: Partial<ConsistencyCheckOutput>,
+): Array<unknown | Error> {
+  return [...stageResponses, stageOutput(finalOutputOverrides)];
+}
+
 function createChildContext(responses: Array<unknown | Error>) {
   const launchChildSpy = vi.fn().mockImplementation(async () => {
     const next = responses.shift();
@@ -185,6 +194,7 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     expect(Object.keys(definition.states)).toEqual([
       CONSISTENCY_FOLLOW_UP_CHILD_START_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+      CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
     ]);
     expect(definition.transitions).toEqual([
@@ -200,23 +210,36 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
       },
       {
         from: CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+        to: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
+        name: 'full-sweep-complete',
+      },
+      {
+        from: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
         to: CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
-        name: 'child-run-complete',
+        name: 'resolution-authored',
       },
     ]);
   });
 
-  it('executes prompt layers in order and forwards stage metadata', async () => {
-    const { ctx, launchChildSpy } = createChildContext([
-      narrowStageOutput(['hasScopeAndObjective'], {
-        followUpQuestions: [followUpQuestion('q-1')],
-        blockingIssues: [],
-      }),
-      narrowStageOutput(['hasInterfacesOrContracts'], {
-        blockingIssues: [blockingIssue({ id: 'issue-2' })],
-        followUpQuestions: [followUpQuestion('q-2')],
-      }),
-    ]);
+  it('executes prompt layers in order, then delegates one PlanResolution prompt', async () => {
+    const { ctx, launchChildSpy } = createChildContext(
+      withPlanResolutionResponse(
+        [
+          narrowStageOutput(['hasScopeAndObjective'], {
+            followUpQuestions: [followUpQuestion('q-1')],
+            blockingIssues: [],
+          }),
+          narrowStageOutput(['hasInterfacesOrContracts'], {
+            blockingIssues: [blockingIssue({ id: 'issue-2' })],
+            followUpQuestions: [followUpQuestion('q-2')],
+          }),
+        ],
+        {
+          blockingIssues: [blockingIssue({ id: 'issue-2' })],
+          followUpQuestions: [followUpQuestion('q-1'), followUpQuestion('q-2')],
+        },
+      ),
+    );
 
     const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
       {
@@ -233,7 +256,7 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
       },
     ]);
 
-    expect(launchChildSpy).toHaveBeenCalledTimes(2);
+    expect(launchChildSpy).toHaveBeenCalledTimes(3);
     expect(launchChildSpy.mock.calls[0][0].workflowType).toBe('app-builder.copilot.prompt.v1');
     expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain(
       'Stage focus: scope and objective clarity',
@@ -251,29 +274,61 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     expect(JSON.parse(launchChildSpy.mock.calls[1][0].input.outputSchema).$id).toBe(
       SCHEMA_IDS.consistencyInterfacesContractsOutput,
     );
+    expect(launchChildSpy.mock.calls[2][0].correlationId).toBe(
+      `PlanResolution:${TEMPLATE_IDS.consistencyResolution}`,
+    );
+    expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain(
+      'full consistency-check coverage sweep',
+    );
+    expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain('fullCoverageSummary:');
+    expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain('scope-objective-consistency');
+    expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain(
+      'interfaces-contracts-consistency',
+    );
+    expect(JSON.parse(launchChildSpy.mock.calls[2][0].input.outputSchema).$id).toBe(
+      SCHEMA_IDS.consistencyCheckOutput,
+    );
     expect(result.followUpQuestions.map((question) => question.questionId)).toEqual(['q-1', 'q-2']);
   });
 
   it('continues through later stages after actionableItems and aggregates executed-stage diagnostics', async () => {
-    const { ctx, launchChildSpy } = createChildContext([
-      narrowStageOutput(['hasInterfacesOrContracts'], {
-        blockingIssues: [blockingIssue({ id: 'issue-1' })],
-        followUpQuestions: [],
-        readinessChecklist: readinessChecklist({ hasInterfacesOrContracts: false }),
-      }),
-      narrowStageOutput(['hasNoContradictions', 'hasSufficientDetail'], {
-        blockingIssues: [blockingIssue({ id: 'issue-1' }), blockingIssue({ id: 'issue-2' })],
-        actionableItems: [actionableItem()],
-        followUpQuestions: [],
-        readinessChecklist: readinessChecklist({ hasNoContradictions: false }),
-      }),
-      narrowStageOutput(['hasTestableAcceptanceCriteria'], {
-        blockingIssues: [blockingIssue({ id: 'issue-3' })],
-        actionableItems: [],
-        followUpQuestions: [followUpQuestion('q-3')],
-        readinessChecklist: readinessChecklist({ hasTestableAcceptanceCriteria: false }),
-      }),
-    ]);
+    const { ctx, launchChildSpy } = createChildContext(
+      withPlanResolutionResponse(
+        [
+          narrowStageOutput(['hasInterfacesOrContracts'], {
+            blockingIssues: [blockingIssue({ id: 'issue-1' })],
+            followUpQuestions: [],
+            readinessChecklist: readinessChecklist({ hasInterfacesOrContracts: false }),
+          }),
+          narrowStageOutput(['hasNoContradictions', 'hasSufficientDetail'], {
+            blockingIssues: [blockingIssue({ id: 'issue-1' }), blockingIssue({ id: 'issue-2' })],
+            actionableItems: [actionableItem()],
+            followUpQuestions: [],
+            readinessChecklist: readinessChecklist({ hasNoContradictions: false }),
+          }),
+          narrowStageOutput(['hasTestableAcceptanceCriteria'], {
+            blockingIssues: [blockingIssue({ id: 'issue-3' })],
+            actionableItems: [],
+            followUpQuestions: [followUpQuestion('q-3')],
+            readinessChecklist: readinessChecklist({ hasTestableAcceptanceCriteria: false }),
+          }),
+        ],
+        {
+          blockingIssues: [
+            blockingIssue({ id: 'issue-1' }),
+            blockingIssue({ id: 'issue-2' }),
+            blockingIssue({ id: 'issue-3' }),
+          ],
+          actionableItems: [actionableItem()],
+          followUpQuestions: [followUpQuestion('q-3')],
+          readinessChecklist: readinessChecklist({
+            hasInterfacesOrContracts: false,
+            hasNoContradictions: false,
+            hasTestableAcceptanceCriteria: false,
+          }),
+        },
+      ),
+    );
 
     const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
       {
@@ -296,7 +351,7 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
       },
     ]);
 
-    expect(launchChildSpy).toHaveBeenCalledTimes(3);
+    expect(launchChildSpy).toHaveBeenCalledTimes(4);
     expect(result.actionableItems).toHaveLength(1);
     expect(result.followUpQuestions.map((question) => question.questionId)).toEqual(['q-3']);
     expect(result.blockingIssues.map((issue) => issue.id)).toEqual([
@@ -370,16 +425,24 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
   });
 
   it('preserves prior follow-up questions when a later stage emits actionableItems', async () => {
-    const { ctx } = createChildContext([
-      narrowStageOutput(['hasScopeAndObjective'], {
-        followUpQuestions: [followUpQuestion('q-1')],
-        actionableItems: [],
-      }),
-      narrowStageOutput(['hasInterfacesOrContracts'], {
-        actionableItems: [actionableItem()],
-        followUpQuestions: [],
-      }),
-    ]);
+    const { ctx } = createChildContext(
+      withPlanResolutionResponse(
+        [
+          narrowStageOutput(['hasScopeAndObjective'], {
+            followUpQuestions: [followUpQuestion('q-1')],
+            actionableItems: [],
+          }),
+          narrowStageOutput(['hasInterfacesOrContracts'], {
+            actionableItems: [actionableItem()],
+            followUpQuestions: [],
+          }),
+        ],
+        {
+          actionableItems: [actionableItem()],
+          followUpQuestions: [followUpQuestion('q-1')],
+        },
+      ),
+    );
 
     const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
       {
@@ -401,56 +464,77 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
   });
 
   it('uses the fine-grained default validation layer list', async () => {
-    const { ctx, launchChildSpy } = createChildContext([
-      narrowStageOutput(['hasScopeAndObjective'], { followUpQuestions: [], blockingIssues: [] }),
-      narrowStageOutput(['hasNonGoals'], { followUpQuestions: [], blockingIssues: [] }),
-      narrowStageOutput(['hasConstraintsAndAssumptions'], {
-        followUpQuestions: [],
-        blockingIssues: [],
-      }),
-      narrowStageOutput(['hasInterfacesOrContracts'], {
-        followUpQuestions: [],
-        blockingIssues: [],
-      }),
-      narrowStageOutput(['hasTestableAcceptanceCriteria'], {
-        followUpQuestions: [],
-        blockingIssues: [],
-      }),
-      narrowStageOutput(['hasNoContradictions', 'hasSufficientDetail'], {
-        followUpQuestions: [],
-        blockingIssues: [],
-      }),
-    ]);
+    const { ctx, launchChildSpy } = createChildContext(
+      withPlanResolutionResponse(
+        [
+          narrowStageOutput(['hasScopeAndObjective'], {
+            followUpQuestions: [],
+            blockingIssues: [],
+          }),
+          narrowStageOutput(['hasNonGoals'], { followUpQuestions: [], blockingIssues: [] }),
+          narrowStageOutput(['hasConstraintsAndAssumptions'], {
+            followUpQuestions: [],
+            blockingIssues: [],
+          }),
+          narrowStageOutput(['hasInterfacesOrContracts'], {
+            followUpQuestions: [],
+            blockingIssues: [],
+          }),
+          narrowStageOutput(['hasTestableAcceptanceCriteria'], {
+            followUpQuestions: [],
+            blockingIssues: [],
+          }),
+          narrowStageOutput(['hasNoContradictions', 'hasSufficientDetail'], {
+            followUpQuestions: [],
+            blockingIssues: [],
+          }),
+        ],
+        {
+          followUpQuestions: [],
+          blockingIssues: [],
+        },
+      ),
+    );
 
     await executeConsistencyFollowUpPromptLayers(ctx, ctx.input);
 
-    expect(launchChildSpy).toHaveBeenCalledTimes(6);
+    expect(launchChildSpy).toHaveBeenCalledTimes(7);
     expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain(
       'Stage focus: scope and objective clarity',
     );
     expect(launchChildSpy.mock.calls[5][0].input.prompt).toContain(
       'Stage focus: contradictions and implementation completeness',
     );
+    expect(launchChildSpy.mock.calls[6][0].input.prompt).toContain(
+      'full consistency-check coverage sweep',
+    );
   });
 });
 
 describe('handleConsistencyFollowUpChild', () => {
   it('completes with the aggregated child result', async () => {
-    const responses = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer, index) => {
-      if (index === 0) {
+    const responses = withPlanResolutionResponse(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer, index) => {
+        if (index === 0) {
+          return narrowStageOutput(layer.checklistKeys, {
+            blockingIssues: [blockingIssue({ id: 'issue-1' })],
+            actionableItems: [actionableItem()],
+            followUpQuestions: [],
+          });
+        }
+
         return narrowStageOutput(layer.checklistKeys, {
-          blockingIssues: [blockingIssue({ id: 'issue-1' })],
-          actionableItems: [actionableItem()],
+          blockingIssues: [],
+          actionableItems: [],
           followUpQuestions: [],
         });
-      }
-
-      return narrowStageOutput(layer.checklistKeys, {
-        blockingIssues: [],
-        actionableItems: [],
+      }),
+      {
+        blockingIssues: [blockingIssue({ id: 'issue-1' })],
+        actionableItems: [actionableItem()],
         followUpQuestions: [],
-      });
-    });
+      },
+    );
     const { ctx, completeSpy, failSpy } = createChildContext(responses);
 
     await handleConsistencyFollowUpChild(ctx);
@@ -475,5 +559,40 @@ describe('handleConsistencyFollowUpChild', () => {
 
     expect(completeSpy).not.toHaveBeenCalled();
     expect(failSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('emits PlanResolution completion observability before Done completes', async () => {
+    const { ctx, logSpy } = createChildContext(
+      withPlanResolutionResponse(
+        CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer) =>
+          narrowStageOutput(layer.checklistKeys, {
+            blockingIssues: [],
+            followUpQuestions: [],
+          }),
+        ),
+        {
+          blockingIssues: [],
+          followUpQuestions: [],
+        },
+      ),
+    );
+
+    await handleConsistencyFollowUpChild(ctx);
+
+    const planResolutionDelegation = logSpy.mock.calls.find(
+      (call: unknown[]) =>
+        (call[0] as { payload?: { state?: string } }).payload?.state ===
+        CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
+    );
+    expect(planResolutionDelegation).toBeDefined();
+
+    const planResolutionOutcome = logSpy.mock.calls.find(
+      (call: unknown[]) =>
+        (call[0] as { payload?: { state?: string; stageId?: string } }).payload?.state ===
+          CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE &&
+        (call[0] as { payload?: { state?: string; stageId?: string } }).payload?.stageId ===
+          CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
+    );
+    expect(planResolutionOutcome).toBeDefined();
   });
 });

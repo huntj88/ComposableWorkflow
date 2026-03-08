@@ -21,6 +21,7 @@ export const TEMPLATE_IDS = {
   consistencyInterfacesContracts: 'spec-doc.consistency-interfaces-contracts.v1',
   consistencyAcceptanceCriteria: 'spec-doc.consistency-acceptance-criteria.v1',
   consistencyContradictionsCompleteness: 'spec-doc.consistency-contradictions-completeness.v1',
+  consistencyResolution: 'spec-doc.consistency-resolution.v1',
   classifyCustomPrompt: 'spec-doc.classify-custom-prompt.v1',
   expandClarification: 'spec-doc.expand-clarification.v1',
 } as const;
@@ -178,6 +179,26 @@ const CONSISTENCY_CONTRADICTIONS_COMPLETENESS_BODY = createScopedConsistencyBody
   checklistFocus: ['hasNoContradictions', 'hasSufficientDetail'],
 });
 
+const CONSISTENCY_RESOLUTION_BODY = `You are consolidating a full consistency-check coverage sweep into the final child-workflow result.
+
+Input context:
+- request: {{request}}
+- specPath: {{specPath}}
+- constraints: {{constraintsJson}}
+- loopCount: {{loopCount}}
+- remainingQuestionIds: {{remainingQuestionIdsJson}}
+- fullCoverageSummary: {{coverageSummaryJson}}
+
+Rules:
+1) Use the full coverage summary across all executed stages; do not ignore a later stage solely because an earlier stage already emitted \`actionableItems\`.
+2) Return the final aggregate child result using only \`blockingIssues\`, \`actionableItems\`, \`followUpQuestions\`, and \`readinessChecklist\`.
+3) Keep \`actionableItems\` ordered and limited to concrete edits that can be integrated without another human decision.
+4) Keep \`followUpQuestions\` ordered and limited to decisions that still require human input after considering the full sweep.
+5) It is valid for the final aggregate to include both non-empty \`actionableItems\` and non-empty \`followUpQuestions\` when some work can proceed immediately and some decisions still require user input later.
+6) Do not invent duplicate \`itemId\` or \`questionId\` values.
+7) Use the coverage data to avoid redundant questions or edits when multiple stages surface the same underlying issue.
+8) If no new integration work or human question remains, return empty \`actionableItems\` and empty \`followUpQuestions\`.`;
+
 // -- 7.2.3 ClassifyCustomPrompt --------------------------------------------
 
 const CLASSIFY_CUSTOM_PROMPT_BODY = `Classify the user's custom text for a numbered-options response.
@@ -317,6 +338,19 @@ export const PROMPT_TEMPLATES: Record<PromptTemplateId, PromptTemplate> = {
       'loopCount',
       'remainingQuestionIdsJson',
       'stageId',
+    ],
+  },
+  [TEMPLATE_IDS.consistencyResolution]: {
+    id: TEMPLATE_IDS.consistencyResolution,
+    outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+    body: CONSISTENCY_RESOLUTION_BODY,
+    requiredVars: [
+      'request',
+      'specPath',
+      'constraintsJson',
+      'loopCount',
+      'remainingQuestionIdsJson',
+      'coverageSummaryJson',
     ],
   },
   [TEMPLATE_IDS.classifyCustomPrompt]: {

@@ -7,11 +7,11 @@
 Add an explicit delegated-child `PlanResolution` state that consumes the full-sweep coverage aggregate, delegates one planning prompt, and authors the only final `ConsistencyCheckOutput` consumed by the parent.
 
 ## Implementation Tasks
-- [ ] Add `PlanResolution` to the delegated-child state machine and transition metadata.
-- [ ] Introduce the `spec-doc.consistency-resolution.v1` prompt template and wire it to `consistency-check-output.schema.json`.
-- [ ] Build deterministic planning input from the full-sweep aggregate for the planning prompt.
-- [ ] Ensure the parent consumes only the schema-validated `PlanResolution` output.
-- [ ] Extend unit and integration coverage for planning-step invocation, mixed final aggregates, and observability.
+- [x] Add `PlanResolution` to the delegated-child state machine and transition metadata.
+- [x] Introduce the `spec-doc.consistency-resolution.v1` prompt template and wire it to `consistency-check-output.schema.json`.
+- [x] Build deterministic planning input from the full-sweep aggregate for the planning prompt.
+- [x] Ensure the parent consumes only the schema-validated `PlanResolution` output.
+- [x] Extend unit and integration coverage for planning-step invocation, mixed final aggregates, and observability.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/consistency-follow-up-child.ts`

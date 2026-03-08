@@ -49,6 +49,10 @@ const makeStageResponses = (
     structuredOutput: narrowStageOutput(index, overridesByIndex[index]),
   }));
 
+const makeResolutionResponse = (overrides?: ReturnType<typeof makeConsistencyOutput>) => ({
+  structuredOutput: overrides ?? makeConsistencyOutput(),
+});
+
 beforeEach(() => {
   copilotDouble = createCopilotDouble();
   feedbackController = createFeedbackController();
@@ -105,6 +109,14 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
         },
         ...remainingResponses,
       ],
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems,
+            followUpQuestions: [makeQuestionItem('q-late-001'), makeQuestionItem('q-late-002')],
+          }),
+        ),
+      ],
     });
 
     const input = makeDefaultInput();
@@ -128,7 +140,7 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
     );
-  });
+  }, 10_000);
 
   it('fails the parent state when executed layers emit duplicate follow-up question IDs', async () => {
     copilotDouble.reset({
@@ -230,6 +242,17 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
           ),
         },
         ...remainingResponses,
+      ],
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems,
+            followUpQuestions: [
+              makeQuestionItem('q-mixed-aggregate-001'),
+              makeQuestionItem('q-mixed-aggregate-002'),
+            ],
+          }),
+        ),
       ],
     });
 

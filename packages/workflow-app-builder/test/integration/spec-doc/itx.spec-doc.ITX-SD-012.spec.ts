@@ -8,10 +8,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+  CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
   CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS,
 } from '../../../src/workflows/spec-doc/consistency-follow-up-child.js';
 import { OBS_TYPES } from '../../../src/workflows/spec-doc/observability.js';
 import { TEMPLATE_IDS } from '../../../src/workflows/spec-doc/prompt-templates.js';
+import { SCHEMA_IDS } from '../../../src/workflows/spec-doc/schemas.js';
 import { handleClassifyCustomPrompt } from '../../../src/workflows/spec-doc/states/classify-custom-prompt.js';
 import { handleExpandQuestionWithClarification } from '../../../src/workflows/spec-doc/states/expand-question-with-clarification.js';
 import { handleIntegrateIntoSpec } from '../../../src/workflows/spec-doc/states/integrate-into-spec.js';
@@ -63,6 +65,10 @@ const makeStageResponses = (
     structuredOutput: narrowStageOutput(index, overridesByIndex[index]),
   }));
 
+const makeResolutionResponse = (overrides?: ReturnType<typeof makeConsistencyOutput>) => ({
+  structuredOutput: overrides ?? makeConsistencyOutput(),
+});
+
 beforeEach(() => {
   copilotDouble = createCopilotDouble();
   feedbackController = createFeedbackController();
@@ -90,6 +96,11 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
       ExecutePromptLayer: makeStageResponses([
         makeConsistencyOutput({ followUpQuestions: [makeQuestionItem('q-obs-stage-001')] }),
       ]),
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({ followUpQuestions: [makeQuestionItem('q-obs-stage-001')] }),
+        ),
+      ],
     });
 
     const input = makeDefaultInput();
@@ -114,7 +125,7 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
       .delegationEvents()
       .find((event) => event.state === 'LogicalConsistencyCheckCreateFollowUpQuestions');
     expect(parentDelegation?.payload).toMatchObject({
-      promptTemplateId: CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].templateId,
+      promptTemplateId: TEMPLATE_IDS.consistencyResolution,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
     });
 
@@ -132,11 +143,28 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer) => layer.outputSchema),
     );
 
+    const resolutionDelegations = obsSink
+      .delegationEvents()
+      .filter((event) => event.state === 'PlanResolution');
+    expect(resolutionDelegations).toHaveLength(1);
+    expect(resolutionDelegations[0].payload).toMatchObject({
+      promptTemplateId: TEMPLATE_IDS.consistencyResolution,
+      outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
+      childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+      stageId: CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
+    });
+    expect(resolutionDelegations[0].sequence).toBeGreaterThan(
+      stageDelegations.at(-1)?.sequence ?? 0,
+    );
+
     const stageConsistencyOutcome = obsSink
       .consistencyOutcomeEvents()
-      .find((event) => event.state === 'Done');
+      .find((event) => event.state === 'PlanResolution');
     expect(stageConsistencyOutcome?.payload.childWorkflowType).toBe(
       CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+    );
+    expect(stageConsistencyOutcome?.payload.promptTemplateId).toBe(
+      TEMPLATE_IDS.consistencyResolution,
     );
   });
 
@@ -159,6 +187,17 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
         ...CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.slice(2).map((_, index) => ({
           structuredOutput: narrowStageOutput(index + 2, makeConsistencyOutput()),
         })),
+      ],
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems: [
+              makeActionableItem('act-obs-001', {
+                instruction: 'Rewrite the objective section to resolve the ambiguity.',
+              }),
+            ],
+          }),
+        ),
       ],
     });
 
@@ -186,9 +225,9 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
 
     const actionableOutcome = obsSink
       .consistencyOutcomeEvents()
-      .find((event) => event.state === 'Done');
+      .find((event) => event.state === 'PlanResolution');
     expect(actionableOutcome?.payload.stageId).toBe(
-      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.at(-1)?.stageId,
+      CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
     );
     expect(actionableOutcome?.payload.actionableItemsCount).toBe(1);
     expect(actionableOutcome?.payload.stageSequence).toEqual(
@@ -287,6 +326,7 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
     copilotDouble.reset({
       IntegrateIntoSpec: [{ structuredOutput: makeIntegrationOutput() }],
       ExecutePromptLayer: makeStageResponses([makeConsistencyOutput()]),
+      PlanResolution: [makeResolutionResponse()],
       ClassifyCustomPrompt: [{ structuredOutput: makeClassificationOutput('custom-answer') }],
       ExpandQuestionWithClarification: [
         { structuredOutput: makeClarificationFollowUpOutput('q-all-expand-fu') },
@@ -333,6 +373,7 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
     obsSink.assertAllDelegationsHaveTemplateId();
     obsSink.assertTemplateIdUsed(TEMPLATE_IDS.integrate);
     obsSink.assertTemplateIdUsed(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].templateId);
+    obsSink.assertTemplateIdUsed(TEMPLATE_IDS.consistencyResolution);
     obsSink.assertTemplateIdUsed(TEMPLATE_IDS.classifyCustomPrompt);
     obsSink.assertTemplateIdUsed(TEMPLATE_IDS.expandClarification);
   });

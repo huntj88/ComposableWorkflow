@@ -96,7 +96,7 @@ describe('spec-doc observability', () => {
 
     emitDelegationStarted(ctx, {
       state: 'LogicalConsistencyCheckCreateFollowUpQuestions',
-      promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
+      promptTemplateId: TEMPLATE_IDS.consistencyResolution,
       outputSchemaId: SCHEMA_IDS.consistencyCheckOutput,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
     });
@@ -108,12 +108,12 @@ describe('spec-doc observability', () => {
       stageId: 'baseline-consistency',
     });
     emitConsistencyOutcome(ctx, {
-      state: 'Done',
+      state: 'PlanResolution',
       blockingIssuesCount: 0,
       actionableItemsCount: 0,
       followUpQuestionsCount: 2,
       passNumber: 1,
-      promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
+      promptTemplateId: TEMPLATE_IDS.consistencyResolution,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
     });
 

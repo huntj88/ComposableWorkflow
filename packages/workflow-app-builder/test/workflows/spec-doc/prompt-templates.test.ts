@@ -32,19 +32,20 @@ describe('TEMPLATE_IDS', () => {
     expect(TEMPLATE_IDS.consistencyContradictionsCompleteness).toBe(
       'spec-doc.consistency-contradictions-completeness.v1',
     );
+    expect(TEMPLATE_IDS.consistencyResolution).toBe('spec-doc.consistency-resolution.v1');
     expect(TEMPLATE_IDS.classifyCustomPrompt).toBe('spec-doc.classify-custom-prompt.v1');
     expect(TEMPLATE_IDS.expandClarification).toBe('spec-doc.expand-clarification.v1');
   });
 
-  it('has exactly nine entries', () => {
-    expect(Object.keys(TEMPLATE_IDS)).toHaveLength(9);
+  it('has exactly ten entries', () => {
+    expect(Object.keys(TEMPLATE_IDS)).toHaveLength(10);
   });
 });
 
 describe('getAllTemplateIds', () => {
   it('returns all template IDs including the scoped consistency layers', () => {
     const ids = getAllTemplateIds();
-    expect(ids).toHaveLength(9);
+    expect(ids).toHaveLength(10);
     expect(ids).toContain(TEMPLATE_IDS.integrate);
     expect(ids).toContain(TEMPLATE_IDS.consistencyScopeObjective);
     expect(ids).toContain(TEMPLATE_IDS.consistencyNonGoals);
@@ -52,6 +53,7 @@ describe('getAllTemplateIds', () => {
     expect(ids).toContain(TEMPLATE_IDS.consistencyInterfacesContracts);
     expect(ids).toContain(TEMPLATE_IDS.consistencyAcceptanceCriteria);
     expect(ids).toContain(TEMPLATE_IDS.consistencyContradictionsCompleteness);
+    expect(ids).toContain(TEMPLATE_IDS.consistencyResolution);
     expect(ids).toContain(TEMPLATE_IDS.classifyCustomPrompt);
     expect(ids).toContain(TEMPLATE_IDS.expandClarification);
   });
@@ -168,6 +170,32 @@ describe('PROMPT_TEMPLATES', () => {
       expect(PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyContradictionsCompleteness].body).toContain(
         'contradictions and implementation completeness',
       );
+    });
+  });
+
+  describe('spec-doc.consistency-resolution.v1', () => {
+    const tpl: PromptTemplate = PROMPT_TEMPLATES[TEMPLATE_IDS.consistencyResolution];
+
+    it('maps to the aggregate consistency schema', () => {
+      expect(tpl.outputSchemaId).toBe(SCHEMA_IDS.consistencyCheckOutput);
+      expect(tpl.inputSchemaId).toBeUndefined();
+    });
+
+    it('declares the deterministic planning input variables', () => {
+      expect(tpl.requiredVars).toEqual([
+        'request',
+        'specPath',
+        'constraintsJson',
+        'loopCount',
+        'remainingQuestionIdsJson',
+        'coverageSummaryJson',
+      ]);
+    });
+
+    it('documents full-sweep consolidation behavior', () => {
+      expect(tpl.body).toContain('full consistency-check coverage sweep');
+      expect(tpl.body).toContain('{{coverageSummaryJson}}');
+      expect(tpl.body).toContain('It is valid for the final aggregate to include both non-empty');
     });
   });
 

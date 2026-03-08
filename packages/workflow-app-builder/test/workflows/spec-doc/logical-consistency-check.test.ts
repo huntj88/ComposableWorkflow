@@ -16,6 +16,7 @@ import {
   handleLogicalConsistencyCheck,
   LOGICAL_CONSISTENCY_CHECK_STATE,
 } from '../../../src/workflows/spec-doc/states/logical-consistency-check.js';
+import { TEMPLATE_IDS } from '../../../src/workflows/spec-doc/prompt-templates.js';
 import {
   COMPLETION_CONFIRMATION_QUESTION_ID,
   buildQuestionQueue,
@@ -262,6 +263,28 @@ describe('handleLogicalConsistencyCheck', () => {
 
     const transitioned = transitionSpy.mock.calls[0][1] as SpecDocStateData;
     expect(transitioned.counters.consistencyCheckPasses).toBe(1);
+  });
+
+  it('records parent observability against the final PlanResolution template', async () => {
+    const { ctx, logSpy } = createMockContext({ childOutput: emptyConsistencyOutput() });
+
+    await handleLogicalConsistencyCheck(ctx, stateDataWithIntegrationOutput());
+
+    const delegationPayload = logSpy.mock.calls[0][0].payload as {
+      promptTemplateId: string;
+      state: string;
+    };
+    expect(delegationPayload.state).toBe(LOGICAL_CONSISTENCY_CHECK_STATE);
+    expect(delegationPayload.promptTemplateId).toBe(TEMPLATE_IDS.consistencyResolution);
+
+    const outcomePayload = logSpy.mock.calls.find(
+      (call: unknown[]) =>
+        (call[0] as { payload?: { state?: string; observabilityType?: string } }).payload?.state ===
+          LOGICAL_CONSISTENCY_CHECK_STATE &&
+        (call[0] as { payload?: { state?: string; observabilityType?: string } }).payload
+          ?.observabilityType === 'spec-doc.consistency-check.completed',
+    )?.[0] as { payload: { promptTemplateId: string } };
+    expect(outcomePayload.payload.promptTemplateId).toBe(TEMPLATE_IDS.consistencyResolution);
   });
 
   it('fails when the child aggregate output violates the shared contract', async () => {

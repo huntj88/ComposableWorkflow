@@ -50,6 +50,10 @@ const makeStageResponses = (
     structuredOutput: narrowStageOutput(index, overridesByIndex[index]),
   }));
 
+const makeResolutionResponse = (overrides?: ReturnType<typeof makeConsistencyOutput>) => ({
+  structuredOutput: overrides ?? makeConsistencyOutput(),
+});
+
 beforeEach(() => {
   copilotDouble = createCopilotDouble();
   feedbackController = createFeedbackController();
@@ -75,6 +79,7 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
           actionableItems,
         }),
       ]),
+      PlanResolution: [makeResolutionResponse(makeConsistencyOutput({ actionableItems }))],
     });
 
     const input = makeDefaultInput();
@@ -118,6 +123,14 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
           actionableItems,
         }),
       ]),
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems,
+            followUpQuestions: [makeQuestionItem('q-mixed-route-001')],
+          }),
+        ),
+      ],
     });
 
     const input = makeDefaultInput();
@@ -158,6 +171,17 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
           followUpQuestions: [makeQuestionItem('q-route-002')],
         }),
       ]),
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            followUpQuestions: [
+              makeQuestionItem('q-route-003'),
+              makeQuestionItem('q-route-001'),
+              makeQuestionItem('q-route-002'),
+            ],
+          }),
+        ),
+      ],
     });
 
     const input = makeDefaultInput();
@@ -185,6 +209,7 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
   it('synthesizes a completion-confirmation question when the child aggregate is empty (B-SD-TRANS-011)', async () => {
     copilotDouble.reset({
       ExecutePromptLayer: makeStageResponses([]),
+      PlanResolution: [makeResolutionResponse(makeConsistencyOutput())],
     });
 
     const input = makeDefaultInput();

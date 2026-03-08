@@ -18,6 +18,8 @@ import type {
 import {
   CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
   CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+  CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
+  CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
   CONSISTENCY_FOLLOW_UP_CHILD_START_STATE,
   CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS,
   createConsistencyFollowUpChildDefinition,
@@ -50,6 +52,10 @@ const narrowStageOutput = (
     ),
   };
 };
+
+const makeResolutionResponse = (overrides?: ReturnType<typeof makeConsistencyOutput>) => ({
+  structuredOutput: overrides ?? makeConsistencyOutput(),
+});
 
 function makeChildInput(
   overrides?: Partial<ConsistencyFollowUpChildInput>,
@@ -182,6 +188,16 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
           ),
         },
       ],
+      [CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE]: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            followUpQuestions: [
+              makeQuestionItem('q-child-loop-001'),
+              makeQuestionItem('q-child-loop-002'),
+            ],
+          }),
+        ),
+      ],
     });
 
     const result = await runChildWorkflow({ layers });
@@ -191,6 +207,7 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+      CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
     ]);
     expect(result.output.followUpQuestions.map((question) => question.questionId)).toEqual([
@@ -203,15 +220,19 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
         .callsByState(CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE)
         .map((call) => call.outputSchemaId),
     ).toEqual(layers.map((layer) => layer.outputSchema));
-    expect(obsSink.delegationEvents().map((event) => event.payload.stageId)).toEqual(
-      layers.map((layer) => layer.stageId),
-    );
+    expect(obsSink.delegationEvents().map((event) => event.payload.stageId)).toEqual([
+      ...layers.map((layer) => layer.stageId),
+      CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
+    ]);
+    expect(
+      copilotDouble.callsByState(CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE),
+    ).toHaveLength(1);
     expect(obsSink.consistencyOutcomeEvents().at(-1)?.state).toBe(
-      CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
+      CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
     );
   });
 
-  it('keeps self-looping after an actionable stage until every configured layer has executed', async () => {
+  it('keeps self-looping after an actionable stage until every configured layer has executed and PlanResolution runs once', async () => {
     const layers = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.slice(0, 3);
     copilotDouble.reset({
       [CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE]: [
@@ -241,6 +262,14 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
           ),
         },
       ],
+      [CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE]: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems: [makeActionableItem('act-child-done-001')],
+            followUpQuestions: [makeQuestionItem('q-child-post-actionable-001')],
+          }),
+        ),
+      ],
     });
 
     const result = await runChildWorkflow({ layers });
@@ -250,6 +279,7 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+      CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
     ]);
     expect(result.output.actionableItems).toEqual([makeActionableItem('act-child-done-001')]);
@@ -257,9 +287,13 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
       makeQuestionItem('q-child-post-actionable-001'),
     ]);
     expect(copilotDouble.callsByState(CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE)).toHaveLength(3);
-    expect(obsSink.delegationEvents().map((event) => event.payload.stageId)).toEqual(
-      layers.map((layer) => layer.stageId),
-    );
+    expect(
+      copilotDouble.callsByState(CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE),
+    ).toHaveLength(1);
+    expect(obsSink.delegationEvents().map((event) => event.payload.stageId)).toEqual([
+      ...layers.map((layer) => layer.stageId),
+      CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STAGE_ID,
+    ]);
     expect(obsSink.consistencyOutcomeEvents().at(-1)?.payload.actionableItemsCount).toBe(1);
     expect(obsSink.consistencyOutcomeEvents().at(-1)?.payload.stageSequence).toEqual(
       layers.map((layer) => layer.stageId),
@@ -275,6 +309,6 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
             }
           ).executedStages.length,
       ),
-    ).toEqual([1, 2, 3]);
+    ).toEqual([1, 2, 3, 3]);
   });
 });
