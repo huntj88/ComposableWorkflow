@@ -3,8 +3,8 @@
  *
  * Executes one scoped prompt layer per `ExecutePromptLayer` state entry,
  * validates each stage against its narrow schema, merges outputs into the
- * aggregate child result, and self-loops until actionable items appear or the
- * configured stage list is exhausted.
+ * aggregate child result, and self-loops until every configured stage has
+ * executed exactly once for the current child pass.
  *
  * @module spec-doc/consistency-follow-up-child
  */
@@ -55,6 +55,14 @@ export interface ConsistencyFollowUpChildStateData {
   seenBlockingIssueIds: string[];
   seenActionableItemIds: string[];
   seenFollowUpQuestionIds: string[];
+  executedStages: ConsistencyFollowUpStageExecution[];
+}
+
+export interface ConsistencyFollowUpStageExecution {
+  stageId: string;
+  templateId: PromptTemplateId;
+  outputSchema: SpecDocSchemaId;
+  output: ConsistencyStageOutput;
 }
 
 export const CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS = [
@@ -140,6 +148,7 @@ export function createInitialConsistencyFollowUpChildStateData(): ConsistencyFol
     seenBlockingIssueIds: [],
     seenActionableItemIds: [],
     seenFollowUpQuestionIds: [],
+    executedStages: [],
   };
 }
 
@@ -318,6 +327,26 @@ function cloneAggregateOutput(output: ConsistencyCheckOutput): ConsistencyCheckO
   };
 }
 
+function cloneStageOutput(output: ConsistencyStageOutput): ConsistencyStageOutput {
+  return {
+    blockingIssues: [...output.blockingIssues],
+    actionableItems: [...output.actionableItems],
+    followUpQuestions: [...output.followUpQuestions],
+    readinessChecklist: { ...output.readinessChecklist },
+  };
+}
+
+function cloneExecutedStages(
+  executedStages: readonly ConsistencyFollowUpStageExecution[],
+): ConsistencyFollowUpStageExecution[] {
+  return executedStages.map((stage) => ({
+    stageId: stage.stageId,
+    templateId: stage.templateId,
+    outputSchema: stage.outputSchema,
+    output: cloneStageOutput(stage.output),
+  }));
+}
+
 function coerceStateData(data: unknown): ConsistencyFollowUpChildStateData {
   if (!data || typeof data !== 'object') {
     throw new Error('Child state data is required for ExecutePromptLayer and Done');
@@ -329,7 +358,8 @@ function coerceStateData(data: unknown): ConsistencyFollowUpChildStateData {
     !candidate.aggregateOutput ||
     !Array.isArray(candidate.seenBlockingIssueIds) ||
     !Array.isArray(candidate.seenActionableItemIds) ||
-    !Array.isArray(candidate.seenFollowUpQuestionIds)
+    !Array.isArray(candidate.seenFollowUpQuestionIds) ||
+    !Array.isArray(candidate.executedStages)
   ) {
     throw new Error('Invalid child state data');
   }
@@ -398,6 +428,7 @@ function mergeStageOutput(
   const seenBlockingIssueIds = createStateDataSet(stateData.seenBlockingIssueIds);
   const seenActionableIds = createStateDataSet(stateData.seenActionableItemIds);
   const seenQuestionIds = createStateDataSet(stateData.seenFollowUpQuestionIds);
+  const executedStages = cloneExecutedStages(stateData.executedStages);
 
   pushUniqueBlockingIssues(aggregate, seenBlockingIssueIds, stageOutput);
   aggregate.readinessChecklist = mergeReadinessChecklist(
@@ -426,12 +457,20 @@ function mergeStageOutput(
     aggregate.followUpQuestions.push(question);
   }
 
+  executedStages.push({
+    stageId: layer.stageId,
+    templateId: layer.templateId,
+    outputSchema: layer.outputSchema,
+    output: cloneStageOutput(stageOutput),
+  });
+
   return {
     stageIndex: stateData.stageIndex + 1,
     aggregateOutput: aggregate,
     seenBlockingIssueIds: [...seenBlockingIssueIds],
     seenActionableItemIds: [...seenActionableIds],
     seenFollowUpQuestionIds: [...seenQuestionIds],
+    executedStages,
   };
 }
 
@@ -474,11 +513,10 @@ function createExecutePromptLayerHandler(
 
       const stageOutput = await runPromptLayer(ctx, ctx.input, layer);
       const nextStateData = mergeStageOutput(stateData, layer, stageOutput);
-      const hasActionableItems = nextStateData.aggregateOutput.actionableItems.length > 0;
       const lastStageCompleted = nextStateData.stageIndex >= layers.length;
 
       ctx.transition(
-        hasActionableItems || lastStageCompleted
+        lastStageCompleted
           ? CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE
           : CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
         nextStateData,
@@ -490,7 +528,7 @@ function createExecutePromptLayerHandler(
 }
 
 function createDoneHandler(
-  layers: readonly ConsistencyFollowUpPromptLayer[],
+  _layers: readonly ConsistencyFollowUpPromptLayer[],
 ): WorkflowDefinition<ConsistencyFollowUpChildInput, ConsistencyCheckOutput>['states'][string] {
   return async (ctx, data) => {
     try {
@@ -513,11 +551,11 @@ function createDoneHandler(
         throw new Error(`Aggregate contract violation: ${finalViolations.join('; ')}`);
       }
 
-      const lastExecutedStageIndex = Math.max(
-        0,
-        Math.min(stateData.stageIndex - 1, layers.length - 1),
-      );
-      const finalLayer = layers[lastExecutedStageIndex];
+      if (stateData.executedStages.length === 0) {
+        throw new Error('Child workflow completed without executing any prompt layers');
+      }
+
+      const finalLayer = stateData.executedStages[stateData.executedStages.length - 1];
 
       emitConsistencyOutcome(ctx, {
         state: CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
@@ -528,6 +566,7 @@ function createDoneHandler(
         promptTemplateId: finalLayer.templateId,
         childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
         stageId: finalLayer.stageId,
+        stageSequence: stateData.executedStages.map((stage) => stage.stageId),
       });
 
       ctx.complete(output);

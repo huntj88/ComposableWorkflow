@@ -95,6 +95,7 @@ export interface ConsistencyOutcomePayload extends ObsPayloadBase {
   followUpQuestionsCount: number;
   passNumber: number;
   promptTemplateId: PromptTemplateId;
+  stageSequence?: string[];
 }
 
 /** Payload for question generated events. */
@@ -246,6 +247,7 @@ export function emitConsistencyOutcome(
     promptTemplateId: PromptTemplateId;
     childWorkflowType?: string;
     stageId?: string;
+    stageSequence?: string[];
   },
 ): ConsistencyOutcomePayload {
   const payload: ConsistencyOutcomePayload = {
@@ -258,6 +260,7 @@ export function emitConsistencyOutcome(
     promptTemplateId: params.promptTemplateId,
     ...(params.childWorkflowType != null && { childWorkflowType: params.childWorkflowType }),
     ...(params.stageId != null && { stageId: params.stageId }),
+    ...(params.stageSequence != null && { stageSequence: [...params.stageSequence] }),
   };
   ctx.log({
     level: 'info',

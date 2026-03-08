@@ -61,6 +61,7 @@ describe('spec-doc observability', () => {
 
   it('emits consistency outcome with actionable item counts and child metadata', () => {
     const { ctx, logSpy } = createMockContext();
+    const stageSequence = ['scope-objective-consistency', 'non-goals-consistency'];
 
     const payload = emitConsistencyOutcome(ctx, {
       state: 'LogicalConsistencyCheckCreateFollowUpQuestions',
@@ -71,6 +72,7 @@ describe('spec-doc observability', () => {
       promptTemplateId: TEMPLATE_IDS.consistencyScopeObjective,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
       stageId: 'baseline-consistency',
+      stageSequence,
     });
 
     expect(payload).toMatchObject({
@@ -80,11 +82,13 @@ describe('spec-doc observability', () => {
       followUpQuestionsCount: 0,
       childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
       stageId: 'baseline-consistency',
+      stageSequence,
     });
 
     const logged = logSpy.mock.calls[0][0] as { payload: ConsistencyOutcomePayload };
     expect(logged.payload.actionableItemsCount).toBe(1);
     expect(logged.payload.childWorkflowType).toBe(CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE);
+    expect(logged.payload.stageSequence).toEqual(stageSequence);
   });
 
   it('preserves event ordering across parent and child observability', () => {

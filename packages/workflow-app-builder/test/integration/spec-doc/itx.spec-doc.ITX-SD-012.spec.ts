@@ -140,7 +140,7 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
     );
   });
 
-  it('child short-circuiting is externally visible by later stage absence after actionable items appear (B-SD-OBS-003)', async () => {
+  it('child full-sweep execution is externally visible by ordered stage coverage even after actionable items appear (B-SD-OBS-003)', async () => {
     copilotDouble.reset({
       ExecutePromptLayer: [
         { structuredOutput: narrowStageOutput(0) },
@@ -156,7 +156,9 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
             }),
           ),
         },
-        { failure: new Error('later prompt layer should not execute after short-circuit') },
+        ...CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.slice(2).map((_, index) => ({
+          structuredOutput: narrowStageOutput(index + 2, makeConsistencyOutput()),
+        })),
       ],
     });
 
@@ -176,16 +178,22 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
       .filter((event) => event.state === 'ExecutePromptLayer')
       .map((event) => event.payload.stageId);
     expect(executedStageIds).toEqual(
-      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.slice(0, 2).map((layer) => layer.stageId),
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer) => layer.stageId),
     );
-    expect(executedStageIds).not.toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[2].stageId);
-    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(2);
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
+    );
 
     const actionableOutcome = obsSink
       .consistencyOutcomeEvents()
       .find((event) => event.state === 'Done');
-    expect(actionableOutcome?.payload.stageId).toBe(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
+    expect(actionableOutcome?.payload.stageId).toBe(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.at(-1)?.stageId,
+    );
     expect(actionableOutcome?.payload.actionableItemsCount).toBe(1);
+    expect(actionableOutcome?.payload.stageSequence).toEqual(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer) => layer.stageId),
+    );
   });
 
   it('ClassifyCustomPrompt delegation emits spec-doc.classify-custom-prompt.v1 template ID', async () => {

@@ -1,5 +1,5 @@
 /**
- * ITX-SD-016: Delegated child contract enforcement and short-circuit behavior.
+ * ITX-SD-016: Delegated child contract enforcement under full-sweep execution.
  *
  * Behaviors: B-SD-CHILD-001, B-SD-CHILD-002, B-SD-CHILD-003, B-SD-FAIL-001.
  */
@@ -55,13 +55,26 @@ beforeEach(() => {
   obsSink = createObservabilitySink();
 });
 
-describe('ITX-SD-016: Delegated child contract enforcement and short-circuit behavior', () => {
-  it('short-circuits after the first actionable stage and never executes later prompt layers', async () => {
+describe('ITX-SD-016: Delegated child contract enforcement under full-sweep execution', () => {
+  it('continues executing later prompt layers after an actionable stage and still routes actionable output to integration', async () => {
     const actionableItems = [
       makeActionableItem('act-short-001', {
         instruction: 'Resolve the objective mismatch before asking more questions.',
       }),
     ];
+
+    const remainingResponses = Array.from(
+      { length: CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length - 3 },
+      (_, index) => ({
+        structuredOutput: narrowStageOutput(
+          index + 3,
+          makeConsistencyOutput({
+            blockingIssues: [],
+            followUpQuestions: [],
+          }),
+        ),
+      }),
+    );
 
     copilotDouble.reset({
       ExecutePromptLayer: [
@@ -73,7 +86,24 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
             }),
           ),
         },
-        { failure: new Error('unreachable later stage') },
+        {
+          structuredOutput: narrowStageOutput(
+            1,
+            makeConsistencyOutput({
+              followUpQuestions: [makeQuestionItem('q-late-001')],
+            }),
+          ),
+        },
+        {
+          structuredOutput: narrowStageOutput(
+            2,
+            makeConsistencyOutput({
+              blockingIssues: [],
+              followUpQuestions: [makeQuestionItem('q-late-002')],
+            }),
+          ),
+        },
+        ...remainingResponses,
       ],
     });
 
@@ -95,7 +125,9 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
     };
     expect(nextData.source).toBe('consistency-action-items');
     expect(nextData.actionableItems).toEqual(actionableItems);
-    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(1);
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
+    );
   });
 
   it('fails the parent state when executed layers emit duplicate follow-up question IDs', async () => {
@@ -155,8 +187,21 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
     expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].stageId);
   });
 
-  it('allows mixed aggregate preservation across stages while still short-circuiting later layers', async () => {
+  it('allows mixed aggregate preservation across stages while still executing later layers', async () => {
     const actionableItems = [makeActionableItem('act-mixed-aggregate-001')];
+
+    const remainingResponses = Array.from(
+      { length: CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length - 3 },
+      (_, index) => ({
+        structuredOutput: narrowStageOutput(
+          index + 3,
+          makeConsistencyOutput({
+            blockingIssues: [],
+            followUpQuestions: [],
+          }),
+        ),
+      }),
+    );
 
     copilotDouble.reset({
       ExecutePromptLayer: [
@@ -176,7 +221,15 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
             }),
           ),
         },
-        { failure: new Error('later stage should not execute') },
+        {
+          structuredOutput: narrowStageOutput(
+            2,
+            makeConsistencyOutput({
+              followUpQuestions: [makeQuestionItem('q-mixed-aggregate-002')],
+            }),
+          ),
+        },
+        ...remainingResponses,
       ],
     });
 
@@ -191,7 +244,9 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
     expect(result.failedError).toBeUndefined();
     expect(result.transitions).toHaveLength(1);
     expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
-    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(2);
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
+    );
 
     const nextData = result.transitions[0].data as SpecDocStateData & {
       source: 'consistency-action-items';
@@ -200,5 +255,31 @@ describe('ITX-SD-016: Delegated child contract enforcement and short-circuit beh
     expect(nextData.source).toBe('consistency-action-items');
     expect(nextData.actionableItems).toEqual(actionableItems);
     expect(nextData.queue).toEqual([]);
+  });
+
+  it('fails the parent state when a later layer duplicates an earlier actionable item ID after full-sweep execution continues', async () => {
+    copilotDouble.reset({
+      ExecutePromptLayer: makeStageResponses([
+        makeConsistencyOutput({
+          actionableItems: [makeActionableItem('act-dup-001')],
+        }),
+        makeConsistencyOutput({
+          actionableItems: [makeActionableItem('act-dup-001')],
+        }),
+      ]),
+    });
+
+    const input = makeDefaultInput();
+    const stateData = makeStateDataAfterIntegration();
+    const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink, {
+      executeConsistencyChild: true,
+    });
+
+    await handleLogicalConsistencyCheck(ctx, stateData);
+
+    expect(result.transitions).toHaveLength(0);
+    expect(result.failedError).toBeDefined();
+    expect(result.failedError?.message).toContain('duplicate actionable itemId: act-dup-001');
+    expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
   });
 });

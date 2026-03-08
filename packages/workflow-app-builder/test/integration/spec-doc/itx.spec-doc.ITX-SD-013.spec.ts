@@ -70,16 +70,11 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     ];
 
     copilotDouble.reset({
-      ExecutePromptLayer: [
-        {
-          structuredOutput: narrowStageOutput(
-            0,
-            makeConsistencyOutput({
-              actionableItems,
-            }),
-          ),
-        },
-      ],
+      ExecutePromptLayer: makeStageResponses([
+        makeConsistencyOutput({
+          actionableItems,
+        }),
+      ]),
     });
 
     const input = makeDefaultInput();
@@ -101,6 +96,9 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(nextData.source).toBe('consistency-action-items');
     expect(nextData.actionableItems).toEqual(actionableItems);
     expect(nextData.queue).toEqual([]);
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
+    );
   });
 
   it('prioritizes IntegrateIntoSpec for mixed aggregate child results and suppresses queue entry for that pass', async () => {
@@ -112,25 +110,14 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     ];
 
     copilotDouble.reset({
-      ExecutePromptLayer: [
-        {
-          structuredOutput: narrowStageOutput(
-            0,
-            makeConsistencyOutput({
-              followUpQuestions: [makeQuestionItem('q-mixed-route-001')],
-            }),
-          ),
-        },
-        {
-          structuredOutput: narrowStageOutput(
-            1,
-            makeConsistencyOutput({
-              actionableItems,
-            }),
-          ),
-        },
-        { failure: new Error('unreachable later stage') },
-      ],
+      ExecutePromptLayer: makeStageResponses([
+        makeConsistencyOutput({
+          followUpQuestions: [makeQuestionItem('q-mixed-route-001')],
+        }),
+        makeConsistencyOutput({
+          actionableItems,
+        }),
+      ]),
     });
 
     const input = makeDefaultInput();
@@ -144,7 +131,9 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(result.failedError).toBeUndefined();
     expect(result.transitions).toHaveLength(1);
     expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
-    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(2);
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
+    );
 
     const nextData = result.transitions[0].data as SpecDocStateData & {
       source: 'consistency-action-items';

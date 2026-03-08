@@ -70,10 +70,12 @@ async function runChildWorkflow(params: {
   layers: readonly ConsistencyFollowUpPromptLayer[];
 }): Promise<{
   stateHistory: string[];
+  transitionDataHistory: unknown[];
   output: ConsistencyCheckOutput;
 }> {
   const definition = createConsistencyFollowUpChildDefinition(params.layers);
   const stateHistory: string[] = [];
+  const transitionDataHistory: unknown[] = [];
   let currentState = definition.initialState;
   let currentData: unknown;
   let completedOutput: ConsistencyCheckOutput | undefined;
@@ -127,7 +129,7 @@ async function runChildWorkflow(params: {
     await handler(ctx, currentData);
 
     if (completedOutput) {
-      return { stateHistory, output: completedOutput };
+      return { stateHistory, transitionDataHistory, output: completedOutput };
     }
     if (failedError) {
       throw failedError;
@@ -136,6 +138,7 @@ async function runChildWorkflow(params: {
       throw new Error(`Child state ${currentState} did not transition or complete`);
     }
 
+    transitionDataHistory.push(transitionTarget.data);
     currentState = transitionTarget.to;
     currentData = transitionTarget.data;
   }
@@ -208,7 +211,7 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
     );
   });
 
-  it('transitions directly to Done after an actionable stage and skips later layers', async () => {
+  it('keeps self-looping after an actionable stage until every configured layer has executed', async () => {
     const layers = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.slice(0, 3);
     copilotDouble.reset({
       [CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE]: [
@@ -230,7 +233,12 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
           ),
         },
         {
-          failure: new Error('unreachable later stage'),
+          structuredOutput: narrowStageOutput(
+            layers[2],
+            makeConsistencyOutput({
+              followUpQuestions: [makeQuestionItem('q-child-post-actionable-001')],
+            }),
+          ),
         },
       ],
     });
@@ -241,14 +249,32 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
       CONSISTENCY_FOLLOW_UP_CHILD_START_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+      CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
       CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
     ]);
     expect(result.output.actionableItems).toEqual([makeActionableItem('act-child-done-001')]);
-    expect(result.output.followUpQuestions).toEqual([]);
-    expect(copilotDouble.callsByState(CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE)).toHaveLength(2);
+    expect(result.output.followUpQuestions).toEqual([
+      makeQuestionItem('q-child-post-actionable-001'),
+    ]);
+    expect(copilotDouble.callsByState(CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE)).toHaveLength(3);
     expect(obsSink.delegationEvents().map((event) => event.payload.stageId)).toEqual(
-      layers.slice(0, 2).map((layer) => layer.stageId),
+      layers.map((layer) => layer.stageId),
     );
     expect(obsSink.consistencyOutcomeEvents().at(-1)?.payload.actionableItemsCount).toBe(1);
+    expect(obsSink.consistencyOutcomeEvents().at(-1)?.payload.stageSequence).toEqual(
+      layers.map((layer) => layer.stageId),
+    );
+
+    const executeTransitions = result.transitionDataHistory.slice(1);
+    expect(
+      executeTransitions.map(
+        (data) =>
+          (
+            data as {
+              executedStages: Array<{ stageId: string }>;
+            }
+          ).executedStages.length,
+      ),
+    ).toEqual([1, 2, 3]);
   });
 });

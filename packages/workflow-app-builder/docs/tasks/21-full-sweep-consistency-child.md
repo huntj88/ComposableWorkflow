@@ -8,11 +8,11 @@
 Replace the delegated-child actionable-item short-circuit policy with a full-sweep execution policy so every configured `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` entry runs once per consistency-check pass before the child produces its parent-facing result.
 
 ## Implementation Tasks
-- [ ] Update delegated-child runtime progression so `ExecutePromptLayer` always advances through the full configured layer list.
-- [ ] Preserve duplicate-id enforcement and stage-local mixed-output rejection while removing actionable-item early exit.
-- [ ] Update child state data to retain full-sweep coverage data across all executed stages.
-- [ ] Emit observability proving every configured stage executed once per pass.
-- [ ] Add unit and integration regressions that fail if early actionable items suppress later stages.
+- [x] Update delegated-child runtime progression so `ExecutePromptLayer` always advances through the full configured layer list.
+- [x] Preserve duplicate-id enforcement and stage-local mixed-output rejection while removing actionable-item early exit.
+- [x] Update child state data to retain full-sweep coverage data across all executed stages.
+- [x] Emit observability proving every configured stage executed once per pass.
+- [x] Add unit and integration regressions that fail if early actionable items suppress later stages.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/consistency-follow-up-child.ts`

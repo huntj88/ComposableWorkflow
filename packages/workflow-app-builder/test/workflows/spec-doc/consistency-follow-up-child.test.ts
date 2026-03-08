@@ -12,6 +12,7 @@ import type {
   SpecActionableItem,
 } from '../../../src/workflows/spec-doc/contracts.js';
 import {
+  CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS,
   CONSISTENCY_FOLLOW_UP_CHILD_DONE_STATE,
   CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
   CONSISTENCY_FOLLOW_UP_CHILD_START_STATE,
@@ -253,7 +254,7 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     expect(result.followUpQuestions.map((question) => question.questionId)).toEqual(['q-1', 'q-2']);
   });
 
-  it('short-circuits later stages after actionableItems and aggregates executed-stage diagnostics', async () => {
+  it('continues through later stages after actionableItems and aggregates executed-stage diagnostics', async () => {
     const { ctx, launchChildSpy } = createChildContext([
       narrowStageOutput(['hasInterfacesOrContracts'], {
         blockingIssues: [blockingIssue({ id: 'issue-1' })],
@@ -265,6 +266,12 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
         actionableItems: [actionableItem()],
         followUpQuestions: [],
         readinessChecklist: readinessChecklist({ hasNoContradictions: false }),
+      }),
+      narrowStageOutput(['hasTestableAcceptanceCriteria'], {
+        blockingIssues: [blockingIssue({ id: 'issue-3' })],
+        actionableItems: [],
+        followUpQuestions: [followUpQuestion('q-3')],
+        readinessChecklist: readinessChecklist({ hasTestableAcceptanceCriteria: false }),
       }),
     ]);
 
@@ -282,19 +289,56 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
         checklistKeys: ['hasNoContradictions', 'hasSufficientDetail'],
       },
       {
-        stageId: 'should-not-run',
+        stageId: 'post-actionable-stage',
         templateId: TEMPLATE_IDS.consistencyAcceptanceCriteria,
         outputSchema: SCHEMA_IDS.consistencyAcceptanceCriteriaOutput,
         checklistKeys: ['hasTestableAcceptanceCriteria'],
       },
     ]);
 
-    expect(launchChildSpy).toHaveBeenCalledTimes(2);
+    expect(launchChildSpy).toHaveBeenCalledTimes(3);
     expect(result.actionableItems).toHaveLength(1);
-    expect(result.followUpQuestions).toEqual([]);
-    expect(result.blockingIssues.map((issue) => issue.id)).toEqual(['issue-1', 'issue-2']);
+    expect(result.followUpQuestions.map((question) => question.questionId)).toEqual(['q-3']);
+    expect(result.blockingIssues.map((issue) => issue.id)).toEqual([
+      'issue-1',
+      'issue-2',
+      'issue-3',
+    ]);
     expect(result.readinessChecklist.hasInterfacesOrContracts).toBe(false);
     expect(result.readinessChecklist.hasNoContradictions).toBe(false);
+    expect(result.readinessChecklist.hasTestableAcceptanceCriteria).toBe(false);
+  });
+
+  it('fails on duplicate actionable itemId values across later stages after an earlier actionable result', async () => {
+    const { ctx, launchChildSpy } = createChildContext([
+      narrowStageOutput(['hasInterfacesOrContracts'], {
+        actionableItems: [actionableItem({ itemId: 'act-dup-1' })],
+        followUpQuestions: [],
+      }),
+      narrowStageOutput(['hasTestableAcceptanceCriteria'], {
+        actionableItems: [actionableItem({ itemId: 'act-dup-1' })],
+        followUpQuestions: [],
+      }),
+    ]);
+
+    await expect(
+      executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
+        {
+          stageId: 'stage-1',
+          templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
+          outputSchema: SCHEMA_IDS.consistencyInterfacesContractsOutput,
+          checklistKeys: ['hasInterfacesOrContracts'],
+        },
+        {
+          stageId: 'stage-2',
+          templateId: TEMPLATE_IDS.consistencyAcceptanceCriteria,
+          outputSchema: SCHEMA_IDS.consistencyAcceptanceCriteriaOutput,
+          checklistKeys: ['hasTestableAcceptanceCriteria'],
+        },
+      ]),
+    ).rejects.toThrow('duplicate actionable itemId: act-dup-1');
+
+    expect(launchChildSpy).toHaveBeenCalledTimes(2);
   });
 
   it('fails on duplicate questionId values across executed stages', async () => {
@@ -392,13 +436,22 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
 
 describe('handleConsistencyFollowUpChild', () => {
   it('completes with the aggregated child result', async () => {
-    const { ctx, completeSpy, failSpy } = createChildContext([
-      narrowStageOutput(['hasScopeAndObjective'], {
-        blockingIssues: [blockingIssue({ id: 'issue-1' })],
-        actionableItems: [actionableItem()],
+    const responses = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer, index) => {
+      if (index === 0) {
+        return narrowStageOutput(layer.checklistKeys, {
+          blockingIssues: [blockingIssue({ id: 'issue-1' })],
+          actionableItems: [actionableItem()],
+          followUpQuestions: [],
+        });
+      }
+
+      return narrowStageOutput(layer.checklistKeys, {
+        blockingIssues: [],
+        actionableItems: [],
         followUpQuestions: [],
-      }),
-    ]);
+      });
+    });
+    const { ctx, completeSpy, failSpy } = createChildContext(responses);
 
     await handleConsistencyFollowUpChild(ctx);
 
