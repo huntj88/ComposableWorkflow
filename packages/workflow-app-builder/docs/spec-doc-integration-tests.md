@@ -26,6 +26,7 @@ Use this alongside:
 
 E2E tests validate user-visible API behavior across full system boundaries, but the spec-doc generation workflow has integration concerns that require:
 - deterministic copilot prompt responses (schema-validated structured output),
+- deterministic full-sweep consistency-stage coverage before child-result planning,
 - controlled question queue ordering and mutation verification,
 - precise FSM transition guard evaluation,
 - schema validation failure injection at exact state boundaries,
@@ -57,7 +58,7 @@ A behavior is integration-primary when one or more is true:
 - Deterministic `app-builder.copilot.prompt.v1` stub that returns configured `structuredOutput` per call.
 - Supports per-state schema-valid and schema-invalid response injection.
 - Supports failure injection (child workflow failure simulation).
-- Records all calls with template ID, `outputSchema`, `stageId` when applicable, and interpolation variables for assertion.
+- Records all calls with template ID, `outputSchema`, `stageId` when applicable, child state (`ExecutePromptLayer` vs `PlanResolution`), and interpolation variables for assertion.
 
 ## 3.2 Feedback Response Controller
 - Programmatic feedback response submission (bypass CLI/manual interaction).
@@ -72,7 +73,8 @@ A behavior is integration-primary when one or more is true:
 - Test sink recording all:
   - emitted workflow events (state entries, transitions, question generation, responses),
   - prompt template IDs used per copilot delegation,
-  - schema validation outcomes.
+  - schema validation outcomes,
+  - delegated child planning-step events after the prompt-layer sweep.
 
 ---
 
@@ -262,7 +264,7 @@ A behavior is integration-primary when one or more is true:
 - Option IDs are unique contiguous integers starting at `1` per question.
 - Each option includes `description` with pros/cons content.
 - Each consistency-check question has `kind: "issue-resolution"`.
-- Stage-specific consistency schemas and the merged child aggregate both preserve the same numbered-question item contract.
+- Stage-specific consistency schemas and the final planned child aggregate both preserve the same numbered-question item contract.
 - Completion-confirmation question is synthesized in workflow logic when delegated child output has empty `actionableItems` and empty `followUpQuestions`.
 - Clarification follow-up questions conform to server-owned base schema plus `kind: "issue-resolution"`.
 
@@ -276,16 +278,17 @@ A behavior is integration-primary when one or more is true:
 - Capture all observability events.
 
 **Assertions**
-- Each copilot delegation event includes the prompt template ID (e.g., `spec-doc.integrate.v1`, `spec-doc.consistency-scope-objective.v1`, `spec-doc.classify-custom-prompt.v1`, `spec-doc.expand-clarification.v1`).
+- Each copilot delegation event includes the prompt template ID (e.g., `spec-doc.integrate.v1`, `spec-doc.consistency-scope-objective.v1`, `spec-doc.consistency-resolution.v1`, `spec-doc.classify-custom-prompt.v1`, `spec-doc.expand-clarification.v1`).
 - Template IDs are stable and match documented identifiers from section 7.2 of the workflow spec.
 - Each scoped consistency template is paired with its matching narrow `consistency-*-output.schema.json` file, and no scoped layer delegates with the broad aggregate `consistency-check-output.schema.json` as its prompt-layer `outputSchema`.
+- The delegated child planning step delegates exactly once with `spec-doc.consistency-resolution.v1` and `consistency-check-output.schema.json` after the final prompt-layer event.
 - Template ID is present in both event payloads and structured log records.
 - Research-only clarification outcomes emit `spec-doc.research.logged` with the same prompt-template traceability as the originating clarification delegation.
 - Delegated child-workflow events for `LogicalConsistencyCheckCreateFollowUpQuestions` include `childWorkflowType`.
 - Prompt-layer events include `stageId` and preserve execution order.
-- When the child short-circuits on non-empty `actionableItems`, later prompt layers emit skipped observability or are otherwise externally observable as not executed.
+- Every configured prompt layer is externally observable exactly once per pass before the delegated child planning step completes.
 
-**Related behaviors:** `B-SD-OBS-002`, `B-SD-OBS-003`, `B-SD-COPILOT-003`, `B-SD-CHILD-001`.
+**Related behaviors:** `B-SD-OBS-002`, `B-SD-OBS-003`, `B-SD-COPILOT-003`, `B-SD-CHILD-001`, `B-SD-CHILD-001B`.
 
 ## ITX-SD-013: LogicalConsistencyCheckCreateFollowUpQuestions routes from the child aggregate result
 **Why not E2E-only:** requires verification of deterministic parent routing across child-result variations.
@@ -323,25 +326,26 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-SD-HFB-001`, `B-SD-HFB-005`, `B-SD-TRANS-013`, `B-SD-TRANS-015`.
 
-## ITX-SD-016: Delegated child contract enforcement, mixed-aggregate preservation, and short-circuit behavior
-**Why not E2E-only:** requires controlled multi-layer child outputs and explicit contract-violation injection.
+## ITX-SD-016: Delegated child contract enforcement, full-sweep coverage, and resolution-planning behavior
+**Why not E2E-only:** requires controlled multi-layer child outputs, explicit contract-violation injection, and direct verification of post-sweep planning.
 
 **Setup**
 - Configure delegated child workflow layers to exercise:
-  - early non-empty `actionableItems` followed by a later configured layer,
+  - early non-empty `actionableItems` followed by later configured layers,
   - duplicate `itemId` or `questionId` across executed layers,
   - mixed non-empty `actionableItems` and `followUpQuestions` in one layer,
-  - earlier-stage `followUpQuestions` followed by later-stage `actionableItems` in the final aggregate.
+  - earlier-stage `followUpQuestions` followed by later-stage `actionableItems` in the final planning result.
 
 **Assertions**
-- When an early layer emits non-empty `actionableItems`, later layers are not executed and parent routing uses only the actionable result.
+- When an early layer emits non-empty `actionableItems`, later configured layers still execute and `PlanResolution` remains the only child step that authors the final aggregate result.
 - Duplicate ids across executed layers fail the child run before any parent transition is chosen.
 - Mixed actionable/question output within a single stage fails the child run before any parent transition is chosen.
 - A final aggregate that contains earlier-stage `followUpQuestions` plus later-stage `actionableItems` does not fail solely for being mixed.
 - When that valid mixed aggregate occurs, the parent prioritizes `IntegrateIntoSpec` and does not enter `NumberedOptionsHumanRequest` for that pass.
 - Failure diagnostics identify the child contract violation and relevant stage context.
+- Resolution-planning input reflects the full-sweep stage coverage rather than only a prefix of stages.
 
-**Related behaviors:** `B-SD-CHILD-001`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-CHILD-004`, `B-SD-FAIL-001`.
+**Related behaviors:** `B-SD-CHILD-001`, `B-SD-CHILD-001B`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-CHILD-004`, `B-SD-FAIL-001`.
 
 ## ITX-SD-017: Delegated child explicit-state self-loop progression
 **Why not E2E-only:** requires inspection of child-workflow runtime state transitions or harness-visible child-state progression.
@@ -351,16 +355,16 @@ A behavior is integration-primary when one or more is true:
 - Provide stage outputs that exercise:
   - one or more self-loop iterations with empty `actionableItems`,
   - termination at the last stage with `followUpQuestions`,
-  - termination before the last stage with non-empty `actionableItems`.
+  - non-empty `actionableItems` before the last stage while still requiring the remaining stages and `PlanResolution` to run.
 
 **Assertions**
 - Child workflow transitions `start -> ExecutePromptLayer` exactly once at the beginning of a run.
 - Each `ExecutePromptLayer` state entry executes exactly one configured prompt layer.
-- When more stages remain and no actionable items are produced, `ExecutePromptLayer` transitions to itself with incremented `stageIndex`.
-- When actionable items are produced, child transitions from `ExecutePromptLayer` to `Done` without visiting later stages.
-- When the final stage completes without actionable items, child transitions from `ExecutePromptLayer` to `Done` and returns the aggregate follow-up result.
+- When more stages remain, `ExecutePromptLayer` transitions to itself with incremented `stageIndex`.
+- When the final stage completes, child transitions from `ExecutePromptLayer` to `PlanResolution`.
+- `PlanResolution` executes exactly once and transitions to `Done` with the final aggregate result.
 
-**Related behaviors:** `B-SD-CHILD-001A`, `B-SD-CHILD-001`, `B-SD-OBS-003`.
+**Related behaviors:** `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-OBS-003`.
 
 ## ITX-SD-014: Done state invariants hold across all paths
 **Why not E2E-only:** requires exhaustive path verification for terminal state reachability.
@@ -384,10 +388,7 @@ A behavior is integration-primary when one or more is true:
 ## 5) Integration vs E2E Ownership Matrix
 
 ## 5.1 Integration-Primary
-- ITX-SD-001, 002, 004, 005, 007, 008, 010, 011, 012, 013, 014, 015, 016.
-
-## 5.1.1 Planned Integration Follow-On
-- ITX-SD-017 becomes integration-primary after the explicit delegated-child self-loop refactor lands.
+- ITX-SD-001, 002, 004, 005, 007, 008, 010, 011, 012, 013, 014, 015, 016, 017.
 
 ## 5.2 Shared Coverage (Integration + E2E)
 - ITX-SD-003, 006, 009.

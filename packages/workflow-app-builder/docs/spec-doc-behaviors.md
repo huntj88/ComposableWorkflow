@@ -147,26 +147,33 @@ Each behavior should validate all relevant dimensions:
 **And** the synthesized question includes an explicit "spec is done" choice
 **And** `blockingIssues` is empty
 
-## B-SD-CHILD-001: Delegated child short-circuits after actionable items
+## B-SD-CHILD-001: Delegated child completes a full prompt-layer sweep before final planning
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` is executing prompt layers in order
-**When** any executed prompt layer returns one or more `actionableItems`
-**Then** later prompt layers are not executed in that child run
-**And** the child returns the accumulated `actionableItems` in stage order
-**And** the child preserves any `followUpQuestions` already aggregated from earlier executed stages
-**And** the child transitions from `ExecutePromptLayer` to `Done` without visiting later stages
+**When** one or more earlier prompt layers return `actionableItems`
+**Then** later configured prompt layers still execute in that same child run
+**And** every configured prompt layer executes exactly once before final planning
+**And** the child does not return the parent-facing aggregate result until the planning step completes
 
-## B-SD-CHILD-001A: Delegated child executes one prompt layer per self-loop state entry
+## B-SD-CHILD-001A: Delegated child executes one prompt layer per self-loop state entry and then plans once
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` uses explicit workflow states
 **When** child execution begins
 **Then** `start` initializes child state data and transitions to `ExecutePromptLayer`
 **And** each entry to `ExecutePromptLayer` executes exactly one configured prompt layer
-**And** if additional prompt layers remain and no `actionableItems` were emitted, `ExecutePromptLayer` transitions to itself with the next `stageIndex`
-**And** child completion occurs only after transition to `Done`
+**And** if additional prompt layers remain, `ExecutePromptLayer` transitions to itself with the next `stageIndex`
+**And** after the final prompt layer completes, the child transitions to `PlanResolution`
+**And** `PlanResolution` executes exactly once and transitions to `Done`
+
+## B-SD-CHILD-001B: PlanResolution is the sole author of the final child aggregate
+**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` has completed the prompt-layer sweep
+**When** `PlanResolution` runs
+**Then** it delegates to `app-builder.copilot.prompt.v1` with `consistency-check-output.schema.json`
+**And** it uses the full-sweep aggregate as its planning input
+**And** the parent consumes only the schema-validated `PlanResolution` output rather than any per-stage output directly
 
 ## B-SD-CHILD-002: Delegated child fails on duplicate ids
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` executes multiple prompt layers
 **When** duplicate `itemId` or duplicate `questionId` values appear across executed layer outputs
-**Then** the child run fails explicitly before returning an aggregate result
+**Then** the child run fails explicitly before `PlanResolution` returns an aggregate result
 **And** no parent-state transition is selected from the invalid child output
 
 ## B-SD-CHILD-003: Delegated child rejects stage-local mixed actionable and follow-up output
@@ -178,8 +185,8 @@ Each behavior should validate all relevant dimensions:
 ## B-SD-CHILD-004: Delegated child preserves mixed aggregate outcomes across executed stages
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` executes one or more stages that emit `followUpQuestions`
 **When** a later executed stage emits one or more `actionableItems`
-**Then** the child aggregate may contain both non-empty `actionableItems` and non-empty `followUpQuestions`
-**And** later prompt layers are not executed after that actionable stage
+**Then** the full-sweep planning result may contain both non-empty `actionableItems` and non-empty `followUpQuestions`
+**And** remaining later prompt layers still execute before `PlanResolution`
 **And** the parent treats the aggregate as an immediate-action result and does not enter `NumberedOptionsHumanRequest` for that pass
 
 ---
@@ -231,7 +238,7 @@ Each behavior should validate all relevant dimensions:
 **When** output is parsed for the current state
 **Then** `IntegrateIntoSpec` validates against `spec-integration-output.schema.json`
 **And** each executed child prompt layer for `LogicalConsistencyCheckCreateFollowUpQuestions` validates against its matching stage-specific `consistency-*-output.schema.json`
-**And** the merged child aggregate validates against `consistency-check-output.schema.json` before the parent consumes it
+**And** the final `PlanResolution` child aggregate validates against `consistency-check-output.schema.json` before the parent consumes it
 **And** `ClassifyCustomPrompt` validates against `custom-prompt-classification-output.schema.json`
 **And** `ExpandQuestionWithClarification` validates against `clarification-follow-up-output.schema.json`
 **And** `Done` terminal payload validates against `spec-doc-generation-output.schema.json`
@@ -259,7 +266,7 @@ Each behavior should validate all relevant dimensions:
 **And** error includes the expected schema identifier and actual validation errors
 
 ## B-SD-SCHEMA-004: Numbered question items conform to schema
-**Given** a stage-specific consistency output or merged child aggregate with `followUpQuestions`
+**Given** a stage-specific consistency output or final child aggregate with `followUpQuestions`
 **When** questions are validated
 **Then** each item conforms to `numbered-question-item.schema.json`
 **And** each consistency-check question has `kind: "issue-resolution"`
@@ -436,7 +443,8 @@ Each behavior should validate all relevant dimensions:
 Per run, events must be emitted for:
 - entering each FSM state (`state.entered`),
 - delegated child workflow started/completed for `LogicalConsistencyCheckCreateFollowUpQuestions`,
-- each consistency/follow-up prompt layer started/completed/skipped,
+- each consistency/follow-up prompt layer started/completed,
+- child `PlanResolution` started/completed,
 - question generated (numbered-options follow-up/confirmation),
 - immediate actionable item generated,
 - user response received,
@@ -461,7 +469,8 @@ All events include `runId`, `workflowType`, `state`, and sequence ordering. Chil
 **Then** each child event includes `childWorkflowType`
 **And** each prompt-layer event includes `stageId` when applicable
 **And** prompt-layer events preserve execution order
-**And** later stages after child short-circuiting are externally observable either as skipped stages or by their absence from the executed prompt-layer sequence
+**And** every configured prompt layer is externally observable once per pass before `PlanResolution`
+**And** `PlanResolution` observability includes the child workflow type and prompt template metadata
 
 ---
 
@@ -492,17 +501,17 @@ Must assert:
 - `IntegrateIntoSpec` called twice with different `source` values.
 - All normalized answers present in second integration input.
 
-## GS-SD-004: Immediate-action child result short-circuits back to integration
+## GS-SD-004: Immediate-action child result completes full sweep before returning to integration
 1. Start workflow.
 2. `IntegrateIntoSpec` produces initial draft.
-3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` returns one or more `actionableItems` and may also retain earlier `followUpQuestions` from previously executed stages.
+3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` executes all configured prompt layers, then `PlanResolution` returns one or more `actionableItems` and may also retain `followUpQuestions` from the same full-sweep pass.
 4. Parent transitions directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
 5. No `NumberedOptionsHumanRequest` state is entered for that pass.
 
 Must assert:
-- Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → IntegrateIntoSpec` for that pass.
+- Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → IntegrateIntoSpec` for that pass, with child observability covering all configured prompt layers before `PlanResolution` completes.
 - Child `actionableItems` are forwarded unchanged and in order.
-- No feedback child run launches before the follow-up consistency pass, even when the child aggregate retained earlier `followUpQuestions`.
+- No feedback child run launches before the follow-up consistency pass, even when the child aggregate retained `followUpQuestions`.
 
 ## GS-SD-003: Research-first custom prompt round trip
 1. Start workflow and reach `NumberedOptionsHumanRequest`.
@@ -541,7 +550,7 @@ Must assert:
 3. NumberedOptionsHumanRequest implementation (section 6.4) → `B-SD-HFB-001..005`, `B-SD-QUEUE-001..005`, `B-SD-TRANS-004..007`, `B-SD-TRANS-012..015`.
 4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..004`.
 5. Schema validation (section 7.1) → `B-SD-SCHEMA-001..006`.
-6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`, `B-SD-CHILD-001..004`.
+6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`.
 7. Human feedback boundary (section 8) → `B-SD-HFB-004`.
 8. Observability (section 9) → `B-SD-OBS-001..003`.
 9. Completion criteria (section 10) → `B-SD-DONE-001..003`.
