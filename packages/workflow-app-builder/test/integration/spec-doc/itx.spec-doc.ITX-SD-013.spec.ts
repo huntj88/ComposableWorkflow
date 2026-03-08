@@ -1,7 +1,7 @@
 /**
  * ITX-SD-013: Delegated child routing variants from aggregate consistency results.
  *
- * Behaviors: B-SD-TRANS-003, B-SD-TRANS-011, B-SD-CHILD-001.
+ * Behaviors: B-SD-TRANS-003, B-SD-TRANS-011, B-SD-CHILD-001, B-SD-CHILD-001B, B-SD-CHILD-004.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -61,7 +61,7 @@ beforeEach(() => {
 });
 
 describe('ITX-SD-013: Delegated child routing variants', () => {
-  it('routes to IntegrateIntoSpec when the child aggregate contains actionable items (B-SD-TRANS-003)', async () => {
+  it('routes to IntegrateIntoSpec when the final PlanResolution aggregate contains actionable items (B-SD-TRANS-003)', async () => {
     const actionableItems = [
       makeActionableItem('act-route-001', {
         instruction: 'Add a missing scope boundary.',
@@ -104,9 +104,10 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
     );
+    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(1);
   });
 
-  it('prioritizes IntegrateIntoSpec for mixed aggregate child results and suppresses queue entry for that pass', async () => {
+  it('prioritizes IntegrateIntoSpec for mixed final aggregates authored by PlanResolution and suppresses queue entry for that pass', async () => {
     const actionableItems = [
       makeActionableItem('act-mixed-route-001', {
         instruction: 'Apply the concrete contract fix before collecting more feedback.',
@@ -147,6 +148,11 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
     );
+
+    const planResolutionCalls = copilotDouble.callsByState('PlanResolution');
+    expect(planResolutionCalls).toHaveLength(1);
+    expect(planResolutionCalls[0].prompt).toContain('act-mixed-route-001');
+    expect(planResolutionCalls[0].prompt).toContain('q-mixed-route-001');
 
     const nextData = result.transitions[0].data as SpecDocStateData & {
       source: 'consistency-action-items';
@@ -204,6 +210,7 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     ]);
     expect(nextData.queueIndex).toBe(0);
     expect(nextData.counters.consistencyCheckPasses).toBe(1);
+    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(1);
   });
 
   it('synthesizes a completion-confirmation question when the child aggregate is empty (B-SD-TRANS-011)', async () => {
@@ -235,5 +242,6 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(nextData.queue[0].questionId).toBe(COMPLETION_CONFIRMATION_QUESTION_ID);
     expect(nextData.queueIndex).toBe(0);
     expect(nextData.counters.consistencyCheckPasses).toBe(2);
+    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(1);
   });
 });

@@ -1,7 +1,7 @@
 /**
  * ITX-SD-016: Delegated child contract enforcement under full-sweep execution.
  *
- * Behaviors: B-SD-CHILD-001, B-SD-CHILD-002, B-SD-CHILD-003, B-SD-FAIL-001.
+ * Behaviors: B-SD-CHILD-001, B-SD-CHILD-001B, B-SD-CHILD-002, B-SD-CHILD-003, B-SD-CHILD-004, B-SD-FAIL-001.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -60,7 +60,7 @@ beforeEach(() => {
 });
 
 describe('ITX-SD-016: Delegated child contract enforcement under full-sweep execution', () => {
-  it('continues executing later prompt layers after an actionable stage and still routes actionable output to integration', async () => {
+  it('continues executing later prompt layers after an actionable stage and still routes the single PlanResolution output to integration', async () => {
     const actionableItems = [
       makeActionableItem('act-short-001', {
         instruction: 'Resolve the objective mismatch before asking more questions.',
@@ -140,6 +140,12 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
     );
+
+    const planResolutionCalls = copilotDouble.callsByState('PlanResolution');
+    expect(planResolutionCalls).toHaveLength(1);
+    expect(planResolutionCalls[0].prompt).toContain('act-short-001');
+    expect(planResolutionCalls[0].prompt).toContain('q-late-001');
+    expect(planResolutionCalls[0].prompt).toContain('q-late-002');
   }, 10_000);
 
   it('fails the parent state when executed layers emit duplicate follow-up question IDs', async () => {
@@ -166,6 +172,7 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(result.failedError).toBeDefined();
     expect(result.failedError?.message).toContain('duplicate follow-up questionId: q-dup-001');
     expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
+    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(0);
   });
 
   it('fails the parent state when a child layer mixes actionable items and follow-up questions', async () => {
@@ -197,6 +204,7 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(result.failedError?.message).toContain('followUpQuestions');
     expect(result.failedError?.message).toContain('actionableItems');
     expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].stageId);
+    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(0);
   });
 
   it('allows mixed aggregate preservation across stages while still executing later layers', async () => {
@@ -278,6 +286,12 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(nextData.source).toBe('consistency-action-items');
     expect(nextData.actionableItems).toEqual(actionableItems);
     expect(nextData.queue).toEqual([]);
+
+    const planResolutionCalls = copilotDouble.callsByState('PlanResolution');
+    expect(planResolutionCalls).toHaveLength(1);
+    expect(planResolutionCalls[0].prompt).toContain('act-mixed-aggregate-001');
+    expect(planResolutionCalls[0].prompt).toContain('q-mixed-aggregate-001');
+    expect(planResolutionCalls[0].prompt).toContain('q-mixed-aggregate-002');
   });
 
   it('fails the parent state when a later layer duplicates an earlier actionable item ID after full-sweep execution continues', async () => {
@@ -304,5 +318,6 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(result.failedError).toBeDefined();
     expect(result.failedError?.message).toContain('duplicate actionable itemId: act-dup-001');
     expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
+    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(0);
   });
 });

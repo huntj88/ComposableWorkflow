@@ -120,6 +120,7 @@ Delegated-child supersession guide:
 - `SDB-21` supersedes any earlier assumption that actionable-item output can suppress later delegated-child stages within the same pass.
 - `SDB-22` is the canonical task for current child terminal authoring behavior: `PlanResolution` runs after the full sweep and is the only child step that authors the parent-facing aggregate result.
 - `SDB-23` is the canonical parity task for aligning tests, golden scenarios, and task-suite docs to the two-pass child model.
+- Any older wording that implies `ITX-SD-012`, `ITX-SD-013`, `ITX-SD-016`, `ITX-SD-017`, or `GS-SD-004` still use delegated-child actionable-item short-circuiting is historical only; read those artifacts through the `SDB-21` + `SDB-22` model.
 
 ### Integration Coverage (`ITX-SD-*`)
 - Harness prerequisites in `ITX` section 3 -> `SDB-09`
@@ -127,6 +128,7 @@ Delegated-child supersession guide:
 - Post-spec-update `ITX-SD-003/004/005/007/012/013/014/015/016` deltas -> `SDB-14`, `SDB-16A`, `SDB-17`, `SDB-20`
 - `ITX-SD-017` explicit child-state progression -> `SDB-18`, `SDB-21`, `SDB-22`, `SDB-23`
 - Full-sweep/planning parity for `ITX-SD-012/013/016/017` -> `SDB-21`, `SDB-22`, `SDB-23`
+- Harness `GS-SD-004` two-pass parity -> `SDB-23`
 
 ### Golden Scenario Coverage (`GS-SD-*`)
 - `GS-SD-001..005` -> `SDB-11`

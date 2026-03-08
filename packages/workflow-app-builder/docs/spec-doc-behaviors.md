@@ -58,6 +58,7 @@ Each behavior should validate all relevant dimensions:
 ## B-SD-TRANS-003: LogicalConsistencyCheckCreateFollowUpQuestions routes from the child aggregate result
 **Given** run is in `LogicalConsistencyCheckCreateFollowUpQuestions`
 **When** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` completes with a valid aggregate result
+**Then** parent routing waits for the delegated child's full-sweep `PlanResolution` output rather than any prefix of per-stage results
 **Then** the parent transitions to `IntegrateIntoSpec` when `actionableItems` is non-empty
 **And** if the child aggregate contains both non-empty `actionableItems` and non-empty `followUpQuestions`, the parent still prioritizes `IntegrateIntoSpec` for that pass
 **And** the parent transitions to `NumberedOptionsHumanRequest` when `actionableItems` is empty
@@ -470,6 +471,7 @@ All events include `runId`, `workflowType`, `state`, and sequence ordering. Chil
 **And** each prompt-layer event includes `stageId` when applicable
 **And** prompt-layer events preserve execution order
 **And** every configured prompt layer is externally observable once per pass before `PlanResolution`
+**And** exactly one `PlanResolution` delegation is externally observable after each full prompt-layer sweep
 **And** `PlanResolution` observability includes the child workflow type and prompt template metadata
 
 ---
@@ -510,6 +512,7 @@ Must assert:
 
 Must assert:
 - Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → IntegrateIntoSpec` for that pass, with child observability covering all configured prompt layers before `PlanResolution` completes.
+- The delegated child emits exactly one `PlanResolution` step after the full-sweep prompt-layer coverage for that pass.
 - Child `actionableItems` are forwarded unchanged and in order.
 - No feedback child run launches before the follow-up consistency pass, even when the child aggregate retained `followUpQuestions`.
 

@@ -1,7 +1,7 @@
 /**
  * ITX-SD-017: Delegated child explicit-state self-loop progression.
  *
- * Behaviors: B-SD-CHILD-001, B-SD-CHILD-001A, B-SD-OBS-003.
+ * Behaviors: B-SD-CHILD-001, B-SD-CHILD-001A, B-SD-CHILD-001B, B-SD-OBS-003.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -158,7 +158,7 @@ beforeEach(() => {
 });
 
 describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () => {
-  it('transitions start -> ExecutePromptLayer self-loops -> Done when the final stage completes without actionable items', async () => {
+  it('transitions start -> ExecutePromptLayer self-loops -> PlanResolution -> Done when the final stage completes without actionable items', async () => {
     const layers = CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.slice(0, 3);
     copilotDouble.reset({
       [CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE]: [
@@ -226,6 +226,11 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
     ]);
     expect(
       copilotDouble.callsByState(CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE),
+    ).toHaveLength(1);
+    expect(
+      obsSink
+        .delegationEvents()
+        .filter((event) => event.state === CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE),
     ).toHaveLength(1);
     expect(obsSink.consistencyOutcomeEvents().at(-1)?.state).toBe(
       CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE,
@@ -310,5 +315,16 @@ describe('ITX-SD-017: Delegated child explicit-state self-loop progression', () 
           ).executedStages.length,
       ),
     ).toEqual([1, 2, 3, 3]);
+
+    const planDelegations = obsSink
+      .delegationEvents()
+      .filter((event) => event.state === CONSISTENCY_FOLLOW_UP_CHILD_PLAN_RESOLUTION_STATE);
+    expect(planDelegations).toHaveLength(1);
+    expect(planDelegations[0].sequence).toBeGreaterThan(
+      obsSink
+        .delegationEvents()
+        .filter((event) => event.state === CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE)
+        .at(-1)?.sequence ?? 0,
+    );
   });
 });

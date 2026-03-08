@@ -1,7 +1,7 @@
 /**
  * ITX-SD-012: Prompt template ID traceability and delegated-child observability.
  *
- * Behaviors: B-SD-OBS-002, B-SD-OBS-003, B-SD-COPILOT-003, B-SD-CHILD-001.
+ * Behaviors: B-SD-OBS-002, B-SD-OBS-003, B-SD-COPILOT-003, B-SD-CHILD-001, B-SD-CHILD-001B.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -91,7 +91,7 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
     expect(delegations[0].payload.promptTemplateId).toBe(TEMPLATE_IDS.integrate);
   });
 
-  it('LogicalConsistencyCheck records child workflow start/completion metadata and ordered prompt-layer stage IDs (B-SD-OBS-003)', async () => {
+  it('LogicalConsistencyCheck records child workflow start/completion metadata, a full prompt-layer sweep, and one planning delegation (B-SD-OBS-003)', async () => {
     copilotDouble.reset({
       ExecutePromptLayer: makeStageResponses([
         makeConsistencyOutput({ followUpQuestions: [makeQuestionItem('q-obs-stage-001')] }),
@@ -157,6 +157,11 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
       stageDelegations.at(-1)?.sequence ?? 0,
     );
 
+    const planResolutionCalls = copilotDouble.callsByState('PlanResolution');
+    expect(planResolutionCalls).toHaveLength(1);
+    expect(planResolutionCalls[0].templateId).toBe(TEMPLATE_IDS.consistencyResolution);
+    expect(planResolutionCalls[0].outputSchemaId).toBe(SCHEMA_IDS.consistencyCheckOutput);
+
     const stageConsistencyOutcome = obsSink
       .consistencyOutcomeEvents()
       .find((event) => event.state === 'PlanResolution');
@@ -168,7 +173,7 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
     );
   });
 
-  it('child full-sweep execution is externally visible by ordered stage coverage even after actionable items appear (B-SD-OBS-003)', async () => {
+  it('child full-sweep execution is externally visible by ordered stage coverage and one trailing planning step even after actionable items appear (B-SD-OBS-003)', async () => {
     copilotDouble.reset({
       ExecutePromptLayer: [
         { structuredOutput: narrowStageOutput(0) },
@@ -212,16 +217,29 @@ describe('ITX-SD-012: Prompt template ID traceability and delegated-child observ
     expect(result.failedError).toBeUndefined();
     expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
 
-    const executedStageIds = obsSink
+    const stageDelegations = obsSink
       .delegationEvents()
-      .filter((event) => event.state === 'ExecutePromptLayer')
-      .map((event) => event.payload.stageId);
+      .filter((event) => event.state === 'ExecutePromptLayer');
+    const executedStageIds = stageDelegations.map((event) => event.payload.stageId);
     expect(executedStageIds).toEqual(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.map((layer) => layer.stageId),
     );
     expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
     );
+
+    const resolutionDelegations = obsSink
+      .delegationEvents()
+      .filter((event) => event.state === 'PlanResolution');
+    expect(resolutionDelegations).toHaveLength(1);
+    expect(resolutionDelegations[0].sequence).toBeGreaterThan(
+      stageDelegations.at(-1)?.sequence ?? 0,
+    );
+
+    const planResolutionCalls = copilotDouble.callsByState('PlanResolution');
+    expect(planResolutionCalls).toHaveLength(1);
+    expect(planResolutionCalls[0].templateId).toBe(TEMPLATE_IDS.consistencyResolution);
+    expect(planResolutionCalls[0].outputSchemaId).toBe(SCHEMA_IDS.consistencyCheckOutput);
 
     const actionableOutcome = obsSink
       .consistencyOutcomeEvents()

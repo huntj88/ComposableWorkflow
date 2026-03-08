@@ -9,11 +9,11 @@
 Bring workflow tests, observability, and parity coverage in line with the two-pass delegated-child design so documentation, harness integration tests, and golden-path expectations all reflect full-sweep coverage plus `PlanResolution`.
 
 ## Implementation Tasks
-- [ ] Update integration suites that previously assumed actionable-item short-circuiting.
-- [ ] Add deterministic assertions for full-stage execution counts and single planning-step invocation.
-- [ ] Update golden scenarios and observability coverage for the full-sweep child behavior.
-- [ ] Extend parent-routing integration coverage for final mixed aggregates produced by `PlanResolution`.
-- [ ] Refresh task-suite documentation and supersession notes for the new delegated-child behavior.
+- [x] Update integration suites that previously assumed actionable-item short-circuiting.
+- [x] Add deterministic assertions for full-stage execution counts and single planning-step invocation.
+- [x] Update golden scenarios and observability coverage for the full-sweep child behavior.
+- [x] Extend parent-routing integration coverage for final mixed aggregates produced by `PlanResolution`.
+- [x] Refresh task-suite documentation and supersession notes for the new delegated-child behavior.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-012.spec.ts`

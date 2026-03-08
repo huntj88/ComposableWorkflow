@@ -270,8 +270,8 @@ A behavior is integration-primary when one or more is true:
 
 **Related behaviors:** `B-SD-SCHEMA-004`, `B-SD-SCHEMA-005`, `B-SD-SCHEMA-006`.
 
-## ITX-SD-012: Prompt template ID traceability and research observability
-**Why not E2E-only:** requires direct inspection of observability events for template metadata and research-only log payloads.
+## ITX-SD-012: Prompt template ID traceability and delegated-child observability parity
+**Why not E2E-only:** requires direct inspection of observability events for template metadata, ordered child-stage coverage, and the single planning-step delegation.
 
 **Setup**
 - Run workflow through multiple states with copilot delegation.
@@ -301,11 +301,12 @@ A behavior is integration-primary when one or more is true:
   - empty `actionableItems` and empty `followUpQuestions`.
 
 **Assertions**
-- Transition is to `IntegrateIntoSpec` when child output has non-empty `actionableItems`.
-- Transition is still to `IntegrateIntoSpec` when child output has both non-empty `actionableItems` and non-empty `followUpQuestions`.
+- Transition is to `IntegrateIntoSpec` when the final `PlanResolution` aggregate has non-empty `actionableItems`.
+- Transition is still to `IntegrateIntoSpec` when that final aggregate has both non-empty `actionableItems` and non-empty `followUpQuestions`.
 - Mixed aggregate follow-up questions are not enqueued for that pass.
 - Transition is to `NumberedOptionsHumanRequest` when child output has empty `actionableItems`.
 - No direct transition to `Done` or any other state.
+- Parent routing is evaluated once per consistency pass after the single `PlanResolution` call completes.
 - If child output has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes one completion-confirmation question with explicit "spec is done" option.
 
 **Related behaviors:** `B-SD-TRANS-003`, `B-SD-TRANS-011`, `B-SD-CHILD-004`, `B-SD-DONE-001`.
@@ -343,7 +344,7 @@ A behavior is integration-primary when one or more is true:
 - A final aggregate that contains earlier-stage `followUpQuestions` plus later-stage `actionableItems` does not fail solely for being mixed.
 - When that valid mixed aggregate occurs, the parent prioritizes `IntegrateIntoSpec` and does not enter `NumberedOptionsHumanRequest` for that pass.
 - Failure diagnostics identify the child contract violation and relevant stage context.
-- Resolution-planning input reflects the full-sweep stage coverage rather than only a prefix of stages.
+- Resolution-planning input reflects the full-sweep stage coverage rather than only a prefix of stages, and the planning step executes exactly once.
 
 **Related behaviors:** `B-SD-CHILD-001`, `B-SD-CHILD-001B`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-CHILD-004`, `B-SD-FAIL-001`.
 
@@ -362,7 +363,7 @@ A behavior is integration-primary when one or more is true:
 - Each `ExecutePromptLayer` state entry executes exactly one configured prompt layer.
 - When more stages remain, `ExecutePromptLayer` transitions to itself with incremented `stageIndex`.
 - When the final stage completes, child transitions from `ExecutePromptLayer` to `PlanResolution`.
-- `PlanResolution` executes exactly once and transitions to `Done` with the final aggregate result.
+- `PlanResolution` executes exactly once after the last configured stage and transitions to `Done` with the final aggregate result.
 
 **Related behaviors:** `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-OBS-003`.
 
@@ -392,11 +393,12 @@ A behavior is integration-primary when one or more is true:
 
 ## 5.2 Shared Coverage (Integration + E2E)
 - ITX-SD-003, 006, 009.
+- GS-SD-004 immediate-action parity is shared across deterministic harness coverage in `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.GS-SD-004.spec.ts` and black-box parity in the workflow-server suite.
 
 ## 5.3 E2E/System-Owned Coverage (Intentional)
 - `B-SD-TRANS-001` and `B-SD-TRANS-002` are primarily covered by golden-path E2E (`GS-SD-001`, `GS-SD-002`) and server run-start/transition behavior suites.
 - `B-SD-HFB-004` is primarily covered by server boundary/contract tests plus E2E child-launch contract assertions.
-- `B-SD-OBS-001` is shared: end-to-end scenarios prove production parity while ITX-SD-004/012 cover deterministic research-only observability details.
+- `B-SD-OBS-001` is shared: end-to-end scenarios prove production parity while ITX-SD-004/012 and the harness `GS-SD-004` parity test cover deterministic research-only plus delegated-child observability details.
 - `B-SD-FAIL-002` is primarily covered by server lifecycle/cancellation integration tests and spec-doc E2E cancellation scenarios.
 
 Guideline:
