@@ -148,7 +148,7 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(planResolutionCalls[0].prompt).toContain('q-late-002');
   }, 10_000);
 
-  it('fails the parent state when executed layers emit duplicate follow-up question IDs', async () => {
+  it('deduplicates cross-stage follow-up question IDs, logs warn, and routes parent normally', async () => {
     copilotDouble.reset({
       ExecutePromptLayer: makeStageResponses([
         makeConsistencyOutput({
@@ -158,6 +158,13 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
           followUpQuestions: [makeQuestionItem('q-dup-001')],
         }),
       ]),
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            followUpQuestions: [makeQuestionItem('q-dup-001')],
+          }),
+        ),
+      ],
     });
 
     const input = makeDefaultInput();
@@ -168,11 +175,25 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
 
     await handleLogicalConsistencyCheck(ctx, stateData);
 
-    expect(result.transitions).toHaveLength(0);
-    expect(result.failedError).toBeDefined();
-    expect(result.failedError?.message).toContain('duplicate follow-up questionId: q-dup-001');
-    expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
-    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(0);
+    // Child completed — no failure
+    expect(result.failedError).toBeUndefined();
+    expect(result.transitions).toHaveLength(1);
+
+    // All stages executed plus PlanResolution
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
+    );
+    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(1);
+
+    // Warn-level duplicate-skipped event emitted
+    const dupEvents = obsSink.duplicateSkippedEvents();
+    expect(dupEvents).toHaveLength(1);
+    expect(dupEvents[0].payload.duplicateId).toBe('q-dup-001');
+    expect(dupEvents[0].payload.idType).toBe('questionId');
+    expect(dupEvents[0].payload.producingStageId).toBe(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId,
+    );
+    expect(dupEvents[0].payload.originStageId).toBe(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].stageId);
   });
 
   it('fails the parent state when a child layer mixes actionable items and follow-up questions', async () => {
@@ -294,7 +315,9 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(planResolutionCalls[0].prompt).toContain('q-mixed-aggregate-002');
   });
 
-  it('fails the parent state when a later layer duplicates an earlier actionable item ID after full-sweep execution continues', async () => {
+  it('deduplicates cross-stage actionable item IDs, logs warn, and routes parent to integration', async () => {
+    const actionableItems = [makeActionableItem('act-dup-001')];
+
     copilotDouble.reset({
       ExecutePromptLayer: makeStageResponses([
         makeConsistencyOutput({
@@ -304,6 +327,13 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
           actionableItems: [makeActionableItem('act-dup-001')],
         }),
       ]),
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems,
+          }),
+        ),
+      ],
     });
 
     const input = makeDefaultInput();
@@ -314,10 +344,25 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
 
     await handleLogicalConsistencyCheck(ctx, stateData);
 
-    expect(result.transitions).toHaveLength(0);
-    expect(result.failedError).toBeDefined();
-    expect(result.failedError?.message).toContain('duplicate actionable itemId: act-dup-001');
-    expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId);
-    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(0);
+    // Child completed — no failure, routes to IntegrateIntoSpec
+    expect(result.failedError).toBeUndefined();
+    expect(result.transitions).toHaveLength(1);
+    expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
+
+    // All stages executed plus PlanResolution
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
+    );
+    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(1);
+
+    // Warn-level duplicate-skipped event emitted
+    const dupEvents = obsSink.duplicateSkippedEvents();
+    expect(dupEvents).toHaveLength(1);
+    expect(dupEvents[0].payload.duplicateId).toBe('act-dup-001');
+    expect(dupEvents[0].payload.idType).toBe('itemId');
+    expect(dupEvents[0].payload.producingStageId).toBe(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[1].stageId,
+    );
+    expect(dupEvents[0].payload.originStageId).toBe(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].stageId);
   });
 });

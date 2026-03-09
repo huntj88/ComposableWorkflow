@@ -291,7 +291,14 @@ describe('handleLogicalConsistencyCheck', () => {
     const { ctx, failSpy, transitionSpy } = createMockContext({
       childOutput: validConsistencyOutput({
         actionableItems: [],
-        followUpQuestions: [makeFollowUpQuestion('q-1'), makeFollowUpQuestion('q-1')],
+        followUpQuestions: [
+          makeFollowUpQuestion('q-1', {
+            options: [
+              makeOption(1, 'Option A'),
+              { id: 2, label: 'Option B', description: 'No pros or cons here' },
+            ],
+          }),
+        ],
       }),
     });
 

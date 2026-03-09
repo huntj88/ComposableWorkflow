@@ -339,7 +339,8 @@ A behavior is integration-primary when one or more is true:
 
 **Assertions**
 - When an early layer emits non-empty `actionableItems`, later configured layers still execute and `PlanResolution` remains the only child step that authors the final aggregate result.
-- Duplicate ids across executed layers fail the child run before any parent transition is chosen.
+- Duplicate ids across executed layers are deduplicated: the first occurrence is kept in the aggregate, the later duplicate is silently dropped, a warn-level `consistency.duplicate-skipped` log event is emitted identifying both the producing `stageId` and the originating `stageId`, and the child run continues without failing.
+- The deduplicated aggregate still proceeds through `PlanResolution` and produces a valid parent-facing result.
 - Mixed actionable/question output within a single stage fails the child run before any parent transition is chosen.
 - A final aggregate that contains earlier-stage `followUpQuestions` plus later-stage `actionableItems` does not fail solely for being mixed.
 - When that valid mixed aggregate occurs, the parent prioritizes `IntegrateIntoSpec` and does not enter `NumberedOptionsHumanRequest` for that pass.

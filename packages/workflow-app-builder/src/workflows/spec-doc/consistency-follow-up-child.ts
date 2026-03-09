@@ -24,7 +24,11 @@ import type {
   ReadinessChecklist,
 } from './contracts.js';
 import { buildDelegationRequest, delegateToCopilot } from './copilot-delegation.js';
-import { emitConsistencyOutcome, emitDelegationStarted } from './observability.js';
+import {
+  emitConsistencyOutcome,
+  emitDelegationStarted,
+  emitDuplicateSkipped,
+} from './observability.js';
 import { getPromptTemplate, TEMPLATE_IDS, type PromptTemplateId } from './prompt-templates.js';
 import { createSpecDocValidator } from './schema-validation.js';
 import { SCHEMA_IDS, type SpecDocSchemaId } from './schemas.js';
@@ -58,6 +62,8 @@ export interface ConsistencyFollowUpChildStateData {
   seenBlockingIssueIds: string[];
   seenActionableItemIds: string[];
   seenFollowUpQuestionIds: string[];
+  seenActionableItemOrigins: Array<[string, string]>;
+  seenFollowUpQuestionOrigins: Array<[string, string]>;
   executedStages: ConsistencyFollowUpStageExecution[];
   finalOutput?: ConsistencyCheckOutput;
 }
@@ -157,6 +163,8 @@ export function createInitialConsistencyFollowUpChildStateData(): ConsistencyFol
     seenBlockingIssueIds: [],
     seenActionableItemIds: [],
     seenFollowUpQuestionIds: [],
+    seenActionableItemOrigins: [],
+    seenFollowUpQuestionOrigins: [],
     executedStages: [],
   };
 }
@@ -300,27 +308,9 @@ export function validateConsistencyStageOutputContract(output: ConsistencyStageO
 }
 
 export function validateConsistencyCheckOutputContract(output: ConsistencyCheckOutput): string[] {
-  const violations = validateConsistencyOutputContractCore(output);
-
-  const seenActionableIds = new Set<string>();
-  for (const item of output.actionableItems) {
-    if (seenActionableIds.has(item.itemId)) {
-      violations.push(`duplicate actionable itemId: ${item.itemId}`);
-      continue;
-    }
-    seenActionableIds.add(item.itemId);
-  }
-
-  const seenQuestionIds = new Set<string>();
-  for (const question of output.followUpQuestions) {
-    if (seenQuestionIds.has(question.questionId)) {
-      violations.push(`duplicate follow-up questionId: ${question.questionId}`);
-      continue;
-    }
-    seenQuestionIds.add(question.questionId);
-  }
-
-  return violations;
+  // Duplicate itemId / questionId checks removed: mergeStageOutput now
+  // guarantees uniqueness via dedup-and-skip before PlanResolution runs.
+  return validateConsistencyOutputContractCore(output);
 }
 
 function createStateDataSet(values: readonly string[]): Set<string> {
@@ -365,6 +355,12 @@ function cloneChildStateData(
     seenBlockingIssueIds: [...stateData.seenBlockingIssueIds],
     seenActionableItemIds: [...stateData.seenActionableItemIds],
     seenFollowUpQuestionIds: [...stateData.seenFollowUpQuestionIds],
+    seenActionableItemOrigins: stateData.seenActionableItemOrigins.map(
+      ([id, stageId]) => [id, stageId] as [string, string],
+    ),
+    seenFollowUpQuestionOrigins: stateData.seenFollowUpQuestionOrigins.map(
+      ([id, stageId]) => [id, stageId] as [string, string],
+    ),
     executedStages: cloneExecutedStages(stateData.executedStages),
     ...(stateData.finalOutput ? { finalOutput: cloneAggregateOutput(stateData.finalOutput) } : {}),
   };
@@ -419,6 +415,15 @@ function coerceStateData(data: unknown): ConsistencyFollowUpChildStateData {
     !Array.isArray(candidate.executedStages)
   ) {
     throw new Error('Invalid child state data');
+  }
+
+  // Origin-tracking fields are optional for backwards compatibility during
+  // state deserialisation; default to empty arrays when absent.
+  if (!Array.isArray(candidate.seenActionableItemOrigins)) {
+    candidate.seenActionableItemOrigins = [];
+  }
+  if (!Array.isArray(candidate.seenFollowUpQuestionOrigins)) {
+    candidate.seenFollowUpQuestionOrigins = [];
   }
 
   return candidate as ConsistencyFollowUpChildStateData;
@@ -536,6 +541,7 @@ async function runPlanResolution(
 }
 
 function mergeStageOutput(
+  ctx: WorkflowContext<ConsistencyFollowUpChildInput, ConsistencyCheckOutput>,
   stateData: ConsistencyFollowUpChildStateData,
   layer: ConsistencyFollowUpPromptLayer,
   stageOutput: ConsistencyStageOutput,
@@ -544,6 +550,8 @@ function mergeStageOutput(
   const seenBlockingIssueIds = createStateDataSet(stateData.seenBlockingIssueIds);
   const seenActionableIds = createStateDataSet(stateData.seenActionableItemIds);
   const seenQuestionIds = createStateDataSet(stateData.seenFollowUpQuestionIds);
+  const actionableItemOrigins = new Map<string, string>(stateData.seenActionableItemOrigins);
+  const followUpQuestionOrigins = new Map<string, string>(stateData.seenFollowUpQuestionOrigins);
   const executedStages = cloneExecutedStages(stateData.executedStages);
 
   pushUniqueBlockingIssues(aggregate, seenBlockingIssueIds, stageOutput);
@@ -555,21 +563,35 @@ function mergeStageOutput(
 
   for (const item of stageOutput.actionableItems) {
     if (seenActionableIds.has(item.itemId)) {
-      throw new Error(
-        `[${layer.stageId}] Contract violation: duplicate actionable itemId: ${item.itemId}`,
-      );
+      emitDuplicateSkipped(ctx, {
+        state: CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+        duplicateId: item.itemId,
+        idType: 'itemId',
+        producingStageId: layer.stageId,
+        originStageId: actionableItemOrigins.get(item.itemId) ?? 'unknown',
+        childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+      });
+      continue;
     }
     seenActionableIds.add(item.itemId);
+    actionableItemOrigins.set(item.itemId, layer.stageId);
     aggregate.actionableItems.push(item);
   }
 
   for (const question of stageOutput.followUpQuestions) {
     if (seenQuestionIds.has(question.questionId)) {
-      throw new Error(
-        `[${layer.stageId}] Contract violation: duplicate follow-up questionId: ${question.questionId}`,
-      );
+      emitDuplicateSkipped(ctx, {
+        state: CONSISTENCY_FOLLOW_UP_CHILD_EXECUTE_STATE,
+        duplicateId: question.questionId,
+        idType: 'questionId',
+        producingStageId: layer.stageId,
+        originStageId: followUpQuestionOrigins.get(question.questionId) ?? 'unknown',
+        childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
+      });
+      continue;
     }
     seenQuestionIds.add(question.questionId);
+    followUpQuestionOrigins.set(question.questionId, layer.stageId);
     aggregate.followUpQuestions.push(question);
   }
 
@@ -586,6 +608,8 @@ function mergeStageOutput(
     seenBlockingIssueIds: [...seenBlockingIssueIds],
     seenActionableItemIds: [...seenActionableIds],
     seenFollowUpQuestionIds: [...seenQuestionIds],
+    seenActionableItemOrigins: [...actionableItemOrigins.entries()],
+    seenFollowUpQuestionOrigins: [...followUpQuestionOrigins.entries()],
     executedStages,
   };
 }
@@ -628,7 +652,7 @@ function createExecutePromptLayerHandler(
       }
 
       const stageOutput = await runPromptLayer(ctx, ctx.input, layer);
-      const nextStateData = mergeStageOutput(stateData, layer, stageOutput);
+      const nextStateData = mergeStageOutput(ctx, stateData, layer, stageOutput);
       const lastStageCompleted = nextStateData.stageIndex >= layers.length;
 
       ctx.transition(

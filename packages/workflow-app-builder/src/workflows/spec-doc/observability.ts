@@ -50,6 +50,8 @@ export const OBS_TYPES = {
   researchResultLogged: 'spec-doc.research.logged',
   /** Terminal completion reached (Done state). */
   terminalCompleted: 'spec-doc.terminal.completed',
+  /** Cross-stage duplicate itemId or questionId silently dropped during child stage-output merging. */
+  duplicateSkipped: 'consistency.duplicate-skipped',
 } as const;
 
 export type ObservabilityType = (typeof OBS_TYPES)[keyof typeof OBS_TYPES];
@@ -150,6 +152,15 @@ export interface TerminalCompletedPayload extends ObsPayloadBase {
   consistencyCheckPasses: number;
 }
 
+/** Payload for cross-stage duplicate skip events. */
+export interface DuplicateSkippedPayload extends ObsPayloadBase {
+  observabilityType: typeof OBS_TYPES.duplicateSkipped;
+  duplicateId: string;
+  idType: 'questionId' | 'itemId';
+  producingStageId: string;
+  originStageId: string;
+}
+
 /** Union of all spec-doc observability payloads. */
 export type ObservabilityPayload =
   | DelegationStartedPayload
@@ -160,7 +171,8 @@ export type ObservabilityPayload =
   | ClassificationOutcomePayload
   | ClarificationGeneratedPayload
   | ResearchResultLoggedPayload
-  | TerminalCompletedPayload;
+  | TerminalCompletedPayload
+  | DuplicateSkippedPayload;
 
 // ---------------------------------------------------------------------------
 // Emission helpers
@@ -435,6 +447,40 @@ export function emitTerminalCompleted(
   ctx.log({
     level: 'info',
     message: `[obs] Terminal completed: ${params.specPath}`,
+    payload,
+  });
+  return payload;
+}
+
+/**
+ * Emit a cross-stage duplicate skip event (warn-level).
+ * Called when `mergeStageOutput` encounters a duplicate `itemId` or `questionId`
+ * already contributed by an earlier executed stage.
+ */
+export function emitDuplicateSkipped(
+  ctx: WorkflowContext<unknown, unknown>,
+  params: {
+    state: string;
+    duplicateId: string;
+    idType: 'questionId' | 'itemId';
+    producingStageId: string;
+    originStageId: string;
+    childWorkflowType?: string;
+  },
+): DuplicateSkippedPayload {
+  const payload: DuplicateSkippedPayload = {
+    observabilityType: OBS_TYPES.duplicateSkipped,
+    state: params.state,
+    duplicateId: params.duplicateId,
+    idType: params.idType,
+    producingStageId: params.producingStageId,
+    originStageId: params.originStageId,
+    stageId: params.producingStageId,
+    ...(params.childWorkflowType != null && { childWorkflowType: params.childWorkflowType }),
+  };
+  ctx.log({
+    level: 'warn',
+    message: `[obs] Duplicate ${params.idType} "${params.duplicateId}" from stage "${params.producingStageId}" skipped (first seen in "${params.originStageId}")`,
     payload,
   });
   return payload;

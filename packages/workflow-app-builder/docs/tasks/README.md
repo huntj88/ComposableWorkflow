@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23`).
+1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -45,6 +45,7 @@ This folder contains the ordered implementation plan for:
 - `SDB-21` -> `SDB-18`, `SDB-20`
 - `SDB-22` -> `SDB-21`
 - `SDB-23` -> `SDB-14`, `SDB-21`, `SDB-22`
+- `SDB-24` -> `SDB-22`, `SDB-23`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
@@ -86,6 +87,7 @@ Delegated-child evolution chain:
 - `SDB-21` [21-full-sweep-consistency-child.md](./21-full-sweep-consistency-child.md) — every delegated-child stage runs once per pass
 - `SDB-22` [22-child-plan-resolution-state.md](./22-child-plan-resolution-state.md) — `PlanResolution` authors the final child result
 - `SDB-23` [23-two-pass-child-coverage-and-parity.md](./23-two-pass-child-coverage-and-parity.md) — parity/test/doc updates for the two-pass child model
+- `SDB-24` [24-cross-stage-dedup-and-log.md](./24-cross-stage-dedup-and-log.md) — cross-stage duplicate dedup-and-log replaces fatal error
 
 ## Full Coverage Ownership
 
@@ -93,13 +95,13 @@ Delegated-child evolution chain:
 - FSM transitions (`B-SD-TRANS-001..015`) -> `SDB-02`, `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`
 - Human feedback integration (`B-SD-HFB-001..005`) -> `SDB-05`, `SDB-13`, `SDB-17`
 - Schema validation (`B-SD-SCHEMA-001..006`) -> `SDB-00`, `SDB-03`, `SDB-04`, `SDB-06`, `SDB-10`
-- Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-20`, `SDB-21`, `SDB-22`
+- Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-20`, `SDB-21`, `SDB-22`, `SDB-24`
 - Queue processing (`B-SD-QUEUE-001..005`) -> `SDB-04`, `SDB-05`, `SDB-06`, `SDB-10`
 - Done/terminal (`B-SD-DONE-001..003`) -> `SDB-02`, `SDB-07`, `SDB-10`, `SDB-11`
 - Loop/failure (`B-SD-TRANS-012..015`, `B-SD-FAIL-001`) -> `SDB-07`, `SDB-10`, `SDB-11`
 - Feedback cancellation lifecycle (`B-SD-FAIL-002`) -> `SDB-11`
 - Integrate input normalization (`B-SD-INPUT-001..004`) -> `SDB-03`, `SDB-15`, `SDB-17`
-- Observability (`B-SD-OBS-001..003`) -> `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-18`, `SDB-19`, `SDB-11`, `SDB-21`, `SDB-22`, `SDB-23`
+- Observability (`B-SD-OBS-001..003`) -> `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-18`, `SDB-19`, `SDB-11`, `SDB-21`, `SDB-22`, `SDB-23`, `SDB-24`
 - Post-spec-update clarification research + delegated-child deltas -> `SDB-13`, `SDB-14`, `SDB-15`, `SDB-16`, `SDB-16A`, `SDB-17`
 - Scoped consistency prompt decoupling baseline -> `SDB-16A`
 - Explicit child self-loop delivery -> `SDB-18`
@@ -108,6 +110,10 @@ Delegated-child evolution chain:
 - Full-sweep delegated-child execution -> `SDB-21`
 - Planning-state authored final child output -> `SDB-22`
 - Two-pass parity and documentation alignment -> `SDB-23`
+- Cross-stage duplicate dedup-and-log -> `SDB-24`
+
+Delegated-child evolution chain (continued):
+- `SDB-24` -> cross-stage duplicate dedup-and-log replaces fatal error on duplicate `itemId`/`questionId`
 
 Delegated-child supersession guide:
 - `SDB-16` should be read as the original delegated-child delivery, not as the final word on prompt decomposition or schema ownership.
@@ -120,7 +126,9 @@ Delegated-child supersession guide:
 - `SDB-21` supersedes any earlier assumption that actionable-item output can suppress later delegated-child stages within the same pass.
 - `SDB-22` is the canonical task for current child terminal authoring behavior: `PlanResolution` runs after the full sweep and is the only child step that authors the parent-facing aggregate result.
 - `SDB-23` is the canonical parity task for aligning tests, golden scenarios, and task-suite docs to the two-pass child model.
+- `SDB-24` is the canonical task for current cross-stage duplicate handling: duplicate `itemId`/`questionId` across executed child stages are deduplicated (first-wins), not fatal errors, and each dedup emits a warn-level `consistency.duplicate-skipped` log.
 - Any older wording that implies `ITX-SD-012`, `ITX-SD-013`, `ITX-SD-016`, `ITX-SD-017`, or `GS-SD-004` still use delegated-child actionable-item short-circuiting is historical only; read those artifacts through the `SDB-21` + `SDB-22` model.
+- `SDB-24` supersedes any wording that describes duplicate `itemId`/`questionId` across executed child stages as a fatal contract violation. The canonical behavior is deduplicate-and-log.
 
 ### Integration Coverage (`ITX-SD-*`)
 - Harness prerequisites in `ITX` section 3 -> `SDB-09`
@@ -128,6 +136,7 @@ Delegated-child supersession guide:
 - Post-spec-update `ITX-SD-003/004/005/007/012/013/014/015/016` deltas -> `SDB-14`, `SDB-16A`, `SDB-17`, `SDB-20`
 - `ITX-SD-017` explicit child-state progression -> `SDB-18`, `SDB-21`, `SDB-22`, `SDB-23`
 - Full-sweep/planning parity for `ITX-SD-012/013/016/017` -> `SDB-21`, `SDB-22`, `SDB-23`
+- Cross-stage dedup-and-log for `ITX-SD-016` -> `SDB-24`
 - Harness `GS-SD-004` two-pass parity -> `SDB-23`
 
 ### Golden Scenario Coverage (`GS-SD-*`)

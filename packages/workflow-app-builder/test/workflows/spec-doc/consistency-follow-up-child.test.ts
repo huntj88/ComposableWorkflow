@@ -364,64 +364,109 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     expect(result.readinessChecklist.hasTestableAcceptanceCriteria).toBe(false);
   });
 
-  it('fails on duplicate actionable itemId values across later stages after an earlier actionable result', async () => {
-    const { ctx, launchChildSpy } = createChildContext([
-      narrowStageOutput(['hasInterfacesOrContracts'], {
-        actionableItems: [actionableItem({ itemId: 'act-dup-1' })],
-        followUpQuestions: [],
-      }),
-      narrowStageOutput(['hasTestableAcceptanceCriteria'], {
-        actionableItems: [actionableItem({ itemId: 'act-dup-1' })],
-        followUpQuestions: [],
-      }),
+  it('deduplicates cross-stage actionable itemId values keeping first occurrence and emits warn log', async () => {
+    const { ctx, launchChildSpy, logSpy } = createChildContext(
+      withPlanResolutionResponse(
+        [
+          narrowStageOutput(['hasInterfacesOrContracts'], {
+            actionableItems: [actionableItem({ itemId: 'act-dup-1' })],
+            followUpQuestions: [],
+          }),
+          narrowStageOutput(['hasTestableAcceptanceCriteria'], {
+            actionableItems: [actionableItem({ itemId: 'act-dup-1', instruction: 'duplicate' })],
+            followUpQuestions: [],
+          }),
+        ],
+        {
+          actionableItems: [actionableItem({ itemId: 'act-dup-1' })],
+          followUpQuestions: [],
+        },
+      ),
+    );
+
+    const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
+      {
+        stageId: 'stage-1',
+        templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
+        outputSchema: SCHEMA_IDS.consistencyInterfacesContractsOutput,
+        checklistKeys: ['hasInterfacesOrContracts'],
+      },
+      {
+        stageId: 'stage-2',
+        templateId: TEMPLATE_IDS.consistencyAcceptanceCriteria,
+        outputSchema: SCHEMA_IDS.consistencyAcceptanceCriteriaOutput,
+        checklistKeys: ['hasTestableAcceptanceCriteria'],
+      },
     ]);
 
-    await expect(
-      executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
-        {
-          stageId: 'stage-1',
-          templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
-          outputSchema: SCHEMA_IDS.consistencyInterfacesContractsOutput,
-          checklistKeys: ['hasInterfacesOrContracts'],
-        },
-        {
-          stageId: 'stage-2',
-          templateId: TEMPLATE_IDS.consistencyAcceptanceCriteria,
-          outputSchema: SCHEMA_IDS.consistencyAcceptanceCriteriaOutput,
-          checklistKeys: ['hasTestableAcceptanceCriteria'],
-        },
-      ]),
-    ).rejects.toThrow('duplicate actionable itemId: act-dup-1');
+    // All stages + PlanResolution executed
+    expect(launchChildSpy).toHaveBeenCalledTimes(3);
 
-    expect(launchChildSpy).toHaveBeenCalledTimes(2);
+    // First occurrence kept in final result
+    expect(result.actionableItems).toHaveLength(1);
+    expect(result.actionableItems[0].itemId).toBe('act-dup-1');
+    expect(result.actionableItems[0].instruction).toBe('Add a deployment section.');
+
+    // Warn-level log emitted for the skipped duplicate
+    const warnLogs = logSpy.mock.calls.filter(
+      (call: unknown[]) => (call[0] as { level?: string }).level === 'warn',
+    );
+    expect(warnLogs).toHaveLength(1);
+    const warnPayload = (warnLogs[0][0] as { payload?: Record<string, unknown> }).payload!;
+    expect(warnPayload.observabilityType).toBe('consistency.duplicate-skipped');
+    expect(warnPayload.duplicateId).toBe('act-dup-1');
+    expect(warnPayload.idType).toBe('itemId');
+    expect(warnPayload.producingStageId).toBe('stage-2');
+    expect(warnPayload.originStageId).toBe('stage-1');
   });
 
-  it('fails on duplicate questionId values across executed stages', async () => {
-    const { ctx } = createChildContext([
-      narrowStageOutput(['hasScopeAndObjective'], {
-        followUpQuestions: [followUpQuestion('q-1')],
-      }),
-      narrowStageOutput(['hasNonGoals'], {
-        followUpQuestions: [followUpQuestion('q-1')],
-      }),
+  it('deduplicates cross-stage questionId values keeping first occurrence and emits warn log', async () => {
+    const { ctx, logSpy } = createChildContext(
+      withPlanResolutionResponse(
+        [
+          narrowStageOutput(['hasScopeAndObjective'], {
+            followUpQuestions: [followUpQuestion('q-1')],
+          }),
+          narrowStageOutput(['hasNonGoals'], {
+            followUpQuestions: [followUpQuestion('q-1')],
+          }),
+        ],
+        {
+          followUpQuestions: [followUpQuestion('q-1')],
+        },
+      ),
+    );
+
+    const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
+      {
+        stageId: 'stage-1',
+        templateId: TEMPLATE_IDS.consistencyScopeObjective,
+        outputSchema: SCHEMA_IDS.consistencyScopeObjectiveOutput,
+        checklistKeys: ['hasScopeAndObjective'],
+      },
+      {
+        stageId: 'stage-2',
+        templateId: TEMPLATE_IDS.consistencyNonGoals,
+        outputSchema: SCHEMA_IDS.consistencyNonGoalsOutput,
+        checklistKeys: ['hasNonGoals'],
+      },
     ]);
 
-    await expect(
-      executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
-        {
-          stageId: 'stage-1',
-          templateId: TEMPLATE_IDS.consistencyScopeObjective,
-          outputSchema: SCHEMA_IDS.consistencyScopeObjectiveOutput,
-          checklistKeys: ['hasScopeAndObjective'],
-        },
-        {
-          stageId: 'stage-2',
-          templateId: TEMPLATE_IDS.consistencyNonGoals,
-          outputSchema: SCHEMA_IDS.consistencyNonGoalsOutput,
-          checklistKeys: ['hasNonGoals'],
-        },
-      ]),
-    ).rejects.toThrow('duplicate follow-up questionId: q-1');
+    // First occurrence kept, duplicate dropped
+    expect(result.followUpQuestions).toHaveLength(1);
+    expect(result.followUpQuestions[0].questionId).toBe('q-1');
+
+    // Warn-level log emitted for the skipped duplicate
+    const warnLogs = logSpy.mock.calls.filter(
+      (call: unknown[]) => (call[0] as { level?: string }).level === 'warn',
+    );
+    expect(warnLogs).toHaveLength(1);
+    const warnPayload = (warnLogs[0][0] as { payload?: Record<string, unknown> }).payload!;
+    expect(warnPayload.observabilityType).toBe('consistency.duplicate-skipped');
+    expect(warnPayload.duplicateId).toBe('q-1');
+    expect(warnPayload.idType).toBe('questionId');
+    expect(warnPayload.producingStageId).toBe('stage-2');
+    expect(warnPayload.originStageId).toBe('stage-1');
   });
 
   it('preserves prior follow-up questions when a later stage emits actionableItems', async () => {

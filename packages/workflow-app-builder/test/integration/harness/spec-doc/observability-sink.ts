@@ -24,6 +24,7 @@ import {
   type ClassificationOutcomePayload,
   type ClarificationGeneratedPayload,
   type TerminalCompletedPayload,
+  type DuplicateSkippedPayload,
 } from '../../../../src/workflows/spec-doc/observability.js';
 import type { PromptTemplateId } from '../../../../src/workflows/spec-doc/prompt-templates.js';
 
@@ -103,6 +104,9 @@ export interface ObservabilitySink {
 
   /** Get terminal completed events only. */
   terminalCompletedEvents(): CapturedObsEvent<TerminalCompletedPayload>[];
+
+  /** Get duplicate skipped events only. */
+  duplicateSkippedEvents(): CapturedObsEvent<DuplicateSkippedPayload>[];
 
   // ---- Assertion helpers ----
 
@@ -235,6 +239,10 @@ export function createObservabilitySink(): ObservabilitySink {
 
     terminalCompletedEvents() {
       return sink.eventsByType<TerminalCompletedPayload>(OBS_TYPES.terminalCompleted);
+    },
+
+    duplicateSkippedEvents() {
+      return sink.eventsByType<DuplicateSkippedPayload>(OBS_TYPES.duplicateSkipped);
     },
 
     assertAllDelegationsHaveTemplateId() {

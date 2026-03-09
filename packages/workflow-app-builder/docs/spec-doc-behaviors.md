@@ -171,11 +171,14 @@ Each behavior should validate all relevant dimensions:
 **And** it uses the full-sweep aggregate as its planning input
 **And** the parent consumes only the schema-validated `PlanResolution` output rather than any per-stage output directly
 
-## B-SD-CHILD-002: Delegated child fails on duplicate ids
+## B-SD-CHILD-002: Delegated child deduplicates cross-stage ids and logs
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` executes multiple prompt layers
 **When** duplicate `itemId` or duplicate `questionId` values appear across executed layer outputs
-**Then** the child run fails explicitly before `PlanResolution` returns an aggregate result
-**And** no parent-state transition is selected from the invalid child output
+**Then** the first occurrence is kept in the aggregate and the later duplicate is silently dropped
+**And** a warn-level `consistency.duplicate-skipped` log event is emitted for each dropped duplicate
+**And** the log event identifies the `stageId` that produced the duplicate, the duplicate id value, and the `stageId` that originally produced the kept entry
+**And** the child run continues executing remaining configured prompt layers and proceeds to `PlanResolution`
+**And** the deduplicated aggregate is available for the planning step
 
 ## B-SD-CHILD-003: Delegated child rejects stage-local mixed actionable and follow-up output
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` receives a schema-valid layer output
@@ -448,6 +451,7 @@ Per run, events must be emitted for:
 - child `PlanResolution` started/completed,
 - question generated (numbered-options follow-up/confirmation),
 - immediate actionable item generated,
+- cross-stage duplicate `itemId` or `questionId` skipped during child stage-output merging (warn-level `consistency.duplicate-skipped`),
 - user response received,
 - spec integration pass completed,
 - consistency-check outcome,
@@ -554,6 +558,7 @@ Must assert:
 4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..004`.
 5. Schema validation (section 7.1) → `B-SD-SCHEMA-001..006`.
 6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`.
+   - `B-SD-CHILD-002` covers cross-stage deduplication with observability; duplicates are dropped and logged, not fatal.
 7. Human feedback boundary (section 8) → `B-SD-HFB-004`.
 8. Observability (section 9) → `B-SD-OBS-001..003`.
 9. Completion criteria (section 10) → `B-SD-DONE-001..003`.

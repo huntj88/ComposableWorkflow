@@ -164,7 +164,8 @@ Contract rules:
 - `followUpQuestions` is ordered and must contain only questions that require human input through `NumberedOptionsHumanRequest`.
 - If aggregate `actionableItems` is non-empty, parent routing must prioritize `IntegrateIntoSpec` for that pass even when aggregate `followUpQuestions` is also non-empty; `NumberedOptionsHumanRequest` must not be entered until a later consistency pass returns zero `actionableItems`.
 - An empty `actionableItems` array and empty `followUpQuestions` array means no new integration work or human decision is required; parent workflow logic then synthesizes a completion-confirmation numbered question.
-- Duplicate `itemId` or `questionId` values anywhere in one child run across all executed stages are contract violations and must fail the run rather than being silently deduplicated.
+- Duplicate `itemId` or `questionId` values across executed stages within a single child run are deduplicated: the first occurrence is kept and later duplicates are silently dropped. Each dedup event emits a warn-level `consistency.duplicate-skipped` log entry that includes the `stageId` that produced the duplicate, the duplicate id value, and the `stageId` that originally produced the kept entry.
+- `blockingIssues` uses the same dedup-and-skip strategy already applied to blocking-issue ids: duplicates across stages are silently dropped and the first occurrence is retained.
 - `blockingIssues` is an ordered diagnostic/audit surface for the executed child run; the parent may persist or log it, but parent routing is driven only by `actionableItems` vs `followUpQuestions`.
 
 ## 6) State Machine Definition
@@ -277,7 +278,7 @@ The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions
 10. After the final configured stage completes, the child transitions once to `PlanResolution`.
 11. `PlanResolution` delegates one planning prompt to `app-builder.copilot.prompt.v1`, using the full-sweep coverage aggregate as input and `consistency-check-output.schema.json` as its output schema, and authors the only final child result consumed by the parent.
 12. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` or `-> NumberedOptionsHumanRequest` transition.
-13. The child must fail explicitly on duplicate `itemId` or `questionId` values across executed stages before `PlanResolution` is allowed to run.
+13. When a duplicate `itemId` or `questionId` is encountered during stage-output merging, the child must silently drop the later occurrence, keep the first, and emit a warn-level `consistency.duplicate-skipped` log event identifying both the producing `stageId` and the `stageId` that originally contributed the kept entry. This matches the existing dedup-and-skip strategy used for `blockingIssues` ids.
 14. Appending another prompt layer to `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` must require only appending a new layer entry, prompt template, and matching narrow stage schema; it must not require any parent-FSM transition changes.
 15. `ExecutePromptLayer` transitions back to `ExecutePromptLayer(stageIndex + 1)` while additional stages remain, then transitions to `PlanResolution`; `PlanResolution` transitions to `Done` once the final aggregate contract is produced.
 
@@ -793,6 +794,7 @@ Per run, emit events for:
 - resolution-planning started/completed for the delegated child,
 - question generated (numbered-options follow-up/confirmation),
 - immediate actionable item generated,
+- cross-stage duplicate `itemId` or `questionId` skipped during child stage-output merging (warn-level `consistency.duplicate-skipped` with producing `stageId`, duplicate id, and originating `stageId`),
 - research result logged,
 - user response received,
 - spec integration pass completed,
@@ -837,7 +839,7 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - **AC-4 Completion-confirmation path:** if the child returns zero `actionableItems` and zero `followUpQuestions`, the parent synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
 - **AC-5 Prompt-layer extensibility:** the child workflow executes `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` in array order, and adding a new prompt layer requires only appending a new hardcoded entry plus its prompt template and matching narrow stage schema; parent transition logic remains unchanged.
 - **AC-6 Full-sweep behavior:** every configured child prompt layer executes exactly once per consistency-check pass before the child enters `PlanResolution`.
-- **AC-7 Contract enforcement:** duplicate `itemId` or `questionId` values across executed child prompt layers fail the run explicitly; the implementation must not silently deduplicate or overwrite them. Example: if layer `scope-objective-consistency` emits `questionId: "issue.api-shape"` and a later executed layer with zero `actionableItems` emits the same `questionId`, the child run fails before returning a result.
+- **AC-7 Cross-stage deduplication:** duplicate `itemId` or `questionId` values across executed child prompt layers are deduplicated by keeping the first occurrence and silently dropping the later duplicate. Each dedup event emits a warn-level `consistency.duplicate-skipped` log entry that includes the `stageId` that produced the duplicate, the duplicate id value, and the `stageId` that originally produced the kept entry. Example: if layer `scope-objective-consistency` emits `questionId: "issue.api-shape"` and a later executed layer emits the same `questionId`, the later occurrence is dropped, the kept entry originates from `scope-objective-consistency`, and a warn-level log is emitted identifying both stages.
 - **AC-8 Integration behavior:** when `IntegrateIntoSpec` receives `source: "consistency-action-items"`, it applies the provided `actionableItems` in array order while preserving prior accepted decisions unless explicitly overridden by newer inputs.
 - **AC-9 Stage-level mixed-result rejection:** if any individual child stage output would produce both non-empty `actionableItems` and non-empty `followUpQuestions`, the child run fails before the parent chooses a next state.
 - **AC-10 Aggregate mixed-result preservation:** after the full sweep completes, `PlanResolution` may return both non-empty `actionableItems` and non-empty `followUpQuestions` without failing, and the parent prioritizes `IntegrateIntoSpec` for that pass.
