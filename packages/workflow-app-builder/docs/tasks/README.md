@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24`).
+1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -46,6 +46,9 @@ This folder contains the ordered implementation plan for:
 - `SDB-22` -> `SDB-21`
 - `SDB-23` -> `SDB-14`, `SDB-21`, `SDB-22`
 - `SDB-24` -> `SDB-22`, `SDB-23`
+- `SDB-25` -> `SDB-15`, `SDB-20`, `SDB-22`
+- `SDB-26` -> `SDB-23`, `SDB-25`
+- `SDB-27` -> `SDB-24`, `SDB-25`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
@@ -88,6 +91,9 @@ Delegated-child evolution chain:
 - `SDB-22` [22-child-plan-resolution-state.md](./22-child-plan-resolution-state.md) — `PlanResolution` authors the final child result
 - `SDB-23` [23-two-pass-child-coverage-and-parity.md](./23-two-pass-child-coverage-and-parity.md) — parity/test/doc updates for the two-pass child model
 - `SDB-24` [24-cross-stage-dedup-and-log.md](./24-cross-stage-dedup-and-log.md) — cross-stage duplicate dedup-and-log replaces fatal error
+- `SDB-25` [25-mixed-aggregate-questions-first-routing.md](./25-mixed-aggregate-questions-first-routing.md) — mixed-aggregate questions-first routing with stash
+- `SDB-26` [26-questions-first-coverage-and-parity.md](./26-questions-first-coverage-and-parity.md) — integration/parity coverage for questions-first routing
+- `SDB-27` [27-prompt-template-trimming.md](./27-prompt-template-trimming.md) — reduce prompt token cost by removing schema-redundant and echo text
 
 ## Full Coverage Ownership
 
@@ -95,12 +101,12 @@ Delegated-child evolution chain:
 - FSM transitions (`B-SD-TRANS-001..015`) -> `SDB-02`, `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`
 - Human feedback integration (`B-SD-HFB-001..005`) -> `SDB-05`, `SDB-13`, `SDB-17`
 - Schema validation (`B-SD-SCHEMA-001..006`) -> `SDB-00`, `SDB-03`, `SDB-04`, `SDB-06`, `SDB-10`
-- Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-20`, `SDB-21`, `SDB-22`, `SDB-24`
+- Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-20`, `SDB-21`, `SDB-22`, `SDB-24`, `SDB-25`
 - Queue processing (`B-SD-QUEUE-001..005`) -> `SDB-04`, `SDB-05`, `SDB-06`, `SDB-10`
 - Done/terminal (`B-SD-DONE-001..003`) -> `SDB-02`, `SDB-07`, `SDB-10`, `SDB-11`
 - Loop/failure (`B-SD-TRANS-012..015`, `B-SD-FAIL-001`) -> `SDB-07`, `SDB-10`, `SDB-11`
 - Feedback cancellation lifecycle (`B-SD-FAIL-002`) -> `SDB-11`
-- Integrate input normalization (`B-SD-INPUT-001..004`) -> `SDB-03`, `SDB-15`, `SDB-17`
+- Integrate input normalization (`B-SD-INPUT-001..005`) -> `SDB-03`, `SDB-15`, `SDB-17`, `SDB-25`, `SDB-26`
 - Observability (`B-SD-OBS-001..003`) -> `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-18`, `SDB-19`, `SDB-11`, `SDB-21`, `SDB-22`, `SDB-23`, `SDB-24`
 - Post-spec-update clarification research + delegated-child deltas -> `SDB-13`, `SDB-14`, `SDB-15`, `SDB-16`, `SDB-16A`, `SDB-17`
 - Scoped consistency prompt decoupling baseline -> `SDB-16A`
@@ -111,9 +117,19 @@ Delegated-child evolution chain:
 - Planning-state authored final child output -> `SDB-22`
 - Two-pass parity and documentation alignment -> `SDB-23`
 - Cross-stage duplicate dedup-and-log -> `SDB-24`
+- Mixed-aggregate questions-first routing with stash -> `SDB-25`
+- Questions-first integration/parity coverage -> `SDB-26`
+- Prompt template trimming (token cost reduction) -> `SDB-27`
 
 Delegated-child evolution chain (continued):
 - `SDB-24` -> cross-stage duplicate dedup-and-log replaces fatal error on duplicate `itemId`/`questionId`
+
+Questions-first routing evolution:
+- `SDB-25` -> mixed-aggregate routing reversed: questions-first with stash replaces IntegrateIntoSpec priority (supersedes `SDB-20` routing rule)
+- `SDB-26` -> integration/parity coverage for the questions-first model
+
+Prompt trimming:
+- `SDB-27` -> remove schema-redundant instructions, input-context echo blocks, duplicated quality prose, and repeated stage rules from all prompt templates; spec doc section 7.2 aligned in parallel
 
 Delegated-child supersession guide:
 - `SDB-16` should be read as the original delegated-child delivery, not as the final word on prompt decomposition or schema ownership.
@@ -122,7 +138,9 @@ Delegated-child supersession guide:
 - `SDB-18` is the canonical task for the first explicit delegated-child runtime milestone: introducing real child states and `ExecutePromptLayer` self-loops before the later two-pass follow-ons landed.
 - `SDB-18` also supersedes any older wording that implied every focused prompt layer should still emit the broad aggregate child schema rather than its own stage-specific schema.
 - `SDB-19` is the addendum task that tells readers how to reconcile those closed tasks without rewriting them.
-- `SDB-20` is the canonical task for current mixed-result handling: single-stage mixed outputs remain invalid, but aggregate child results may retain earlier `followUpQuestions` when a later executed stage emits `actionableItems`, and parent routing must prioritize `IntegrateIntoSpec` for that pass.
+- `SDB-20` established mixed-aggregate preservation where single-stage mixed outputs remain invalid but the aggregate may contain both arrays. Its routing rule (parent prioritizes `IntegrateIntoSpec` for mixed aggregates) is superseded by `SDB-25`.
+- `SDB-25` is the canonical task for current mixed-result routing: when the aggregate contains both non-empty `actionableItems` and non-empty `followUpQuestions`, the parent routes to `NumberedOptionsHumanRequest` first, stashes actionable items, and delivers both to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"` after queue exhaustion.
+- `SDB-26` is the canonical parity task for aligning integration tests and golden scenario `GS-SD-004A` to the questions-first routing model.
 - `SDB-21` supersedes any earlier assumption that actionable-item output can suppress later delegated-child stages within the same pass.
 - `SDB-22` is the canonical task for current child terminal authoring behavior: `PlanResolution` runs after the full sweep and is the only child step that authors the parent-facing aggregate result.
 - `SDB-23` is the canonical parity task for aligning tests, golden scenarios, and task-suite docs to the two-pass child model.
@@ -137,12 +155,15 @@ Delegated-child supersession guide:
 - `ITX-SD-017` explicit child-state progression -> `SDB-18`, `SDB-21`, `SDB-22`, `SDB-23`
 - Full-sweep/planning parity for `ITX-SD-012/013/016/017` -> `SDB-21`, `SDB-22`, `SDB-23`
 - Cross-stage dedup-and-log for `ITX-SD-016` -> `SDB-24`
+- Questions-first routing for `ITX-SD-007/013/016` -> `SDB-26`
 - Harness `GS-SD-004` two-pass parity -> `SDB-23`
+- Harness `GS-SD-004A` questions-first parity -> `SDB-26`
 
 ### Golden Scenario Coverage (`GS-SD-*`)
 - `GS-SD-001..005` -> `SDB-11`
 - Post-spec-update `GS-SD-003` / `GS-SD-004` deltas -> `SDB-14`, `SDB-17`, `SDB-20`
 - Two-pass delegated-child `GS-SD-004` parity -> `SDB-23`
+- Questions-first `GS-SD-004A` parity -> `SDB-26`
 
 ## Task Document Contract (Mandatory Sections)
 

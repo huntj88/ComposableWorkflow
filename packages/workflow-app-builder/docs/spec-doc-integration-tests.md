@@ -191,17 +191,19 @@ A behavior is integration-primary when one or more is true:
 - Run workflow through:
   - initial pass,
   - subsequent feedback-driven pass,
-  - immediate-action pass triggered by delegated child output with non-empty `actionableItems`.
+  - immediate-action pass triggered by delegated child output with non-empty `actionableItems` and empty `followUpQuestions`,
+  - mixed-aggregate pass triggered by delegated child output with non-empty `actionableItems` and non-empty `followUpQuestions`, followed by queue exhaustion.
 - Inspect `IntegrateIntoSpecInput` for each invocation.
 
 **Assertions**
 - First pass: `source === "workflow-input"`, `answers` absent/empty, fields from `SpecDocGenerationInput`.
 - Second pass: `source === "numbered-options-feedback"`, `answers` contains normalized records, `specPath` references prior draft.
-- Immediate-action pass: `source === "consistency-action-items"`, `actionableItems` are forwarded unchanged and in child-provided order, and `specPath` references the prior draft.
+- Immediate-action pass: `source === "consistency-action-items"`, `actionableItems` are forwarded unchanged and in child-provided order, `followUpQuestions` was empty, and `specPath` references the prior draft.
+- Mixed-aggregate pass: `source === "consistency-action-items-with-feedback"`, `actionableItems` are the stashed items forwarded unchanged and in child-provided order, `answers` contains normalized records collected during `NumberedOptionsHumanRequest`, and `specPath` references the prior draft.
 - All normalized answer records include `questionId`, `selectedOptionIds`, optional `text`, `answeredAt`.
 - Prior decisions preserved unless explicitly overridden by newer answers.
 
-**Related behaviors:** `B-SD-INPUT-001`, `B-SD-INPUT-002`, `B-SD-INPUT-003`, `B-SD-INPUT-004`, `B-SD-TRANS-006`.
+**Related behaviors:** `B-SD-INPUT-001`, `B-SD-INPUT-002`, `B-SD-INPUT-003`, `B-SD-INPUT-004`, `B-SD-INPUT-005`, `B-SD-TRANS-006`.
 
 ## ITX-SD-008: Recovery of interrupted question queue processing
 **Why not E2E-only:** requires synthetic crash/restart during queue mid-processing.
@@ -301,15 +303,15 @@ A behavior is integration-primary when one or more is true:
   - empty `actionableItems` and empty `followUpQuestions`.
 
 **Assertions**
-- Transition is to `IntegrateIntoSpec` when the final `PlanResolution` aggregate has non-empty `actionableItems`.
-- Transition is still to `IntegrateIntoSpec` when that final aggregate has both non-empty `actionableItems` and non-empty `followUpQuestions`.
-- Mixed aggregate follow-up questions are not enqueued for that pass.
-- Transition is to `NumberedOptionsHumanRequest` when child output has empty `actionableItems`.
+- Transition is to `IntegrateIntoSpec` when the final `PlanResolution` aggregate has non-empty `actionableItems` and empty `followUpQuestions`.
+- Transition is to `NumberedOptionsHumanRequest` when that final aggregate has both non-empty `actionableItems` and non-empty `followUpQuestions`; actionable items are stashed in workflow state and follow-up questions are enqueued.
+- After queue exhaustion in the mixed-aggregate case, transition is to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"` carrying both stashed actionable items and collected answers.
+- Transition is to `NumberedOptionsHumanRequest` when child output has empty `actionableItems` and non-empty `followUpQuestions`.
 - No direct transition to `Done` or any other state.
 - Parent routing is evaluated once per consistency pass after the single `PlanResolution` call completes.
 - If child output has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes one completion-confirmation question with explicit "spec is done" option.
 
-**Related behaviors:** `B-SD-TRANS-003`, `B-SD-TRANS-011`, `B-SD-CHILD-004`, `B-SD-DONE-001`.
+**Related behaviors:** `B-SD-TRANS-003`, `B-SD-TRANS-011`, `B-SD-CHILD-004`, `B-SD-INPUT-005`, `B-SD-DONE-001`.
 
 ## ITX-SD-015: Deferred revisit feedback attempts and idempotency keys
 **Why not E2E-only:** requires direct inspection of child-launch metadata across defer/revisit cycles.
@@ -343,7 +345,7 @@ A behavior is integration-primary when one or more is true:
 - The deduplicated aggregate still proceeds through `PlanResolution` and produces a valid parent-facing result.
 - Mixed actionable/question output within a single stage fails the child run before any parent transition is chosen.
 - A final aggregate that contains earlier-stage `followUpQuestions` plus later-stage `actionableItems` does not fail solely for being mixed.
-- When that valid mixed aggregate occurs, the parent prioritizes `IntegrateIntoSpec` and does not enter `NumberedOptionsHumanRequest` for that pass.
+- When that valid mixed aggregate occurs, the parent transitions to `NumberedOptionsHumanRequest` to resolve follow-up questions first, stashing actionable items for later delivery to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`.
 - Failure diagnostics identify the child contract violation and relevant stage context.
 - Resolution-planning input reflects the full-sweep stage coverage rather than only a prefix of stages, and the planning step executes exactly once.
 
@@ -394,7 +396,7 @@ A behavior is integration-primary when one or more is true:
 
 ## 5.2 Shared Coverage (Integration + E2E)
 - ITX-SD-003, 006, 009.
-- GS-SD-004 immediate-action parity is shared across deterministic harness coverage in `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.GS-SD-004.spec.ts` and black-box parity in the workflow-server suite.
+- GS-SD-004 immediate-action parity and GS-SD-004A mixed-aggregate parity are shared across deterministic harness coverage in `packages/workflow-app-builder/test/integration/spec-doc/` and black-box parity in the workflow-server suite.
 
 ## 5.3 E2E/System-Owned Coverage (Intentional)
 - `B-SD-TRANS-001` and `B-SD-TRANS-002` are primarily covered by golden-path E2E (`GS-SD-001`, `GS-SD-002`) and server run-start/transition behavior suites.

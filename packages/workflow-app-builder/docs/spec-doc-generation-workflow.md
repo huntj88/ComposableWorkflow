@@ -29,11 +29,11 @@ In scope:
 - The child workflow should model prompt-layer execution as real child-FSM state transitions rather than an in-memory loop inside a single `start` handler.
 - The child workflow must execute every configured prompt layer once per consistency-check pass before deciding the final child result for that pass.
 - The child workflow must use a dedicated planning step after the coverage sweep to consolidate stage outputs into the final aggregate contract consumed by the parent.
-- Parent-state branching is limited to: `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`, then `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` when immediate actionable items exist, otherwise `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest`.
+- Parent-state branching is limited to: `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`, then `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` when only actionable items exist (no follow-up questions), `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest` when follow-up questions exist (regardless of whether actionable items are also present).
 - The parent FSM change surface is intentionally minimal: prompt-layer execution, issue splitting, and follow-up generation remain child-owned implementation details rather than new parent states or parent-managed prompt sequencing.
-- Immediate actionable items are integration directives that do not require a new human decision and must be applied before asking more numbered questions.
+- Immediate actionable items are integration directives that do not require a new human decision. When follow-up questions are also present, the questions are resolved first via `NumberedOptionsHumanRequest`, and the actionable items are stashed in workflow state until queue exhaustion, at which point both answered questions and stashed actionable items are carried into `IntegrateIntoSpec`.
 - A single scoped prompt layer must emit at most one of `actionableItems` or `followUpQuestions`, but the final child aggregate may contain both after the planning step consolidates full-sweep stage outputs.
-- If the child returns no actionable items, existing numbered-options behavior remains authoritative, including workflow-synthesized completion confirmation when no follow-up questions remain.
+- If the child returns follow-up questions (with or without actionable items), numbered-options behavior is entered to resolve the human decisions. If the child returns no actionable items and no follow-up questions, workflow-synthesized completion confirmation is triggered.
 
 ## 3) Planned Workflow Series (initial)
 
@@ -162,7 +162,8 @@ Contract rules:
 - The final `ConsistencyCheckOutput` aggregate may contain both non-empty `actionableItems` and non-empty `followUpQuestions` when the planning step preserves immediate edits and remaining human decisions from the same full-sweep coverage pass.
 - `actionableItems` is ordered and must contain only edits that `IntegrateIntoSpec` can apply without asking the human for another decision.
 - `followUpQuestions` is ordered and must contain only questions that require human input through `NumberedOptionsHumanRequest`.
-- If aggregate `actionableItems` is non-empty, parent routing must prioritize `IntegrateIntoSpec` for that pass even when aggregate `followUpQuestions` is also non-empty; `NumberedOptionsHumanRequest` must not be entered until a later consistency pass returns zero `actionableItems`.
+- If aggregate `followUpQuestions` is non-empty, parent routing must enter `NumberedOptionsHumanRequest` for that pass regardless of whether `actionableItems` is also non-empty. When both are non-empty, actionable items are stashed in workflow state and carried into `IntegrateIntoSpec` alongside the collected answers after queue exhaustion.
+- If aggregate `actionableItems` is non-empty and `followUpQuestions` is empty, parent routing transitions directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
 - An empty `actionableItems` array and empty `followUpQuestions` array means no new integration work or human decision is required; parent workflow logic then synthesizes a completion-confirmation numbered question.
 - Duplicate `itemId` or `questionId` values across executed stages within a single child run are deduplicated: the first occurrence is kept and later duplicates are silently dropped. Each dedup event emits a warn-level `consistency.duplicate-skipped` log entry that includes the `stageId` that produced the duplicate, the duplicate id value, and the `stageId` that originally produced the kept entry.
 - `blockingIssues` uses the same dedup-and-skip strategy already applied to blocking-issue ids: duplicates across stages are silently dropped and the first occurrence is retained.
@@ -182,8 +183,9 @@ IntegrateIntoSpec --> LogicalConsistencyCheckCreateFollowUpQuestions : integrati
 LogicalConsistencyCheckCreateFollowUpQuestions : delegates validation/question planning to child FSM
 LogicalConsistencyCheckCreateFollowUpQuestions : child runs scoped prompt layers in delegated child runtime
 LogicalConsistencyCheckCreateFollowUpQuestions : child runtime uses start -> ExecutePromptLayer -> PlanResolution -> Done
-LogicalConsistencyCheckCreateFollowUpQuestions --> IntegrateIntoSpec : child returns actionableItems[]
-LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest : child returns no actionableItems[]
+LogicalConsistencyCheckCreateFollowUpQuestions --> IntegrateIntoSpec : child returns actionableItems[] only (no followUpQuestions[])
+LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest : child returns followUpQuestions[] (with or without actionableItems[])
+LogicalConsistencyCheckCreateFollowUpQuestions --> NumberedOptionsHumanRequest : child returns no actionableItems[] and no followUpQuestions[] (synthesize completion confirmation)
 
 NumberedOptionsHumanRequest : one feedback child run per queue item
 NumberedOptionsHumanRequest : questionId required
@@ -228,7 +230,8 @@ Done : terminal\nstatus=completed
    - Delegates to child workflow `app-builder.spec-doc.consistency-follow-up.v1`.
    - Consumes only the child workflow aggregate result contract (`actionableItems[]`, `followUpQuestions[]`, `blockingIssues[]`, `readinessChecklist`).
   - Must not inspect per-layer prompt output or sequence prompt layers itself; those responsibilities stay inside the child FSM.
-  - Routes to `IntegrateIntoSpec` when the child returns immediate actionable items, including aggregate results that also retain follow-up questions from the same full-sweep pass.
+  - Routes to `IntegrateIntoSpec` only when the child returns actionable items and zero follow-up questions.
+  - Routes to `NumberedOptionsHumanRequest` when the child returns follow-up questions, regardless of whether actionable items are also present. When both exist, actionable items are stashed in workflow state and carried into `IntegrateIntoSpec` alongside collected answers after queue exhaustion.
    - Routes to `NumberedOptionsHumanRequest` when the child returns no actionable items; returned numbered questions are asked as-is, and empty question output still triggers synthesized completion confirmation.
 
 3. `NumberedOptionsHumanRequest`
@@ -277,7 +280,7 @@ The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions
 9. `ExecutePromptLayer` never short-circuits on non-empty `actionableItems`; it always advances until the last configured stage completes.
 10. After the final configured stage completes, the child transitions once to `PlanResolution`.
 11. `PlanResolution` delegates one planning prompt to `app-builder.copilot.prompt.v1`, using the full-sweep coverage aggregate as input and `consistency-check-output.schema.json` as its output schema, and authors the only final child result consumed by the parent.
-12. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` or `-> NumberedOptionsHumanRequest` transition.
+12. The parent workflow change is intentionally limited to delegating this work to the child and honoring the child-driven `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` (actionable items only, no follow-up questions) or `-> NumberedOptionsHumanRequest` (follow-up questions present, or both empty triggering completion confirmation) transition.
 13. When a duplicate `itemId` or `questionId` is encountered during stage-output merging, the child must silently drop the later occurrence, keep the first, and emit a warn-level `consistency.duplicate-skipped` log event identifying both the producing `stageId` and the `stageId` that originally contributed the kept entry. This matches the existing dedup-and-skip strategy used for `blockingIssues` ids.
 14. Appending another prompt layer to `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` must require only appending a new layer entry, prompt template, and matching narrow stage schema; it must not require any parent-FSM transition changes.
 15. `ExecutePromptLayer` transitions back to `ExecutePromptLayer(stageIndex + 1)` while additional stages remain, then transitions to `PlanResolution`; `PlanResolution` transitions to `Done` once the final aggregate contract is produced.
@@ -289,9 +292,9 @@ The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions
 - `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`
   - Guard: integration pass complete.
 - `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec`
-  - Guard: delegated child result contains one or more actionable items that can be applied without human input.
+  - Guard: delegated child result contains one or more actionable items and zero follow-up questions.
 - `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest`
-  - Guard: delegated child result contains zero actionable items; returned follow-up questions may be non-empty or empty.
+  - Guard: delegated child result contains one or more follow-up questions (with or without actionable items), or both arrays are empty (triggering synthesized completion confirmation). When actionable items are also present, they are stashed in workflow state for later delivery to `IntegrateIntoSpec` after queue exhaustion.
 - `NumberedOptionsHumanRequest -> NumberedOptionsHumanRequest`
   - Guard: additional numbered follow-up questions remain to be asked and answered, and no custom prompt text is provided with the current response.
 - `NumberedOptionsHumanRequest -> IntegrateIntoSpec`
@@ -311,8 +314,8 @@ The delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions
 
 Execution model:
 - This state is implemented as a deterministic question queue processor.
-- Input queue is created from the delegated child workflow result returned by `LogicalConsistencyCheckCreateFollowUpQuestions` when `actionableItems` is empty and stored in workflow context/state data.
-- The state must not be entered for a consistency-check pass that returned `actionableItems`, even if that same child aggregate also retained `followUpQuestions` from the same full-sweep planning result; that pass goes directly to `IntegrateIntoSpec`.
+- Input queue is created from the delegated child workflow result returned by `LogicalConsistencyCheckCreateFollowUpQuestions` when follow-up questions are present (with or without actionable items) and stored in workflow context/state data.
+- When the child aggregate contains both `actionableItems` and `followUpQuestions`, the actionable items are stashed in workflow state. After queue exhaustion the stashed actionable items and collected answers are both carried into `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`.
 - Each queue item is a numbered-options question with stable `questionId`, `prompt`, and `options[]`.
 - Within each question, option IDs are unique contiguous integers starting at `1`.
 
@@ -376,7 +379,7 @@ Transition resolution after each response:
 - If unasked queue items remain and no custom prompt text is pending classification, transition to `NumberedOptionsHumanRequest` (self-loop).
 - If no unasked queue items remain but deferred questions remain on the revisit stack, transition to `NumberedOptionsHumanRequest` and revisit the most recently deferred source question instead of evaluating terminal exhaustion.
 - If queue is exhausted, deferred-question stack is empty, and completion-confirmation indicates done by selecting its explicit done option, transition to `Done`.
-- Otherwise transition to `IntegrateIntoSpec` with accumulated normalized answers (including buffered custom-answer prompts) as integration input.
+- Otherwise transition to `IntegrateIntoSpec` with accumulated normalized answers (including buffered custom-answer prompts) as integration input. When stashed actionable items are present from a mixed-aggregate consistency pass, include them alongside the answers using `source: "consistency-action-items-with-feedback"`. When no stashed actionable items exist, use `source: "numbered-options-feedback"`.
 
 Re-entry with exhausted queue:
 - `NumberedOptionsHumanRequest` may be re-entered from `ClassifyCustomPrompt` (custom-answer) or `ExpandQuestionWithClarification` with `queueIndex >= queue.length`.
@@ -384,7 +387,7 @@ Re-entry with exhausted queue:
 - If deferred questions remain on the revisit stack, queue exhaustion is not final; the handler must resume with the most recently deferred source question.
   - Resuming a deferred question must launch a fresh feedback child request for that revisit attempt, even when the `questionId` and consistency-check pass are unchanged.
 - If no deferred questions remain and any answered item is the completion-confirmation question with the done option selected (option 1), transition to `Done`.
-- Otherwise, transition to `IntegrateIntoSpec` with accumulated normalized answers.
+- Otherwise, transition to `IntegrateIntoSpec` with accumulated normalized answers. When stashed actionable items from a mixed-aggregate consistency pass are present, include them alongside the answers using `source: "consistency-action-items-with-feedback"`.
 
 ## 6.5 IntegrateIntoSpec Input Contract (MVP)
 
@@ -392,7 +395,7 @@ Re-entry with exhausted queue:
 
 ```ts
 export interface IntegrateIntoSpecInput {
-  source: "workflow-input" | "numbered-options-feedback" | "consistency-action-items";
+  source: "workflow-input" | "numbered-options-feedback" | "consistency-action-items" | "consistency-action-items-with-feedback";
   request: string;
   targetPath?: string;
   constraints?: string[];
@@ -415,10 +418,13 @@ export interface IntegrateIntoSpecInput {
 
 Contract notes:
 - `source: "workflow-input"` is used for the first pass and carries workflow input fields.
-- `source: "numbered-options-feedback"` is used after numbered queue exhaustion when accumulated responses require spec updates.
-- `source: "consistency-action-items"` is used immediately after `LogicalConsistencyCheckCreateFollowUpQuestions` when the delegated child returns `actionableItems`.
+- `source: "numbered-options-feedback"` is used after numbered queue exhaustion when accumulated responses require spec updates and no stashed actionable items exist.
+- `source: "consistency-action-items"` is used immediately after `LogicalConsistencyCheckCreateFollowUpQuestions` when the delegated child returns only `actionableItems` (no `followUpQuestions`).
+- `source: "consistency-action-items-with-feedback"` is used after numbered queue exhaustion when the originating consistency pass returned both `actionableItems` and `followUpQuestions`. Both the stashed actionable items and the collected answers are present.
 - `answers` is optional for initial and consistency-action-item passes and, when present, is the normalized answer record accumulated in `NumberedOptionsHumanRequest`.
-- `actionableItems` is required when `source === "consistency-action-items"` and must be applied in array order as concrete edit directives for the current spec pass.
+- `answers` is required when `source === "consistency-action-items-with-feedback"` and must contain the normalized answers collected during `NumberedOptionsHumanRequest`.
+- `actionableItems` is required when `source === "consistency-action-items"` or `source === "consistency-action-items-with-feedback"` and must be applied in array order as concrete edit directives for the current spec pass.
+- When both `answers` and `actionableItems` are present (`source === "consistency-action-items-with-feedback"`), the prompt must integrate the human-provided answers and the concrete edit directives together in the same pass, applying actionable items as ordered edits while also incorporating the answer-provided context.
 - `specPath` allows integration into an existing working draft path from prior passes.
 
 ## 7) Dependency on `app-builder.copilot.prompt.v1`
@@ -468,7 +474,7 @@ Minimum usage contract by FSM state:
   - the child aggregate result exposes `structuredOutput.actionableItems` and `structuredOutput.followUpQuestions`.
   - `structuredOutput.actionableItems` provides deterministic ordered immediate integration directives and may be empty.
   - `structuredOutput.followUpQuestions` may remain non-empty when `structuredOutput.actionableItems` is also non-empty because the planning step may preserve both immediate edits and remaining human decisions from the same full-sweep pass.
-  - `structuredOutput.followUpQuestions` is authoritative for queue construction only when `structuredOutput.actionableItems` is empty; each queue item must conform to `numbered-question-item.schema.json` with `kind: "issue-resolution"`.
+  - `structuredOutput.followUpQuestions` is authoritative for queue construction whenever present (non-empty); each queue item must conform to `numbered-question-item.schema.json` with `kind: "issue-resolution"`. When `actionableItems` is also non-empty, the actionable items are stashed rather than immediately integrated.
   - if both arrays are empty, workflow logic synthesizes one completion-confirmation queue item with an explicit "spec is done" option before entering `NumberedOptionsHumanRequest`.
 - `ClassifyCustomPrompt`
   - `outputSchema` must use `custom-prompt-classification-output.schema.json`.
@@ -488,10 +494,10 @@ File output rule:
 - Schemas must validate routing/metadata contracts and file references, not embed full spec body text.
 
 Transition mapping from delegated consistency-check child result:
-- if `actionableItems` is non-empty, transition directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
-- if `actionableItems` is non-empty and `followUpQuestions` is also non-empty, do not enqueue the returned follow-up questions for that pass.
-- if `actionableItems` is empty and `followUpQuestions` is empty, synthesize one completion-confirmation numbered question in workflow logic (with explicit "spec is done" option) and enqueue it.
-- if `actionableItems` is empty, transition to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected state).
+- if `actionableItems` is non-empty and `followUpQuestions` is empty, transition directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
+- if `actionableItems` is non-empty and `followUpQuestions` is also non-empty, stash `actionableItems` in workflow state and transition to `NumberedOptionsHumanRequest` with the returned follow-up questions enqueued. After queue exhaustion, transition to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"` carrying both the stashed actionable items and the collected answers.
+- if `actionableItems` is empty and `followUpQuestions` is non-empty, transition to `NumberedOptionsHumanRequest` (fixed workflow logic, not model-selected state).
+- if `actionableItems` is empty and `followUpQuestions` is empty, synthesize one completion-confirmation numbered question in workflow logic (with explicit "spec is done" option) and enqueue it, then transition to `NumberedOptionsHumanRequest`.
 
 Transition mapping from numbered-options response:
 - if custom prompt text is provided: transition to `ClassifyCustomPrompt` (evaluate this first for the current response).
@@ -502,7 +508,7 @@ Transition mapping from numbered-options response:
 - if custom prompt intent is classified as custom-answer: buffer response and transition to `NumberedOptionsHumanRequest`.
 - if user selects non-completion numbered option(s) while questions remain: record response and transition to `NumberedOptionsHumanRequest`.
 - if additional numbered follow-up questions remain and no custom prompt text is provided: transition to `NumberedOptionsHumanRequest`.
-- if queue is exhausted, deferred-question stack is empty, and collected responses require updates (including custom-answer text): transition to `IntegrateIntoSpec`.
+- if queue is exhausted, deferred-question stack is empty, and collected responses require updates (including custom-answer text): transition to `IntegrateIntoSpec`. Use `source: "consistency-action-items-with-feedback"` when stashed actionable items exist, otherwise `source: "numbered-options-feedback"`.
 
 Numbered-options question requirements:
 - For workflow-synthesized completion-confirmation questions, options must include at least one explicit "spec is done" numbered option.
@@ -538,12 +544,12 @@ Usage:
 
 Required runtime interpolation variables:
 - `{{request}}`
-- `{{source}}` (`workflow-input`, `numbered-options-feedback`, or `consistency-action-items`)
+- `{{source}}` (`workflow-input`, `numbered-options-feedback`, `consistency-action-items`, or `consistency-action-items-with-feedback`)
 - `{{targetPath}}` (optional)
 - `{{constraintsJson}}` (JSON array)
 - `{{specPath}}` (optional existing draft path)
 - `{{answersJson}}` (JSON array of normalized answers; optional/empty on first pass)
-- `{{actionableItemsJson}}` (JSON array of immediate action items; optional/empty unless source is `consistency-action-items`)
+- `{{actionableItemsJson}}` (JSON array of immediate action items; optional/empty unless source is `consistency-action-items` or `consistency-action-items-with-feedback`)
 
 Prompt text:
 
@@ -572,6 +578,7 @@ Spec quality requirements:
 - Keep language implementation-ready and avoid vague statements.
 - Enough detail to implement without ambiguity.
 - When actionableItems are present, treat them as ordered concrete edit directives for the current pass.
+- When both answers and actionableItems are present (consistency-action-items-with-feedback), integrate the answered human decisions alongside the concrete edit directives in the same pass.
 ```
 
 ### 7.2.2 `LogicalConsistencyCheckCreateFollowUpQuestions` scoped prompt templates
@@ -690,7 +697,7 @@ Rules:
 2) Return the final aggregate child result using only `blockingIssues`, `actionableItems`, `followUpQuestions`, and `readinessChecklist`.
 3) Keep `actionableItems` ordered and limited to concrete edits that can be integrated without another human decision.
 4) Keep `followUpQuestions` ordered and limited to decisions that still require human input after considering the full sweep.
-5) It is valid for the final aggregate to include both non-empty `actionableItems` and non-empty `followUpQuestions` when some work can proceed immediately and some decisions still require user input later.
+5) It is valid for the final aggregate to include both non-empty `actionableItems` and non-empty `followUpQuestions` when concrete edits exist alongside decisions that still require human input. The parent will resolve the human questions first and then apply both the actionable items and the answered decisions together in a single integration pass.
 6) Do not invent duplicate `itemId` or `questionId` values.
 7) Use the coverage data to avoid redundant questions or edits when multiple stages surface the same underlying issue.
 8) If no new integration work or human question remains, return empty `actionableItems` and empty `followUpQuestions`.
@@ -820,9 +827,9 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - `Done` is reachable only from `NumberedOptionsHumanRequest`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`.
 - `LogicalConsistencyCheckCreateFollowUpQuestions` transitions only to `IntegrateIntoSpec` or `NumberedOptionsHumanRequest`.
-- `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` is allowed only when the delegated child result contains one or more `actionableItems`.
-- `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest` is allowed only when the delegated child result contains zero `actionableItems`.
-- Aggregate child results that contain both `actionableItems` and `followUpQuestions` still satisfy the `-> IntegrateIntoSpec` invariant because actionable items take precedence for the current pass.
+- `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` is allowed only when the delegated child result contains one or more `actionableItems` and zero `followUpQuestions`.
+- `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest` is allowed when the delegated child result contains follow-up questions (regardless of whether actionable items are also present), or when both arrays are empty (triggering synthesized completion confirmation).
+- Aggregate child results that contain both `actionableItems` and `followUpQuestions` route to `NumberedOptionsHumanRequest` first; actionable items are stashed and delivered to `IntegrateIntoSpec` alongside collected answers after queue exhaustion.
 - If the delegated child result has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
 - Completion confirmation is explicit user intent selected in `NumberedOptionsHumanRequest`.
 - Terminal completed output must satisfy:
@@ -833,17 +840,17 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 ## 10.2 Acceptance Criteria
 
 - **AC-1 Delegation path:** when the parent workflow enters `LogicalConsistencyCheckCreateFollowUpQuestions`, it launches exactly one child workflow run of type `app-builder.spec-doc.consistency-follow-up.v1` for that pass and bases its next transition only on the child aggregate result.
-- **AC-2 Immediate-action path:** if the child returns one or more `actionableItems`, the parent transitions directly to `IntegrateIntoSpec`, passes `source: "consistency-action-items"`, passes the returned items unchanged and in order, and does not enter `NumberedOptionsHumanRequest` for that pass.
-- **AC-2A Mixed-aggregate prioritization:** if the child aggregate contains both non-empty `actionableItems` and non-empty `followUpQuestions`, the parent still transitions directly to `IntegrateIntoSpec`, does not enter `NumberedOptionsHumanRequest` for that pass, and treats the retained follow-up questions as non-authoritative until a later consistency pass returns zero `actionableItems`.
+- **AC-2 Immediate-action path (actionable items only):** if the child returns one or more `actionableItems` and zero `followUpQuestions`, the parent transitions directly to `IntegrateIntoSpec`, passes `source: "consistency-action-items"`, passes the returned items unchanged and in order, and does not enter `NumberedOptionsHumanRequest` for that pass.
+- **AC-2A Mixed-aggregate questions-first:** if the child aggregate contains both non-empty `actionableItems` and non-empty `followUpQuestions`, the parent transitions to `NumberedOptionsHumanRequest`, enqueues the follow-up questions, and stashes the actionable items in workflow state. After queue exhaustion, the parent transitions to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`, including both the stashed actionable items (unchanged, in order) and the collected answers.
 - **AC-3 Human-question path:** if the child returns zero `actionableItems` and one or more `followUpQuestions`, the parent transitions to `NumberedOptionsHumanRequest` and enqueues those questions unchanged and in order.
 - **AC-4 Completion-confirmation path:** if the child returns zero `actionableItems` and zero `followUpQuestions`, the parent synthesizes exactly one completion-confirmation question before entering `NumberedOptionsHumanRequest`.
 - **AC-5 Prompt-layer extensibility:** the child workflow executes `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` in array order, and adding a new prompt layer requires only appending a new hardcoded entry plus its prompt template and matching narrow stage schema; parent transition logic remains unchanged.
 - **AC-6 Full-sweep behavior:** every configured child prompt layer executes exactly once per consistency-check pass before the child enters `PlanResolution`.
 - **AC-7 Cross-stage deduplication:** duplicate `itemId` or `questionId` values across executed child prompt layers are deduplicated by keeping the first occurrence and silently dropping the later duplicate. Each dedup event emits a warn-level `consistency.duplicate-skipped` log entry that includes the `stageId` that produced the duplicate, the duplicate id value, and the `stageId` that originally produced the kept entry. Example: if layer `scope-objective-consistency` emits `questionId: "issue.api-shape"` and a later executed layer emits the same `questionId`, the later occurrence is dropped, the kept entry originates from `scope-objective-consistency`, and a warn-level log is emitted identifying both stages.
-- **AC-8 Integration behavior:** when `IntegrateIntoSpec` receives `source: "consistency-action-items"`, it applies the provided `actionableItems` in array order while preserving prior accepted decisions unless explicitly overridden by newer inputs.
+- **AC-8 Integration behavior:** when `IntegrateIntoSpec` receives `source: "consistency-action-items"`, it applies the provided `actionableItems` in array order while preserving prior accepted decisions unless explicitly overridden by newer inputs. When `IntegrateIntoSpec` receives `source: "consistency-action-items-with-feedback"`, it applies `actionableItems` in array order and integrates the human-provided `answers` in the same pass.
 - **AC-9 Stage-level mixed-result rejection:** if any individual child stage output would produce both non-empty `actionableItems` and non-empty `followUpQuestions`, the child run fails before the parent chooses a next state.
-- **AC-10 Aggregate mixed-result preservation:** after the full sweep completes, `PlanResolution` may return both non-empty `actionableItems` and non-empty `followUpQuestions` without failing, and the parent prioritizes `IntegrateIntoSpec` for that pass.
-- **AC-11 Minimal parent change surface:** the parent FSM implementation for this iteration introduces no additional outbound transitions from `LogicalConsistencyCheckCreateFollowUpQuestions` beyond `-> IntegrateIntoSpec` for non-empty `actionableItems` and `-> NumberedOptionsHumanRequest` otherwise; prompt layering and issue splitting remain child-owned behavior.
+- **AC-10 Aggregate mixed-result preservation:** after the full sweep completes, `PlanResolution` may return both non-empty `actionableItems` and non-empty `followUpQuestions` without failing, and the parent routes to `NumberedOptionsHumanRequest` to resolve the questions first before delivering both to `IntegrateIntoSpec`.
+- **AC-11 Minimal parent change surface:** the parent FSM implementation for this iteration introduces no additional outbound transitions from `LogicalConsistencyCheckCreateFollowUpQuestions` beyond `-> IntegrateIntoSpec` for actionable-items-only results and `-> NumberedOptionsHumanRequest` for results containing follow-up questions (including mixed aggregates and empty results); prompt layering and issue splitting remain child-owned behavior.
 
 ## 11) Failure and Exit Conditions
 

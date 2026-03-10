@@ -59,11 +59,11 @@ Each behavior should validate all relevant dimensions:
 **Given** run is in `LogicalConsistencyCheckCreateFollowUpQuestions`
 **When** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` completes with a valid aggregate result
 **Then** parent routing waits for the delegated child's full-sweep `PlanResolution` output rather than any prefix of per-stage results
-**Then** the parent transitions to `IntegrateIntoSpec` when `actionableItems` is non-empty
-**And** if the child aggregate contains both non-empty `actionableItems` and non-empty `followUpQuestions`, the parent still prioritizes `IntegrateIntoSpec` for that pass
+**Then** the parent transitions to `IntegrateIntoSpec` when `actionableItems` is non-empty and `followUpQuestions` is empty
+**And** if the child aggregate contains both non-empty `actionableItems` and non-empty `followUpQuestions`, the parent transitions to `NumberedOptionsHumanRequest`, enqueues the follow-up questions, and stashes the actionable items in workflow state for later delivery to `IntegrateIntoSpec` after queue exhaustion
 **And** the parent transitions to `NumberedOptionsHumanRequest` when `actionableItems` is empty
-**And** `followUpQuestions` from the child result populate the question queue when present
-**And** retained `followUpQuestions` from a mixed aggregate do not populate the question queue until a later consistency pass returns zero `actionableItems`
+**And** `followUpQuestions` from the child result populate the question queue whenever present (non-empty), regardless of whether `actionableItems` is also non-empty
+**And** stashed `actionableItems` from a mixed aggregate are delivered alongside collected answers to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"` after queue exhaustion
 **And** if child output has empty `actionableItems` and empty `followUpQuestions`, workflow logic synthesizes one completion-confirmation question with an explicit "spec is done" option
 **And** `LogicalConsistencyCheckCreateFollowUpQuestions` never transitions directly to `Done`
 
@@ -191,7 +191,7 @@ Each behavior should validate all relevant dimensions:
 **When** a later executed stage emits one or more `actionableItems`
 **Then** the full-sweep planning result may contain both non-empty `actionableItems` and non-empty `followUpQuestions`
 **And** remaining later prompt layers still execute before `PlanResolution`
-**And** the parent treats the aggregate as an immediate-action result and does not enter `NumberedOptionsHumanRequest` for that pass
+**And** the parent transitions to `NumberedOptionsHumanRequest` to resolve the follow-up questions first, stashing actionable items for later delivery to `IntegrateIntoSpec`
 
 ---
 
@@ -427,10 +427,19 @@ Each behavior should validate all relevant dimensions:
 **And** `specPath` points to the existing working draft from prior passes
 
 ## B-SD-INPUT-004: Immediate-action passes use consistency-action-items source
-**Given** delegated child output from `LogicalConsistencyCheckCreateFollowUpQuestions` contains one or more `actionableItems`
+**Given** delegated child output from `LogicalConsistencyCheckCreateFollowUpQuestions` contains one or more `actionableItems` and zero `followUpQuestions`
 **When** `IntegrateIntoSpec` input is constructed for the next pass
 **Then** `source === "consistency-action-items"`
 **And** `actionableItems` are passed unchanged and in child-provided order
+**And** `specPath` points to the existing working draft from the prior integration pass
+
+## B-SD-INPUT-005: Mixed-aggregate passes use consistency-action-items-with-feedback source
+**Given** delegated child output from `LogicalConsistencyCheckCreateFollowUpQuestions` contained both `actionableItems` and `followUpQuestions`
+**And** the follow-up questions have been answered via `NumberedOptionsHumanRequest`
+**When** `IntegrateIntoSpec` input is constructed after queue exhaustion
+**Then** `source === "consistency-action-items-with-feedback"`
+**And** `actionableItems` are the stashed items from the consistency pass, passed unchanged and in child-provided order
+**And** `answers` contains the normalized answer records collected during `NumberedOptionsHumanRequest`
 **And** `specPath` points to the existing working draft from the prior integration pass
 
 ## B-SD-INPUT-003: Prior accepted decisions are preserved unless overridden
@@ -510,7 +519,7 @@ Must assert:
 ## GS-SD-004: Immediate-action child result completes full sweep before returning to integration
 1. Start workflow.
 2. `IntegrateIntoSpec` produces initial draft.
-3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` executes all configured prompt layers, then `PlanResolution` returns one or more `actionableItems` and may also retain `followUpQuestions` from the same full-sweep pass.
+3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` executes all configured prompt layers, then `PlanResolution` returns one or more `actionableItems` and zero `followUpQuestions`.
 4. Parent transitions directly to `IntegrateIntoSpec` with `source: "consistency-action-items"`.
 5. No `NumberedOptionsHumanRequest` state is entered for that pass.
 
@@ -518,7 +527,23 @@ Must assert:
 - Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → IntegrateIntoSpec` for that pass, with child observability covering all configured prompt layers before `PlanResolution` completes.
 - The delegated child emits exactly one `PlanResolution` step after the full-sweep prompt-layer coverage for that pass.
 - Child `actionableItems` are forwarded unchanged and in order.
-- No feedback child run launches before the follow-up consistency pass, even when the child aggregate retained `followUpQuestions`.
+- No feedback child run launches for that pass.
+
+## GS-SD-004A: Mixed-aggregate child result asks questions first then integrates both
+1. Start workflow.
+2. `IntegrateIntoSpec` produces initial draft.
+3. Delegated child workflow for `LogicalConsistencyCheckCreateFollowUpQuestions` executes all configured prompt layers, then `PlanResolution` returns both non-empty `actionableItems` and non-empty `followUpQuestions`.
+4. Parent transitions to `NumberedOptionsHumanRequest` and enqueues the follow-up questions. Actionable items are stashed in workflow state.
+5. User answers all follow-up questions.
+6. After queue exhaustion, parent transitions to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"` carrying both the stashed actionable items and the collected answers.
+
+Must assert:
+- Event stream shows `IntegrateIntoSpec → LogicalConsistencyCheckCreateFollowUpQuestions → NumberedOptionsHumanRequest → IntegrateIntoSpec` for that pass.
+- The delegated child emits exactly one `PlanResolution` step after the full-sweep prompt-layer coverage.
+- Feedback child runs are launched for each follow-up question.
+- Stashed `actionableItems` are forwarded unchanged and in order to `IntegrateIntoSpec`.
+- Collected `answers` from `NumberedOptionsHumanRequest` are included in the integration input.
+- `source === "consistency-action-items-with-feedback"` on the integration input.
 
 ## GS-SD-003: Research-first custom prompt round trip
 1. Start workflow and reach `NumberedOptionsHumanRequest`.
@@ -555,7 +580,7 @@ Must assert:
 1. FSM state semantics (section 6.2) → `B-SD-TRANS-001..015`.
 2. Transition rules and guards (section 6.3) → `B-SD-TRANS-001..015`, `B-SD-DONE-001`.
 3. NumberedOptionsHumanRequest implementation (section 6.4) → `B-SD-HFB-001..005`, `B-SD-QUEUE-001..005`, `B-SD-TRANS-004..007`, `B-SD-TRANS-012..015`.
-4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..004`.
+4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..005`.
 5. Schema validation (section 7.1) → `B-SD-SCHEMA-001..006`.
 6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`.
    - `B-SD-CHILD-002` covers cross-stage deduplication with observability; duplicates are dropped and logged, not fatal.
@@ -570,6 +595,6 @@ Must assert:
 
 Spec-doc generation behaviors are considered complete when:
 - All `B-SD-*` behaviors pass in CI with deterministic test doubles for copilot prompt.
-- Golden scenarios `GS-SD-001` through `GS-SD-005` pass reliably.
+- Golden scenarios `GS-SD-001` through `GS-SD-005` (including `GS-SD-004A`) pass reliably.
 - Schema validation failures produce actionable error diagnostics.
 - Human feedback integration exercises server-owned `server.human-feedback.v1` contract without transport coupling.
