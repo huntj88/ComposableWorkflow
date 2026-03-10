@@ -83,7 +83,7 @@ Spec quality requirements:
 - Acceptance criteria must be testable and unambiguous.
 - Keep language implementation-ready and avoid vague statements.
 - Enough detail to implement without ambiguity.
-- When actionableItems are present, treat them as ordered concrete edit directives for the current pass.`;
+- When actionableItems are present (source: consistency-action-items or consistency-action-items-with-feedback), treat them as ordered concrete edit directives for the current pass.`;
 
 function createScopedConsistencyBody(params: {
   focusTitle: string;
@@ -194,7 +194,7 @@ Rules:
 2) Return the final aggregate child result using only \`blockingIssues\`, \`actionableItems\`, \`followUpQuestions\`, and \`readinessChecklist\`.
 3) Keep \`actionableItems\` ordered and limited to concrete edits that can be integrated without another human decision.
 4) Keep \`followUpQuestions\` ordered and limited to decisions that still require human input after considering the full sweep.
-5) It is valid for the final aggregate to include both non-empty \`actionableItems\` and non-empty \`followUpQuestions\` when some work can proceed immediately and some decisions still require user input later.
+5) It is valid for the final aggregate to include both non-empty \`actionableItems\` and non-empty \`followUpQuestions\`. When this occurs, the parent resolves all human questions first via \`NumberedOptionsHumanRequest\`, then delivers both the stashed actionable items and collected answers together to \`IntegrateIntoSpec\` in a single integration pass.
 6) Do not invent duplicate \`itemId\` or \`questionId\` values.
 7) Use the coverage data to avoid redundant questions or edits when multiple stages surface the same underlying issue.
 8) If no new integration work or human question remains, return empty \`actionableItems\` and empty \`followUpQuestions\`.`;

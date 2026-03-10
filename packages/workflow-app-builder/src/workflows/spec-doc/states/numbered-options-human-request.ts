@@ -155,17 +155,33 @@ export async function handleNumberedOptionsHumanRequest(
       });
       ctx.transition('Done', stateData);
     } else {
+      const hasStashedItems =
+        stateData.stashedActionableItems !== undefined &&
+        stateData.stashedActionableItems.length > 0;
+
       ctx.log({
         level: 'info',
-        message:
-          'Re-entry with exhausted queue: routing to IntegrateIntoSpec with accumulated answers',
+        message: hasStashedItems
+          ? 'Re-entry with exhausted queue: routing to IntegrateIntoSpec with stashed actionable items and accumulated answers'
+          : 'Re-entry with exhausted queue: routing to IntegrateIntoSpec with accumulated answers',
         payload: {
           queueIndex,
           queueSize: queue.length,
           answersCount: stateData.normalizedAnswers.length,
+          hasStashedItems,
         },
       });
-      ctx.transition('IntegrateIntoSpec', stateData);
+
+      if (hasStashedItems) {
+        ctx.transition('IntegrateIntoSpec', {
+          ...stateData,
+          source: 'consistency-action-items-with-feedback',
+          actionableItems: stateData.stashedActionableItems,
+          stashedActionableItems: undefined,
+        });
+      } else {
+        ctx.transition('IntegrateIntoSpec', stateData);
+      }
     }
     return;
   }
@@ -437,22 +453,37 @@ export async function handleNumberedOptionsHumanRequest(
   }
 
   // SD-HRQ-004: Queue exhausted, not completion → IntegrateIntoSpec
+  const hasStashedItems =
+    stateData.stashedActionableItems !== undefined && stateData.stashedActionableItems.length > 0;
+
   const updatedStateData: SpecDocStateData = {
     ...stateData,
     queue: updatedQueue,
     queueIndex: nextIndex,
     normalizedAnswers: updatedAnswers,
     deferredQuestionIds: remainingDeferredQuestionIds,
+    ...(hasStashedItems ? { stashedActionableItems: undefined } : {}),
   };
 
   ctx.log({
     level: 'info',
-    message: 'Queue exhausted without completion confirmation, routing to IntegrateIntoSpec',
+    message: hasStashedItems
+      ? 'Queue exhausted, routing to IntegrateIntoSpec with stashed actionable items and accumulated answers'
+      : 'Queue exhausted without completion confirmation, routing to IntegrateIntoSpec',
     payload: {
       answersCount: updatedAnswers.length,
       queueSize: updatedQueue.length,
+      hasStashedItems,
     },
   });
 
-  ctx.transition('IntegrateIntoSpec', updatedStateData);
+  if (hasStashedItems) {
+    ctx.transition('IntegrateIntoSpec', {
+      ...updatedStateData,
+      source: 'consistency-action-items-with-feedback',
+      actionableItems: stateData.stashedActionableItems,
+    });
+  } else {
+    ctx.transition('IntegrateIntoSpec', updatedStateData);
+  }
 }

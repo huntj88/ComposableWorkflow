@@ -117,6 +117,11 @@ export type IntegrateIntoSpecInput =
       source: 'consistency-action-items';
       answers?: NormalizedAnswer[];
       actionableItems: SpecActionableItem[];
+    })
+  | (IntegrateIntoSpecBaseInput & {
+      source: 'consistency-action-items-with-feedback';
+      answers: NormalizedAnswer[];
+      actionableItems: SpecActionableItem[];
     });
 
 export type IntegrateIntoSpecSource = IntegrateIntoSpecInput['source'];

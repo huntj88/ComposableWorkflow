@@ -107,7 +107,7 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(1);
   });
 
-  it('prioritizes IntegrateIntoSpec for mixed final aggregates authored by PlanResolution and suppresses queue entry for that pass', async () => {
+  it('routes to NumberedOptionsHumanRequest with stashed actionable items for mixed final aggregates authored by PlanResolution (SD-QF-001)', async () => {
     const actionableItems = [
       makeActionableItem('act-mixed-route-001', {
         instruction: 'Apply the concrete contract fix before collecting more feedback.',
@@ -144,7 +144,7 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
 
     expect(result.failedError).toBeUndefined();
     expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
+    expect(result.transitions[0].to).toBe('NumberedOptionsHumanRequest');
     expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
     );
@@ -155,12 +155,10 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(planResolutionCalls[0].prompt).toContain('q-mixed-route-001');
 
     const nextData = result.transitions[0].data as SpecDocStateData & {
-      source: 'consistency-action-items';
-      actionableItems: typeof actionableItems;
+      stashedActionableItems: typeof actionableItems;
     };
-    expect(nextData.source).toBe('consistency-action-items');
-    expect(nextData.actionableItems).toEqual(actionableItems);
-    expect(nextData.queue).toEqual([]);
+    expect(nextData.stashedActionableItems).toEqual(actionableItems);
+    expect(nextData.queue.some((item) => item.questionId === 'q-mixed-route-001')).toBe(true);
     expect(nextData.queueIndex).toBe(0);
   });
 

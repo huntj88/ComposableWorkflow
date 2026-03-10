@@ -130,7 +130,23 @@ export async function handleLogicalConsistencyCheck(
     childWorkflowType: CONSISTENCY_FOLLOW_UP_CHILD_WORKFLOW_TYPE,
   });
 
-  if (output.actionableItems.length > 0) {
+  const hasActionableItems = output.actionableItems.length > 0;
+  const hasFollowUpQuestions = output.followUpQuestions.length > 0;
+
+  // SD-QF-001: Mixed aggregate → questions first, stash actionable items
+  if (hasFollowUpQuestions && hasActionableItems) {
+    const queue = buildQuestionQueue(output.followUpQuestions);
+    ctx.transition('NumberedOptionsHumanRequest', {
+      ...updatedStateData,
+      queue,
+      queueIndex: 0,
+      stashedActionableItems: output.actionableItems,
+    });
+    return;
+  }
+
+  // Actionable items only → immediate integration
+  if (hasActionableItems) {
     ctx.transition('IntegrateIntoSpec', {
       ...updatedStateData,
       queue: [],
@@ -141,6 +157,7 @@ export async function handleLogicalConsistencyCheck(
     return;
   }
 
+  // Follow-up questions only (or empty) → human request queue
   const queue = buildQuestionQueue(output.followUpQuestions);
   ctx.transition('NumberedOptionsHumanRequest', {
     ...updatedStateData,

@@ -14,9 +14,10 @@
       "enum": [
         "workflow-input",
         "numbered-options-feedback",
-        "consistency-action-items"
+        "consistency-action-items",
+        "consistency-action-items-with-feedback"
       ],
-      "description": "Identifies whether this integration pass is initialized from workflow input, exhausted numbered-options feedback, or delegated consistency-action-item directives."
+      "description": "Identifies whether this integration pass is initialized from workflow input, exhausted numbered-options feedback, delegated consistency-action-item directives, or mixed-aggregate action items with resolved human feedback."
     },
     "request": {
       "type": "string",
@@ -155,6 +156,24 @@
       "then": {
         "required": [
           "actionableItems"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "source": {
+            "const": "consistency-action-items-with-feedback"
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "then": {
+        "required": [
+          "actionableItems",
+          "answers"
         ]
       }
     }

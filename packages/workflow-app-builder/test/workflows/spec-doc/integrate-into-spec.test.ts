@@ -285,6 +285,83 @@ describe('SD-ACT consistency-action-items integration', () => {
 });
 
 // ---------------------------------------------------------------------------
+// SD-QF-007: consistency-action-items-with-feedback integration
+// ---------------------------------------------------------------------------
+
+describe('SD-QF consistency-action-items-with-feedback integration', () => {
+  it('accepts source: consistency-action-items-with-feedback and forwards both actionableItems and answers', async () => {
+    const actionableItems = makeActionableItems();
+    const answers = makeAnswers(2);
+    const payload: IntegrateIntoSpecTestPayload = {
+      ...createInitialStateData(),
+      source: 'consistency-action-items-with-feedback',
+      actionableItems,
+      normalizedAnswers: answers,
+      artifacts: { specPath: 'specs/prior-draft.md' },
+    };
+    const { ctx, launchChildSpy, transitionSpy, failSpy } = createMockContext();
+
+    await handleIntegrateIntoSpec(ctx, payload);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(launchChildSpy).toHaveBeenCalledTimes(1);
+    const childInput = launchChildSpy.mock.calls[0][0].input;
+    expect(childInput.prompt).toContain('consistency-action-items-with-feedback');
+    expect(childInput.prompt).toContain('specs/prior-draft.md');
+
+    // Verify both actionable items in order
+    const firstIndex = childInput.prompt.indexOf('act-2');
+    const secondIndex = childInput.prompt.indexOf('act-1');
+    expect(firstIndex).toBeGreaterThanOrEqual(0);
+    expect(secondIndex).toBeGreaterThan(firstIndex);
+
+    // Verify answers are forwarded
+    expect(childInput.prompt).toContain('q-1');
+    expect(childInput.prompt).toContain('q-2');
+
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails fast when consistency-action-items-with-feedback source is missing actionableItems', async () => {
+    const payload: IntegrateIntoSpecTestPayload = {
+      ...createInitialStateData(),
+      source: 'consistency-action-items-with-feedback',
+      normalizedAnswers: makeAnswers(1),
+      artifacts: { specPath: 'specs/prior-draft.md' },
+    };
+    const { ctx, failSpy, launchChildSpy, transitionSpy } = createMockContext();
+
+    await handleIntegrateIntoSpec(ctx, payload);
+
+    expect(failSpy).toHaveBeenCalledTimes(1);
+    expect(launchChildSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).not.toHaveBeenCalled();
+    const error = failSpy.mock.calls[0][0] as Error;
+    expect(error.message).toContain('Missing actionableItems');
+    expect(error.message).toContain('consistency-action-items-with-feedback');
+  });
+
+  it('includes empty answers when no normalized answers exist for combined source', async () => {
+    const actionableItems = makeActionableItems();
+    const payload: IntegrateIntoSpecTestPayload = {
+      ...createInitialStateData(),
+      source: 'consistency-action-items-with-feedback',
+      actionableItems,
+      artifacts: { specPath: 'specs/prior-draft.md' },
+    };
+    const { ctx, launchChildSpy, failSpy } = createMockContext();
+
+    await handleIntegrateIntoSpec(ctx, payload);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    const childInput = launchChildSpy.mock.calls[0][0].input;
+    expect(childInput.prompt).toContain('consistency-action-items-with-feedback');
+    // Even with empty normalizedAnswers, the answers field should be present
+    expect(childInput.prompt).toContain('answers: []');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // SD-INT-003-SpecPathCarryForward
 // ---------------------------------------------------------------------------
 

@@ -116,6 +116,7 @@ describe('GS-SD-004: Immediate-action child result completes full sweep before r
       });
 
       feedbackController.reset({
+        'q-gs-004-retained-001': [{ selectedOptionIds: [1] }],
         [COMPLETION_CONFIRMATION_QUESTION_ID]: [{ selectedOptionIds: [1] }],
       });
 
@@ -140,28 +141,31 @@ describe('GS-SD-004: Immediate-action child result completes full sweep before r
       expect(fsmResult.completedOutput?.artifacts.integrationPasses).toBe(2);
       expect(fsmResult.completedOutput?.artifacts.consistencyCheckPasses).toBe(2);
 
+      // SDB-25: Mixed aggregate now routes questions-first:
+      // IntegrateIntoSpec → Consistency → NumberedOptionsHumanRequest (resolve questions)
+      // → IntegrateIntoSpec (combined source) → Consistency → NumberedOptions (completion) → Done
       expect(fsmResult.stateHistory.map(({ state }) => state)).toEqual([
         'start',
         'IntegrateIntoSpec',
         'LogicalConsistencyCheckCreateFollowUpQuestions',
+        'NumberedOptionsHumanRequest',
         'IntegrateIntoSpec',
         'LogicalConsistencyCheckCreateFollowUpQuestions',
         'NumberedOptionsHumanRequest',
         'Done',
       ]);
 
-      const reintegrationEntry = fsmResult.stateHistory[3];
+      // The re-integration now uses consistency-action-items-with-feedback
+      const reintegrationEntry = fsmResult.stateHistory[4];
       expect(reintegrationEntry.state).toBe('IntegrateIntoSpec');
       expect(
         reintegrationEntry.data as {
           source: string;
           actionableItems: typeof actionableItems;
-          queue: unknown[];
         },
       ).toMatchObject({
-        source: 'consistency-action-items',
+        source: 'consistency-action-items-with-feedback',
         actionableItems,
-        queue: [],
       });
 
       const stageDelegations = obsSink
@@ -196,9 +200,14 @@ describe('GS-SD-004: Immediate-action child result completes full sweep before r
       expect(planResolutionCalls[0].prompt).toContain('act-gs-004-002');
       expect(planResolutionCalls[0].prompt).toContain('q-gs-004-retained-001');
 
-      expect(feedbackController.calls).toHaveLength(1);
-      expect(feedbackController.calls[0].questionId).toBe(COMPLETION_CONFIRMATION_QUESTION_ID);
+      // SDB-25: questions-first routing means 2 feedback calls:
+      // 1. the follow-up question from the mixed aggregate
+      // 2. the completion-confirmation after all passes
+      expect(feedbackController.calls).toHaveLength(2);
+      expect(feedbackController.calls[0].questionId).toBe('q-gs-004-retained-001');
       expect(feedbackController.calls[0].calledAt).toBeDefined();
+      expect(feedbackController.calls[1].questionId).toBe(COMPLETION_CONFIRMATION_QUESTION_ID);
+      expect(feedbackController.calls[1].calledAt).toBeDefined();
     },
   );
 });

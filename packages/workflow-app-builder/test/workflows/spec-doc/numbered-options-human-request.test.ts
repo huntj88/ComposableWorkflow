@@ -6,6 +6,7 @@ import type {
   NormalizedAnswer,
   NumberedQuestionOption,
   QuestionQueueItem,
+  SpecActionableItem,
   SpecDocGenerationInput,
   SpecDocGenerationOutput,
 } from '../../../src/workflows/spec-doc/contracts.js';
@@ -1125,6 +1126,162 @@ describe('B-SD-TRANS-012-ExhaustedQueueReEntry', () => {
 
     // Last answer selected option 2 → IntegrateIntoSpec, not Done
     expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', stateData);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SD-QF: Stash-aware queue-exhaustion routing
+// ---------------------------------------------------------------------------
+
+function makeStashedActionableItems(): SpecActionableItem[] {
+  return [
+    {
+      itemId: 'act-stash-1',
+      instruction: 'Add explicit error handling contract.',
+      rationale: 'Error handling is ambiguous in the spec draft.',
+      blockingIssueIds: ['issue-err-1'],
+    },
+    {
+      itemId: 'act-stash-2',
+      instruction: 'Clarify API response schema.',
+      rationale: 'Response fields are underspecified.',
+      targetSection: 'Interfaces',
+      blockingIssueIds: ['issue-api-1'],
+    },
+  ];
+}
+
+describe('SD-QF-StashAwareQueueExhaustion', () => {
+  it('uses source "consistency-action-items-with-feedback" when stashed items exist on queue exhaustion', async () => {
+    const stashedItems = makeStashedActionableItems();
+    const stateData = stateDataWithQueue([makeQueueItem('q-1')], {
+      normalizedAnswers: [],
+      stashedActionableItems: stashedItems,
+    });
+
+    const { ctx, transitionSpy, failSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-1', selectedOptionIds: [1] },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith(
+      'IntegrateIntoSpec',
+      expect.objectContaining({
+        source: 'consistency-action-items-with-feedback',
+        actionableItems: stashedItems,
+      }),
+    );
+  });
+
+  it('uses source "numbered-options-feedback" (implicit) when no stashed items on queue exhaustion', async () => {
+    const stateData = stateDataWithQueue([makeQueueItem('q-1')]);
+
+    const { ctx, transitionSpy, failSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-1', selectedOptionIds: [1] },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', expect.any(Object));
+    // Should NOT include stash-aware source overrides
+    const transitionData = transitionSpy.mock.calls[0][1] as Record<string, unknown>;
+    expect(transitionData.source).toBeUndefined();
+    expect(transitionData.actionableItems).toBeUndefined();
+  });
+
+  it('clears stashedActionableItems from state data after delivery to IntegrateIntoSpec', async () => {
+    const stashedItems = makeStashedActionableItems();
+    const stateData = stateDataWithQueue([makeQueueItem('q-1')], {
+      normalizedAnswers: [],
+      stashedActionableItems: stashedItems,
+    });
+
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-1', selectedOptionIds: [1] },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    const transitionData = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(transitionData.stashedActionableItems).toBeUndefined();
+  });
+
+  it('re-entry with exhausted queue uses "consistency-action-items-with-feedback" when stashed items exist', async () => {
+    const stashedItems = makeStashedActionableItems();
+    const stateData = stateDataWithQueue([makeQueueItem('q-1', { answered: true })], {
+      queueIndex: 1,
+      normalizedAnswers: [createNormalizedAnswer('q-1', [2], '2026-03-03T12:00:00Z')],
+      stashedActionableItems: stashedItems,
+    });
+
+    const { ctx, transitionSpy, failSpy, launchChildSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(launchChildSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith(
+      'IntegrateIntoSpec',
+      expect.objectContaining({
+        source: 'consistency-action-items-with-feedback',
+        actionableItems: stashedItems,
+        stashedActionableItems: undefined,
+      }),
+    );
+  });
+
+  it('re-entry with exhausted queue uses implicit source when no stashed items exist', async () => {
+    const stateData = stateDataWithQueue([makeQueueItem('q-1', { answered: true })], {
+      queueIndex: 1,
+      normalizedAnswers: [createNormalizedAnswer('q-1', [2], '2026-03-03T12:00:00Z')],
+    });
+
+    const { ctx, transitionSpy } = createMockContext();
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    expect(transitionSpy).toHaveBeenCalledWith('IntegrateIntoSpec', stateData);
+    const transitionData = transitionSpy.mock.calls[0][1] as Record<string, unknown>;
+    expect(transitionData.source).toBeUndefined();
+  });
+
+  it('preserves stashed actionable items unchanged during question processing', async () => {
+    const stashedItems = makeStashedActionableItems();
+    const stateData = stateDataWithQueue([makeQueueItem('q-1'), makeQueueItem('q-2')], {
+      stashedActionableItems: stashedItems,
+    });
+
+    const { ctx, transitionSpy } = createMockContext({
+      childOutput: {
+        status: 'responded',
+        response: { questionId: 'q-1', selectedOptionIds: [1] },
+      },
+    });
+
+    await handleNumberedOptionsHumanRequest(ctx, stateData);
+
+    // Should self-loop with stashed items still present
+    expect(transitionSpy).toHaveBeenCalledWith(
+      'NumberedOptionsHumanRequest',
+      expect.objectContaining({
+        stashedActionableItems: stashedItems,
+      }),
+    );
   });
 });
 

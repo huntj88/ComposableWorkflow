@@ -52,7 +52,8 @@ function resolveIntegrationSource(
   if (
     explicitSource === 'workflow-input' ||
     explicitSource === 'numbered-options-feedback' ||
-    explicitSource === 'consistency-action-items'
+    explicitSource === 'consistency-action-items' ||
+    explicitSource === 'consistency-action-items-with-feedback'
   ) {
     return explicitSource;
   }
@@ -100,6 +101,24 @@ function buildIntegrateIntoSpecInput(
       ...baseInput,
       source,
       actionableItems,
+    };
+  }
+
+  if (source === 'consistency-action-items-with-feedback') {
+    const actionableItems = (payload as IntegrateIntoSpecStateOverrides | undefined)
+      ?.actionableItems;
+
+    if (!Array.isArray(actionableItems)) {
+      throw new Error(
+        `[${INTEGRATE_INTO_SPEC_STATE}] Missing actionableItems for source "consistency-action-items-with-feedback"`,
+      );
+    }
+
+    return {
+      ...baseInput,
+      source,
+      actionableItems,
+      answers: stateData.normalizedAnswers,
     };
   }
 

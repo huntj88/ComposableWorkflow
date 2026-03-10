@@ -183,7 +183,7 @@ describe('handleLogicalConsistencyCheck', () => {
     );
   });
 
-  it('routes to IntegrateIntoSpec and suppresses queue construction for mixed aggregates', async () => {
+  it('routes to NumberedOptionsHumanRequest with stashed actionable items for mixed aggregates', async () => {
     const mixedOutput = validConsistencyOutput({
       actionableItems: [makeActionableItem()],
       followUpQuestions: [makeFollowUpQuestion('q-mixed-1')],
@@ -194,14 +194,38 @@ describe('handleLogicalConsistencyCheck', () => {
 
     expect(failSpy).not.toHaveBeenCalled();
     expect(transitionSpy).toHaveBeenCalledWith(
+      'NumberedOptionsHumanRequest',
+      expect.objectContaining({
+        stashedActionableItems: [makeActionableItem()],
+      }),
+    );
+    // Verify queue was built from follow-up questions (sorted + completion-confirmation)
+    const transitionData = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(transitionData.queue.length).toBeGreaterThan(0);
+    expect(transitionData.queue.some((item) => item.questionId === 'q-mixed-1')).toBe(true);
+  });
+
+  it('routes to IntegrateIntoSpec for actionable-items-only (no follow-up questions)', async () => {
+    const { ctx, transitionSpy, failSpy } = createMockContext({
+      childOutput: validConsistencyOutput({
+        actionableItems: [makeActionableItem()],
+        followUpQuestions: [],
+      }),
+    });
+
+    await handleLogicalConsistencyCheck(ctx, stateDataWithIntegrationOutput());
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledWith(
       'IntegrateIntoSpec',
       expect.objectContaining({
         source: 'consistency-action-items',
         actionableItems: [makeActionableItem()],
-        queue: [],
-        queueIndex: 0,
       }),
     );
+    // Should NOT have stashedActionableItems
+    const transitionData = transitionSpy.mock.calls[0][1] as Record<string, unknown>;
+    expect(transitionData.stashedActionableItems).toBeUndefined();
   });
 
   it('routes to NumberedOptionsHumanRequest with sorted follow-up questions', async () => {

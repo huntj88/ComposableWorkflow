@@ -15,19 +15,19 @@ Replace the parent routing rule that prioritized `IntegrateIntoSpec` for mixed a
 Routing mixed aggregates directly to `IntegrateIntoSpec` discarded human-decision questions that the child explicitly surfaced. The questions-first model resolves all human decisions before integration, producing higher-quality spec edits because the integration pass has both the actionable edit directives and the resolved human decisions in a single operation.
 
 ## Implementation Tasks
-- [ ] Add `"consistency-action-items-with-feedback"` to the `IntegrateIntoSpecInput.source` union type in `contracts.ts`.
-- [ ] Add `stashedActionableItems` field to `SpecDocWorkflowStateData` for persisting actionable items across `NumberedOptionsHumanRequest` processing.
-- [ ] Update parent routing in `logical-consistency-check.ts`: when aggregate `followUpQuestions` is non-empty and `actionableItems` is also non-empty, stash `actionableItems` in workflow state and transition to `NumberedOptionsHumanRequest`.
-- [ ] Update queue-exhaustion routing in `numbered-options-human-request.ts`: when stashed actionable items exist, transition to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`, including both stashed items and collected answers.
-- [ ] Update re-entry with exhausted queue in `numbered-options-human-request.ts`: apply the same stash-aware source logic.
-- [ ] Add `source: "consistency-action-items-with-feedback"` handling to `integrate-into-spec.ts`: accept both `actionableItems` and `answers` together, apply actionable items as ordered edit directives while integrating answer-provided context.
-- [ ] Update `spec-integration-input.schema.json`: add new source to enum, express conditional requirements (`answers` and `actionableItems` both required when source is `consistency-action-items-with-feedback`).
-- [ ] Update prompt template interpolation variable comment for `{{actionableItemsJson}}` to include both source types (already done in spec doc).
-- [ ] Clear `stashedActionableItems` from workflow state after delivery to `IntegrateIntoSpec`.
-- [ ] Add unit tests for mixed-aggregate parent routing in `logical-consistency-check.test.ts`.
-- [ ] Add unit tests for stash-aware queue-exhaustion routing in `numbered-options-human-request.test.ts`.
-- [ ] Add unit tests for combined source mode in `integrate-into-spec.test.ts`.
-- [ ] Update `PlanResolution` prompt rule 5 in `spec-doc.consistency-resolution.v1` template: replace "some work can proceed immediately" with guidance that the parent resolves human questions first and then applies both actionable items and answered decisions together in a single integration pass.
+- [x] Add `"consistency-action-items-with-feedback"` to the `IntegrateIntoSpecInput.source` union type in `contracts.ts`.
+- [x] Add `stashedActionableItems` field to `SpecDocWorkflowStateData` for persisting actionable items across `NumberedOptionsHumanRequest` processing.
+- [x] Update parent routing in `logical-consistency-check.ts`: when aggregate `followUpQuestions` is non-empty and `actionableItems` is also non-empty, stash `actionableItems` in workflow state and transition to `NumberedOptionsHumanRequest`.
+- [x] Update queue-exhaustion routing in `numbered-options-human-request.ts`: when stashed actionable items exist, transition to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`, including both stashed items and collected answers.
+- [x] Update re-entry with exhausted queue in `numbered-options-human-request.ts`: apply the same stash-aware source logic.
+- [x] Add `source: "consistency-action-items-with-feedback"` handling to `integrate-into-spec.ts`: accept both `actionableItems` and `answers` together, apply actionable items as ordered edit directives while integrating answer-provided context.
+- [x] Update `spec-integration-input.schema.json`: add new source to enum, express conditional requirements (`answers` and `actionableItems` both required when source is `consistency-action-items-with-feedback`).
+- [x] Update prompt template interpolation variable comment for `{{actionableItemsJson}}` to include both source types (already done in spec doc).
+- [x] Clear `stashedActionableItems` from workflow state after delivery to `IntegrateIntoSpec`.
+- [x] Add unit tests for mixed-aggregate parent routing in `logical-consistency-check.test.ts`.
+- [x] Add unit tests for stash-aware queue-exhaustion routing in `numbered-options-human-request.test.ts`.
+- [x] Add unit tests for combined source mode in `integrate-into-spec.test.ts`.
+- [x] Update `PlanResolution` prompt rule 5 in `spec-doc.consistency-resolution.v1` template: replace "some work can proceed immediately" with guidance that the parent resolves human questions first and then applies both actionable items and answered decisions together in a single integration pass.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/contracts.ts`

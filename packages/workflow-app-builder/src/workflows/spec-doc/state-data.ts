@@ -11,6 +11,7 @@ import type {
   ClarificationQuestionIntent,
   NormalizedAnswer,
   QuestionQueueItem,
+  SpecActionableItem,
   SpecIntegrationOutput,
 } from './contracts.js';
 
@@ -141,6 +142,13 @@ export interface SpecDocStateData {
    * `ExpandQuestionWithClarification`. Cleared after consumption.
    */
   pendingClarification?: PendingClarification;
+  /**
+   * Stashed actionable items from a mixed-aggregate consistency check.
+   * Persisted across `NumberedOptionsHumanRequest` processing and delivered
+   * to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`
+   * after queue exhaustion. Cleared after delivery.
+   */
+  stashedActionableItems?: SpecActionableItem[];
 }
 
 // ---------------------------------------------------------------------------

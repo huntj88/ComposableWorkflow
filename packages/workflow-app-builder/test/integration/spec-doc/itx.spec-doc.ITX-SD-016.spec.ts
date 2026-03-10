@@ -129,14 +129,14 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
 
     expect(result.failedError).toBeUndefined();
     expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
+    expect(result.transitions[0].to).toBe('NumberedOptionsHumanRequest');
 
     const nextData = result.transitions[0].data as SpecDocStateData & {
-      source: 'consistency-action-items';
-      actionableItems: typeof actionableItems;
+      stashedActionableItems: typeof actionableItems;
     };
-    expect(nextData.source).toBe('consistency-action-items');
-    expect(nextData.actionableItems).toEqual(actionableItems);
+    expect(nextData.stashedActionableItems).toEqual(actionableItems);
+    expect(nextData.queue.some((item) => item.questionId === 'q-late-001')).toBe(true);
+    expect(nextData.queue.some((item) => item.questionId === 'q-late-002')).toBe(true);
     expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
     );
@@ -295,18 +295,17 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
 
     expect(result.failedError).toBeUndefined();
     expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].to).toBe('IntegrateIntoSpec');
+    expect(result.transitions[0].to).toBe('NumberedOptionsHumanRequest');
     expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
       CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
     );
 
     const nextData = result.transitions[0].data as SpecDocStateData & {
-      source: 'consistency-action-items';
-      actionableItems: typeof actionableItems;
+      stashedActionableItems: typeof actionableItems;
     };
-    expect(nextData.source).toBe('consistency-action-items');
-    expect(nextData.actionableItems).toEqual(actionableItems);
-    expect(nextData.queue).toEqual([]);
+    expect(nextData.stashedActionableItems).toEqual(actionableItems);
+    expect(nextData.queue.some((item) => item.questionId === 'q-mixed-aggregate-001')).toBe(true);
+    expect(nextData.queue.some((item) => item.questionId === 'q-mixed-aggregate-002')).toBe(true);
 
     const planResolutionCalls = copilotDouble.callsByState('PlanResolution');
     expect(planResolutionCalls).toHaveLength(1);
