@@ -223,7 +223,7 @@ Done : terminal\nstatus=completed
    - Merge latest human answer(s) or immediate action item(s) into the working spec draft.
    - Initial pass integrates `SpecDocGenerationInput` from workflow start (no dedicated feedback start state).
    - Subsequent passes integrate accumulated normalized numbered-options responses after queue exhaustion or child-generated actionable items from consistency/follow-up analysis.
-   - Preserve prior accepted decisions unless explicitly overridden.
+   - Prior accepted decisions are preserved unless explicitly overridden (validated by consistency-check stages).
 
 2. `LogicalConsistencyCheckCreateFollowUpQuestions`
    - Parent orchestration state only; it does not directly author follow-up questions.
@@ -545,7 +545,6 @@ Usage:
 
 Required runtime interpolation variables:
 - `{{request}}`
-- `{{source}}` (`workflow-input`, `numbered-options-feedback`, `consistency-action-items`, or `consistency-action-items-with-feedback`)
 - `{{targetPath}}` (optional)
 - `{{constraintsJson}}` (JSON array)
 - `{{specPath}}` (optional existing draft path)
@@ -558,14 +557,10 @@ Prompt text:
 You are generating and maintaining an implementation-ready software specification markdown document.
 
 Directives:
-1) Preserve prior accepted decisions unless explicitly overridden by newer answers.
-2) Integrate all provided constraints ({{constraintsJson}}), normalized numbered-options answers ({{answersJson}}), and immediate actionable items ({{actionableItemsJson}}).
-3) Keep the spec concrete, testable, and implementation-ready — no vague statements or unresolved contradictions.
-4) Ensure sections exist for: objective/scope, non-goals, constraints/assumptions, interfaces/contracts, acceptance criteria.
-5) Acceptance criteria must be testable and unambiguous; include enough detail to implement without ambiguity.
-6) When actionableItems are present (source: {{source}}), treat them as ordered concrete edit directives for the current pass.
-7) Write or update the markdown file at {{targetPath}} using existing spec at {{specPath}} when present.
-8) The target file may have uncommitted changes from prior workflow passes. This is expected — always apply your edits regardless of working-tree or git state. Never skip edits because of uncommitted changes.
+1) Integrate all provided constraints ({{constraintsJson}}), normalized numbered-options answers ({{answersJson}}), and immediate actionable items ({{actionableItemsJson}}).
+2) Ensure sections exist for: objective/scope, non-goals, constraints/assumptions, interfaces/contracts, acceptance criteria.
+3) Write or update the markdown file at {{targetPath}} using existing spec at {{specPath}} when present.
+4) The target file may have uncommitted changes from prior workflow passes. This is expected — always apply your edits regardless of working-tree or git state. Never skip edits because of uncommitted changes.
 
 Request: {{request}}.
 ```
@@ -683,7 +678,7 @@ Rules:
 2) Return the final aggregate child result using only `blockingIssues`, `actionableItems`, `followUpQuestions`, and `readinessChecklist`.
 3) Keep `actionableItems` ordered and limited to concrete edits that can be integrated without another human decision.
 4) Keep `followUpQuestions` ordered and limited to decisions that still require human input after considering the full sweep.
-5) It is valid for the final aggregate to include both non-empty `actionableItems` and non-empty `followUpQuestions`. When this occurs, the parent resolves all human questions first via `NumberedOptionsHumanRequest`, then delivers both the stashed actionable items and collected answers together to `IntegrateIntoSpec` in a single integration pass.
+5) It is valid for the final aggregate to include both non-empty `actionableItems` and non-empty `followUpQuestions`.
 6) Use the coverage data to avoid redundant questions or edits when multiple stages surface the same underlying issue.
 7) If no new integration work or human question remains, return empty `actionableItems` and empty `followUpQuestions`.
 8) Every followUpQuestion option MUST include a `description` field containing both a `Pros:` section and a `Cons:` section analysing that option's trade-offs.
@@ -745,7 +740,7 @@ Rules:
 3) Always return `researchOutcome` and `researchSummary`.
 4) If research resolves the question without remaining ambiguity, set `researchOutcome = resolved-with-research` and omit `followUpQuestion`.
 5) If research finds a remaining decision or ambiguity that requires human input, set `researchOutcome = needs-follow-up-question` and create exactly one deterministic numbered `followUpQuestion` grounded in the research findings.
-6) Any generated question should minimize ambiguity, be based on the research, and be suitable for asking next while the skipped source question is revisited later.
+6) Any generated question should minimize ambiguity and be grounded in the research findings.
 7) Every followUpQuestion option MUST include a `description` field containing both a `Pros:` section and a `Cons:` section analysing that option's trade-offs.
 
 ```

@@ -186,7 +186,8 @@ describe('delegateToCopilot - child workflow invocation', () => {
 
     const childInput: CopilotAppBuilderInput = launchChildSpy.mock.calls[0][0].input;
     expect(childInput.prompt).toContain('Build a TODO app');
-    expect(childInput.prompt).toContain('workflow-input');
+    // source is passed as an interpolation variable but {{source}} is no longer
+    // in the template body (SDB-30), so it does not appear in the prompt.
     expect(childInput.prompt).toContain('["React"]');
   });
 

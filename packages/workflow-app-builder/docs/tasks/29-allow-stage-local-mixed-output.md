@@ -10,13 +10,13 @@ Remove the mutual exclusivity constraint between `actionableItems` and `followUp
 The previous constraint forced each scoped prompt layer to classify every surfaced gap as exclusively actionable or exclusively requiring human input. In practice a single stage's concern area may contain some gaps that are immediately fixable (actionable items) alongside other gaps that require a human decision (follow-up questions). Splitting the output into one array or the other either discarded a valid finding or forced an artificial re-run to surface the remaining category. Removing the constraint allows the model to report all discovered gaps in a single pass, reducing unnecessary re-execution and improving coverage accuracy.
 
 ## Implementation Tasks
-- [ ] **`consistency-follow-up-child.ts`**: Remove the mutual-exclusivity check from `validateConsistencyStageOutputContract`. The function should no longer push `'actionableItems and followUpQuestions must be mutually exclusive'` when both arrays are non-empty.
-- [ ] **`prompt-templates.ts`**: Update `createScopedConsistencyBody` stage rules to replace the mutual-exclusivity instruction with guidance that both arrays may be emitted for different gaps. Specifically:
+- [x] **`consistency-follow-up-child.ts`**: Remove the mutual-exclusivity check from `validateConsistencyStageOutputContract`. The function should no longer push `'actionableItems and followUpQuestions must be mutually exclusive'` when both arrays are non-empty.
+- [x] **`prompt-templates.ts`**: Update `createScopedConsistencyBody` stage rules to replace the mutual-exclusivity instruction with guidance that both arrays may be emitted for different gaps. Specifically:
   - Remove: `\`actionableItems\` and \`followUpQuestions\` are mutually exclusive per stage: if one is non-empty, the other must be empty.`
   - Replace with: `A stage may emit both \`actionableItems\` and \`followUpQuestions\` when they address different gaps. Each item must clearly address a distinct finding.`
-- [ ] **`consistency-follow-up-child.test.ts`**: Replace the test `'rejects mixed actionable and follow-up output within one stage'` with a test that verifies mixed stage output is accepted without violations. Add a test confirming both arrays from a single stage are collected into the full-sweep coverage aggregate.
-- [ ] **`logical-consistency-check.test.ts`**: Verify that stage-local mixed output no longer triggers a child failure and that both arrays flow through to `PlanResolution`.
-- [ ] **Integration test `itx.spec-doc.ITX-SD-016.spec.ts`**: Update the mixed-stage-output test case from expecting a failure to expecting acceptance. Verify both arrays are aggregated and reach `PlanResolution`.
+- [x] **`consistency-follow-up-child.test.ts`**: Replace the test `'rejects mixed actionable and follow-up output within one stage'` with a test that verifies mixed stage output is accepted without violations. Add a test confirming both arrays from a single stage are collected into the full-sweep coverage aggregate.
+- [x] **`logical-consistency-check.test.ts`**: Verify that stage-local mixed output no longer triggers a child failure and that both arrays flow through to `PlanResolution`.
+- [x] **Integration test `itx.spec-doc.ITX-SD-016.spec.ts`**: Update the mixed-stage-output test case from expecting a failure to expecting acceptance. Verify both arrays are aggregated and reach `PlanResolution`.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/consistency-follow-up-child.ts`

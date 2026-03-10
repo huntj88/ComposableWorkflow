@@ -55,8 +55,7 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
     const call = copilotDouble.calls[0];
     expect(call).toBeDefined();
 
-    // The prompt should contain source: workflow-input
-    expect(call.prompt).toContain('workflow-input');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     // First pass has empty answers
     expect(call.prompt).toContain('[]');
     // Request is from workflow input
@@ -105,8 +104,7 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
     const call = copilotDouble.calls[0];
     expect(call).toBeDefined();
 
-    // Second pass should contain numbered-options-feedback source
-    expect(call.prompt).toContain('numbered-options-feedback');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     // Should contain the existing specPath
     expect(call.prompt).toContain('docs/generated-spec.md');
     // Should contain serialized answers
@@ -262,7 +260,7 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
 
     const call = copilotDouble.calls[0];
     expect(call).toBeDefined();
-    expect(call.prompt).toContain('consistency-action-items');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     expect(call.prompt).toContain('docs/generated-spec.md');
     expect(call.prompt).toContain(JSON.stringify(actionableItems));
 
@@ -329,8 +327,8 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
     const call = copilotDouble.calls[0];
     expect(call).toBeDefined();
 
-    // Should contain the correct source
-    expect(call.prompt).toContain('consistency-action-items-with-feedback');
+    // Should contain the correct source in observability, not in the prompt
+    // (SDB-30 removed {{source}} from template)
     // Should contain the existing specPath
     expect(call.prompt).toContain('docs/generated-spec.md');
     // Should contain both actionable items in order

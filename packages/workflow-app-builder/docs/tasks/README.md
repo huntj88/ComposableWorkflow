@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27` -> `SDB-28` -> `SDB-29`).
+1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27` -> `SDB-28` -> `SDB-29` -> `SDB-30`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -51,6 +51,7 @@ This folder contains the ordered implementation plan for:
 - `SDB-27` -> `SDB-24`, `SDB-25`
 - `SDB-28` -> `SDB-27`
 - `SDB-29` -> `SDB-28`
+- `SDB-30` -> `SDB-27`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
@@ -98,6 +99,7 @@ Delegated-child evolution chain:
 - `SDB-27` [27-prompt-template-trimming.md](./27-prompt-template-trimming.md) — reduce prompt token cost by removing schema-redundant and echo text
 - `SDB-28` [28-schema-level-pros-cons-enforcement.md](./28-schema-level-pros-cons-enforcement.md) — move Pros/Cons description validation into JSON Schema pattern constraints for copilot-prompt retry
 - `SDB-29` [29-allow-stage-local-mixed-output.md](./29-allow-stage-local-mixed-output.md) — remove stage-local mutual exclusivity between actionableItems and followUpQuestions
+- `SDB-30` [30-integrate-prompt-directive-trimming.md](./30-integrate-prompt-directive-trimming.md) — remove redundant integrate-prompt directives validated by consistency stages
 
 ## Full Coverage Ownership
 

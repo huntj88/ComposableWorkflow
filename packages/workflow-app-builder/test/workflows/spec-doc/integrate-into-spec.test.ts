@@ -140,10 +140,10 @@ describe('SD-INT-001-FirstPassSource', () => {
 
     await handleIntegrateIntoSpec(ctx, stateData);
 
-    // launchChild was called with proper prompt containing source: workflow-input
+    // launchChild was called with proper prompt containing base request fields
     expect(launchChildSpy).toHaveBeenCalledTimes(1);
     const childInput = launchChildSpy.mock.calls[0][0].input;
-    expect(childInput.prompt).toContain('workflow-input');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     expect(childInput.prompt).toContain('Build a TODO app');
     expect(childInput.prompt).toContain('specs/todo.md');
 
@@ -182,7 +182,8 @@ describe('SD-INT-001-FirstPassSource', () => {
 
     expect(launchChildSpy).toHaveBeenCalledTimes(1);
     const childInput = launchChildSpy.mock.calls[0][0].input;
-    expect(childInput.prompt).toContain('workflow-input');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
+    expect(childInput.prompt).toContain('Build a TODO app');
     expect(transitionSpy).toHaveBeenCalledTimes(1);
   });
 });
@@ -201,7 +202,7 @@ describe('SD-INT-002-FeedbackPassSource', () => {
 
     expect(launchChildSpy).toHaveBeenCalledTimes(1);
     const childInput = launchChildSpy.mock.calls[0][0].input;
-    expect(childInput.prompt).toContain('numbered-options-feedback');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     expect(childInput.prompt).toContain('q-1');
     expect(childInput.prompt).toContain('q-2');
 
@@ -239,10 +240,10 @@ describe('SD-ACT consistency-action-items integration', () => {
 
     expect(launchChildSpy).toHaveBeenCalledTimes(1);
     const childInput = launchChildSpy.mock.calls[0][0].input;
-    expect(childInput.prompt).toContain('consistency-action-items');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     expect(childInput.prompt).toContain('specs/prior-draft.md');
-    expect(childInput.prompt).toContain('actionable items (');
 
+    // Actionable items are serialised via {{actionableItemsJson}}
     const firstIndex = childInput.prompt.indexOf('act-2');
     const secondIndex = childInput.prompt.indexOf('act-1');
     expect(firstIndex).toBeGreaterThanOrEqual(0);
@@ -306,7 +307,7 @@ describe('SD-QF consistency-action-items-with-feedback integration', () => {
     expect(failSpy).not.toHaveBeenCalled();
     expect(launchChildSpy).toHaveBeenCalledTimes(1);
     const childInput = launchChildSpy.mock.calls[0][0].input;
-    expect(childInput.prompt).toContain('consistency-action-items-with-feedback');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     expect(childInput.prompt).toContain('specs/prior-draft.md');
 
     // Verify both actionable items in order
@@ -355,7 +356,7 @@ describe('SD-QF consistency-action-items-with-feedback integration', () => {
 
     expect(failSpy).not.toHaveBeenCalled();
     const childInput = launchChildSpy.mock.calls[0][0].input;
-    expect(childInput.prompt).toContain('consistency-action-items-with-feedback');
+    // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     // Even with empty normalizedAnswers, the answers field should be present
     expect(childInput.prompt).toContain('answers ([])');
   });

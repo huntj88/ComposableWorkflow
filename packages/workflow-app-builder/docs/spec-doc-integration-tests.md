@@ -202,7 +202,7 @@ A behavior is integration-primary when one or more is true:
 - Immediate-action pass: `source === "consistency-action-items"`, `actionableItems` are forwarded unchanged and in child-provided order, `followUpQuestions` was empty, and `specPath` references the prior draft.
 - Mixed-aggregate pass: `source === "consistency-action-items-with-feedback"`, `actionableItems` are the stashed items forwarded unchanged and in child-provided order, `answers` contains normalized records collected during `NumberedOptionsHumanRequest`, and `specPath` references the prior draft.
 - All normalized answer records include `questionId`, `selectedOptionIds`, optional `text`, `answeredAt`.
-- Prior decisions preserved unless explicitly overridden by newer answers.
+- Prior decisions preserved unless explicitly overridden by newer answers (validated by consistency-check stages, not the integrate prompt).
 
 **Related behaviors:** `B-SD-INPUT-001`, `B-SD-INPUT-002`, `B-SD-INPUT-003`, `B-SD-INPUT-004`, `B-SD-INPUT-005`, `B-SD-TRANS-006`.
 

@@ -450,6 +450,7 @@ Each behavior should validate all relevant dimensions:
 **When** `IntegrateIntoSpec` runs with new answers
 **Then** prior decisions remain unless explicitly overridden by newer answers
 **And** updated spec reflects cumulative accepted decisions
+**And** this invariant is validated by consistency-check stages (`consistency-scope-objective`, `consistency-contradictions-completeness`) rather than an integrate-prompt directive
 
 ---
 
