@@ -2,6 +2,9 @@
  * GS-SD-004: Immediate-action child result completes full sweep before returning to integration.
  *
  * Behaviors: GS-SD-004, B-SD-TRANS-003, B-SD-CHILD-001, B-SD-CHILD-001B, B-SD-CHILD-004, B-SD-OBS-003.
+ *
+ * Golden scenario coverage note: covers GS-SD-004 (immediate-action) flow.
+ * See also `gs.spec-doc.GS-SD-004A.spec.ts` for the mixed-aggregate questions-first variant (GS-SD-004A).
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';

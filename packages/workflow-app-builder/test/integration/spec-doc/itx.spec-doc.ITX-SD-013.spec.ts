@@ -1,7 +1,7 @@
 /**
  * ITX-SD-013: Delegated child routing variants from aggregate consistency results.
  *
- * Behaviors: B-SD-TRANS-003, B-SD-TRANS-011, B-SD-CHILD-001, B-SD-CHILD-001B, B-SD-CHILD-004.
+ * Behaviors: B-SD-TRANS-003, B-SD-TRANS-011, B-SD-CHILD-001, B-SD-CHILD-001B, B-SD-CHILD-004, B-SD-INPUT-005.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -10,6 +10,7 @@ import { CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS } from '../../../src/workflows/spec
 import type { SpecDocStateData } from '../../../src/workflows/spec-doc/state-data.js';
 import { COMPLETION_CONFIRMATION_QUESTION_ID } from '../../../src/workflows/spec-doc/queue.js';
 import { handleLogicalConsistencyCheck } from '../../../src/workflows/spec-doc/states/logical-consistency-check.js';
+import { handleNumberedOptionsHumanRequest } from '../../../src/workflows/spec-doc/states/numbered-options-human-request.js';
 import { createCopilotDouble, type CopilotDouble } from '../harness/spec-doc/copilot-double.js';
 import {
   createFeedbackController,
@@ -241,5 +242,90 @@ describe('ITX-SD-013: Delegated child routing variants', () => {
     expect(nextData.queueIndex).toBe(0);
     expect(nextData.counters.consistencyCheckPasses).toBe(2);
     expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(1);
+  });
+
+  it('routes mixed-aggregate through NumberedOptionsHumanRequest to IntegrateIntoSpec with combined source after queue exhaustion (B-SD-INPUT-005)', async () => {
+    const actionableItems = [
+      makeActionableItem('act-mixed-exhaust-001', {
+        instruction: 'Narrow scope boundary for the deployment workflow.',
+        blockingIssueIds: ['bi-mixed-exhaust-001'],
+      }),
+    ];
+
+    copilotDouble.reset({
+      ExecutePromptLayer: makeStageResponses([
+        makeConsistencyOutput({
+          followUpQuestions: [makeQuestionItem('q-mixed-exhaust-001')],
+        }),
+        makeConsistencyOutput({
+          actionableItems,
+        }),
+      ]),
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems,
+            followUpQuestions: [makeQuestionItem('q-mixed-exhaust-001')],
+          }),
+        ),
+      ],
+    });
+
+    feedbackController.reset({
+      'q-mixed-exhaust-001': [{ selectedOptionIds: [1] }],
+    });
+
+    const input = makeDefaultInput();
+    const stateData = makeStateDataAfterIntegration();
+    const { ctx: ctx1, result: result1 } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+      { executeConsistencyChild: true },
+    );
+
+    // Step 1: LogicalConsistencyCheck → NumberedOptionsHumanRequest with stash
+    await handleLogicalConsistencyCheck(ctx1, stateData);
+
+    expect(result1.failedError).toBeUndefined();
+    expect(result1.transitions).toHaveLength(1);
+    expect(result1.transitions[0].to).toBe('NumberedOptionsHumanRequest');
+
+    const afterConsistency = result1.transitions[0].data as SpecDocStateData & {
+      stashedActionableItems: typeof actionableItems;
+    };
+    expect(afterConsistency.stashedActionableItems).toEqual(actionableItems);
+    expect(afterConsistency.queue.some((item) => item.questionId === 'q-mixed-exhaust-001')).toBe(
+      true,
+    );
+
+    // Step 2: NumberedOptionsHumanRequest → answer question → queue exhaustion → IntegrateIntoSpec
+    const { ctx: ctx2, result: result2 } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+    );
+
+    await handleNumberedOptionsHumanRequest(ctx2, afterConsistency);
+
+    expect(result2.failedError).toBeUndefined();
+    expect(result2.transitions).toHaveLength(1);
+    expect(result2.transitions[0].to).toBe('IntegrateIntoSpec');
+
+    const afterExhaustion = result2.transitions[0].data as SpecDocStateData & {
+      source: string;
+      actionableItems: typeof actionableItems;
+    };
+    expect(afterExhaustion.source).toBe('consistency-action-items-with-feedback');
+    expect(afterExhaustion.actionableItems).toEqual(actionableItems);
+    // Stashed items should be cleared after delivery
+    expect(afterExhaustion.stashedActionableItems).toBeUndefined();
+    // The collected answer should be present
+    expect(afterExhaustion.normalizedAnswers.length).toBeGreaterThanOrEqual(1);
+    expect(
+      afterExhaustion.normalizedAnswers.some((a) => a.questionId === 'q-mixed-exhaust-001'),
+    ).toBe(true);
   });
 });

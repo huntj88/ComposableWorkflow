@@ -11,13 +11,13 @@ Align integration tests, golden scenarios, and behavior coverage to the question
 `SDB-25` changes the core parent routing for mixed aggregates, but its scope is limited to unit-level implementation and state-handler tests. Integration tests and golden-scenario parity suites must be updated to exercise the full end-to-end questions-first flow: child result → stash → `NumberedOptionsHumanRequest` → queue exhaustion → `IntegrateIntoSpec` with combined input.
 
 ## Implementation Tasks
-- [ ] Update `itx.spec-doc.ITX-SD-007.spec.ts`: add a mixed-aggregate pass to the multi-pass setup and assert `source === "consistency-action-items-with-feedback"` with both stashed `actionableItems` and collected `answers` in the constructed `IntegrateIntoSpecInput`.
-- [ ] Update `itx.spec-doc.ITX-SD-013.spec.ts`: add a mixed-aggregate child-result variant; assert transition is to `NumberedOptionsHumanRequest` with stashed items; assert post-queue-exhaustion transition to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`.
-- [ ] Update `itx.spec-doc.ITX-SD-016.spec.ts`: update mixed-aggregate assertion to reflect questions-first routing; assert stashed actionable items and `source: "consistency-action-items-with-feedback"` after queue exhaustion.
-- [ ] Implement harness parity test for `GS-SD-004A`: mixed-aggregate child result → `NumberedOptionsHumanRequest` → answer all questions → `IntegrateIntoSpec` with combined input.
-- [ ] Update shared coverage note in test suite to reference both `GS-SD-004` and `GS-SD-004A`.
-- [ ] Verify `B-SD-INPUT-005` is exercised by at least one integration-primary test (`ITX-SD-007` or `ITX-SD-013`).
-- [ ] Verify `GS-SD-004A` passes in both deterministic harness and (when available) black-box parity modes.
+- [x] Update `itx.spec-doc.ITX-SD-007.spec.ts`: add a mixed-aggregate pass to the multi-pass setup and assert `source === "consistency-action-items-with-feedback"` with both stashed `actionableItems` and collected `answers` in the constructed `IntegrateIntoSpecInput`.
+- [x] Update `itx.spec-doc.ITX-SD-013.spec.ts`: add a mixed-aggregate child-result variant; assert transition is to `NumberedOptionsHumanRequest` with stashed items; assert post-queue-exhaustion transition to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`.
+- [x] Update `itx.spec-doc.ITX-SD-016.spec.ts`: update mixed-aggregate assertion to reflect questions-first routing; assert stashed actionable items and `source: "consistency-action-items-with-feedback"` after queue exhaustion.
+- [x] Implement harness parity test for `GS-SD-004A`: mixed-aggregate child result → `NumberedOptionsHumanRequest` → answer all questions → `IntegrateIntoSpec` with combined input.
+- [x] Update shared coverage note in test suite to reference both `GS-SD-004` and `GS-SD-004A`.
+- [x] Verify `B-SD-INPUT-005` is exercised by at least one integration-primary test (`ITX-SD-007` or `ITX-SD-013`).
+- [x] Verify `GS-SD-004A` passes in both deterministic harness and (when available) black-box parity modes.
 
 ## Required Artifacts
 - `packages/workflow-app-builder/test/integration/spec-doc/itx.spec-doc.ITX-SD-007.spec.ts`

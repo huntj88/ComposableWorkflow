@@ -1,11 +1,11 @@
 /**
  * ITX-SD-007: IntegrateIntoSpec input normalization across passes.
  *
- * Behaviors: B-SD-INPUT-001, B-SD-INPUT-002, B-SD-INPUT-003, B-SD-TRANS-006.
+ * Behaviors: B-SD-INPUT-001, B-SD-INPUT-002, B-SD-INPUT-003, B-SD-INPUT-004, B-SD-INPUT-005, B-SD-TRANS-006.
  *
  * Validates that first-pass input uses source="workflow-input" and subsequent
  * passes use source="numbered-options-feedback" with normalized answers and
- * prior specPath.
+ * prior specPath. Also validates immediate-action and mixed-aggregate sources.
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
@@ -268,6 +268,81 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
 
     const firstIndex = call.prompt.indexOf('act-001');
     const secondIndex = call.prompt.indexOf('act-002');
+    expect(firstIndex).toBeGreaterThanOrEqual(0);
+    expect(secondIndex).toBeGreaterThan(firstIndex);
+  });
+
+  it('mixed-aggregate passes send source="consistency-action-items-with-feedback" with stashed items and collected answers (B-SD-INPUT-005)', async () => {
+    copilotDouble.reset({
+      IntegrateIntoSpec: [{ structuredOutput: makeIntegrationOutput() }],
+    });
+
+    const actionableItems = [
+      makeActionableItem('act-mixed-001', {
+        instruction: 'Tighten the scope to match target persona.',
+        blockingIssueIds: ['bi-mixed-001'],
+      }),
+      makeActionableItem('act-mixed-002', {
+        instruction: 'Add rollback-safety acceptance criteria.',
+        blockingIssueIds: ['bi-mixed-002'],
+      }),
+    ];
+
+    const answers = [
+      {
+        questionId: 'q-mixed-feedback-001',
+        selectedOptionIds: [2],
+        answeredAt: '2026-01-15T10:02:00.000Z',
+      },
+      {
+        questionId: 'q-mixed-feedback-002',
+        selectedOptionIds: [1],
+        text: 'Prefer the simpler approach',
+        answeredAt: '2026-01-15T10:03:00.000Z',
+      },
+    ];
+
+    const stateData: SpecDocStateData = {
+      ...createInitialStateData(),
+      normalizedAnswers: answers,
+      counters: {
+        integrationPasses: 1,
+        consistencyCheckPasses: 1,
+      },
+      artifacts: {
+        specPath: 'docs/generated-spec.md',
+        lastIntegrationOutput: makeIntegrationOutput({ specPath: 'docs/generated-spec.md' }),
+      },
+    };
+
+    const input = makeDefaultInput();
+    const { ctx, result } = createMockContext(input, copilotDouble, feedbackController, obsSink);
+
+    await handleIntegrateIntoSpec(ctx, {
+      ...stateData,
+      source: 'consistency-action-items-with-feedback' as const,
+      actionableItems,
+    });
+
+    expect(result.failedError).toBeUndefined();
+
+    const call = copilotDouble.calls[0];
+    expect(call).toBeDefined();
+
+    // Should contain the correct source
+    expect(call.prompt).toContain('consistency-action-items-with-feedback');
+    // Should contain the existing specPath
+    expect(call.prompt).toContain('docs/generated-spec.md');
+    // Should contain both actionable items in order
+    expect(call.prompt).toContain(JSON.stringify(actionableItems));
+    // Should contain collected answers
+    expect(call.prompt).toContain('q-mixed-feedback-001');
+    expect(call.prompt).toContain('q-mixed-feedback-002');
+    expect(call.prompt).toContain('Prefer the simpler approach');
+
+    // Verify ordering of actionable items
+    const firstIndex = call.prompt.indexOf('act-mixed-001');
+    const secondIndex = call.prompt.indexOf('act-mixed-002');
     expect(firstIndex).toBeGreaterThanOrEqual(0);
     expect(secondIndex).toBeGreaterThan(firstIndex);
   });

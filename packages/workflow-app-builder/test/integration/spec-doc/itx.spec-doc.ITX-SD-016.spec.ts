@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS } from '../../../src/workflows/spec-doc/consistency-follow-up-child.js';
 import type { SpecDocStateData } from '../../../src/workflows/spec-doc/state-data.js';
 import { handleLogicalConsistencyCheck } from '../../../src/workflows/spec-doc/states/logical-consistency-check.js';
+import { handleNumberedOptionsHumanRequest } from '../../../src/workflows/spec-doc/states/numbered-options-human-request.js';
 import { createCopilotDouble, type CopilotDouble } from '../harness/spec-doc/copilot-double.js';
 import {
   createFeedbackController,
@@ -313,6 +314,110 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(planResolutionCalls[0].prompt).toContain('q-mixed-aggregate-001');
     expect(planResolutionCalls[0].prompt).toContain('q-mixed-aggregate-002');
   });
+
+  it('routes mixed-aggregate to IntegrateIntoSpec with stashed items and correct source after queue exhaustion', async () => {
+    const actionableItems = [makeActionableItem('act-mixed-exhaust-016-001')];
+
+    const remainingResponses = Array.from(
+      { length: CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length - 3 },
+      (_, index) => ({
+        structuredOutput: narrowStageOutput(
+          index + 3,
+          makeConsistencyOutput({
+            blockingIssues: [],
+            followUpQuestions: [],
+          }),
+        ),
+      }),
+    );
+
+    copilotDouble.reset({
+      ExecutePromptLayer: [
+        {
+          structuredOutput: narrowStageOutput(
+            0,
+            makeConsistencyOutput({
+              followUpQuestions: [makeQuestionItem('q-mixed-exhaust-016-001')],
+            }),
+          ),
+        },
+        {
+          structuredOutput: narrowStageOutput(
+            1,
+            makeConsistencyOutput({
+              actionableItems,
+            }),
+          ),
+        },
+        {
+          structuredOutput: narrowStageOutput(
+            2,
+            makeConsistencyOutput({
+              blockingIssues: [],
+              followUpQuestions: [],
+            }),
+          ),
+        },
+        ...remainingResponses,
+      ],
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems,
+            followUpQuestions: [makeQuestionItem('q-mixed-exhaust-016-001')],
+          }),
+        ),
+      ],
+    });
+
+    feedbackController.reset({
+      'q-mixed-exhaust-016-001': [{ selectedOptionIds: [2] }],
+    });
+
+    const input = makeDefaultInput();
+    const stateData = makeStateDataAfterIntegration();
+    const { ctx: ctx1, result: result1 } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+      { executeConsistencyChild: true },
+    );
+
+    // Step 1: Consistency check routes to NumberedOptionsHumanRequest with stash
+    await handleLogicalConsistencyCheck(ctx1, stateData);
+
+    expect(result1.failedError).toBeUndefined();
+    expect(result1.transitions).toHaveLength(1);
+    expect(result1.transitions[0].to).toBe('NumberedOptionsHumanRequest');
+
+    const afterConsistency = result1.transitions[0].data as SpecDocStateData & {
+      stashedActionableItems: typeof actionableItems;
+    };
+    expect(afterConsistency.stashedActionableItems).toEqual(actionableItems);
+
+    // Step 2: Answer the question, exhaust the queue, route to IntegrateIntoSpec
+    const { ctx: ctx2, result: result2 } = createMockContext(
+      input,
+      copilotDouble,
+      feedbackController,
+      obsSink,
+    );
+
+    await handleNumberedOptionsHumanRequest(ctx2, afterConsistency);
+
+    expect(result2.failedError).toBeUndefined();
+    expect(result2.transitions).toHaveLength(1);
+    expect(result2.transitions[0].to).toBe('IntegrateIntoSpec');
+
+    const afterExhaustion = result2.transitions[0].data as SpecDocStateData & {
+      source: string;
+      actionableItems: typeof actionableItems;
+    };
+    expect(afterExhaustion.source).toBe('consistency-action-items-with-feedback');
+    expect(afterExhaustion.actionableItems).toEqual(actionableItems);
+    expect(afterExhaustion.stashedActionableItems).toBeUndefined();
+  }, 10_000);
 
   it('deduplicates cross-stage actionable item IDs, logs warn, and routes parent to integration', async () => {
     const actionableItems = [makeActionableItem('act-dup-001')];
