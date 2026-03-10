@@ -62,7 +62,7 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
     expect(call.prompt).toContain(input.request);
   });
 
-  it('second pass sends source="numbered-options-feedback" with populated answers (B-SD-INPUT-002)', async () => {
+  it('second pass sends source="numbered-options-feedback" with enriched answers (B-SD-INPUT-002)', async () => {
     copilotDouble.reset({
       IntegrateIntoSpec: [
         { structuredOutput: makeIntegrationOutput({ specPath: 'docs/updated-spec.md' }) },
@@ -82,6 +82,28 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
           selectedOptionIds: [2],
           text: 'Custom note',
           answeredAt: '2026-01-15T10:01:00.000Z',
+        },
+      ],
+      queue: [
+        {
+          questionId: 'q-answered-001',
+          kind: 'issue-resolution',
+          prompt: 'How should authentication be handled?',
+          options: [
+            { id: 1, label: 'OAuth2 with PKCE' },
+            { id: 2, label: 'Session cookies' },
+          ],
+          answered: true,
+        },
+        {
+          questionId: 'q-answered-002',
+          kind: 'issue-resolution',
+          prompt: 'Which database engine?',
+          options: [
+            { id: 1, label: 'PostgreSQL' },
+            { id: 2, label: 'SQLite' },
+          ],
+          answered: true,
         },
       ],
       counters: {
@@ -107,13 +129,17 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
     // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     // Should contain the existing specPath
     expect(call.prompt).toContain('docs/generated-spec.md');
-    // Should contain serialized answers
+    // Should contain enriched answer fields (SDB-31)
     expect(call.prompt).toContain('q-answered-001');
     expect(call.prompt).toContain('q-answered-002');
     expect(call.prompt).toContain('Custom note');
+    expect(call.prompt).toContain('How should authentication be handled?');
+    expect(call.prompt).toContain('Which database engine?');
+    expect(call.prompt).toContain('OAuth2 with PKCE');
+    expect(call.prompt).toContain('SQLite');
   });
 
-  it('normalized answers include all required fields (B-SD-INPUT-003)', async () => {
+  it('normalized answers include all required enriched fields (B-SD-INPUT-003)', async () => {
     copilotDouble.reset({
       IntegrateIntoSpec: [{ structuredOutput: makeIntegrationOutput() }],
     });
@@ -132,9 +158,34 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
       },
     ];
 
+    const queue: import('../../../src/workflows/spec-doc/contracts.js').QuestionQueueItem[] = [
+      {
+        questionId: 'q-validate-001',
+        kind: 'issue-resolution',
+        prompt: 'Choose a validation strategy',
+        options: [
+          { id: 1, label: 'Schema-based' },
+          { id: 2, label: 'Runtime checks' },
+          { id: 3, label: 'Type guards' },
+        ],
+        answered: true,
+      },
+      {
+        questionId: 'q-validate-002',
+        kind: 'issue-resolution',
+        prompt: 'Choose an error handling approach',
+        options: [
+          { id: 1, label: 'Throw on failure' },
+          { id: 2, label: 'Return Result type' },
+        ],
+        answered: true,
+      },
+    ];
+
     const stateData: SpecDocStateData = {
       ...createInitialStateData(),
       normalizedAnswers: answers,
+      queue,
       counters: { integrationPasses: 1, consistencyCheckPasses: 1 },
       artifacts: { specPath: 'docs/generated-spec.md' },
     };
@@ -146,10 +197,17 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
 
     expect(result.failedError).toBeUndefined();
 
-    // Parse the answers from the copilot call prompt
+    // Parse the enriched answers from the copilot call prompt
     const call = copilotDouble.calls[0];
-    const answersJson = JSON.stringify(answers);
-    expect(call.prompt).toContain(answersJson);
+    // Enriched answers contain questionPrompt and selectedOptions (SDB-31)
+    expect(call.prompt).toContain('q-validate-001');
+    expect(call.prompt).toContain('q-validate-002');
+    expect(call.prompt).toContain('Choose a validation strategy');
+    expect(call.prompt).toContain('Choose an error handling approach');
+    expect(call.prompt).toContain('Schema-based');
+    expect(call.prompt).toContain('Type guards');
+    expect(call.prompt).toContain('Return Result type');
+    expect(call.prompt).toContain('Additional context here');
 
     // Verify each answer has required fields
     for (const ans of answers) {
@@ -300,9 +358,33 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
       },
     ];
 
+    const queue: import('../../../src/workflows/spec-doc/contracts.js').QuestionQueueItem[] = [
+      {
+        questionId: 'q-mixed-feedback-001',
+        kind: 'issue-resolution',
+        prompt: 'Which rollback strategy?',
+        options: [
+          { id: 1, label: 'Blue-green deployment' },
+          { id: 2, label: 'Feature flags' },
+        ],
+        answered: true,
+      },
+      {
+        questionId: 'q-mixed-feedback-002',
+        kind: 'issue-resolution',
+        prompt: 'Simpler or thorough approach?',
+        options: [
+          { id: 1, label: 'Simpler' },
+          { id: 2, label: 'Thorough' },
+        ],
+        answered: true,
+      },
+    ];
+
     const stateData: SpecDocStateData = {
       ...createInitialStateData(),
       normalizedAnswers: answers,
+      queue,
       counters: {
         integrationPasses: 1,
         consistencyCheckPasses: 1,
@@ -333,10 +415,14 @@ describe('ITX-SD-007: IntegrateIntoSpec input normalization across passes', () =
     expect(call.prompt).toContain('docs/generated-spec.md');
     // Should contain both actionable items in order
     expect(call.prompt).toContain(JSON.stringify(actionableItems));
-    // Should contain collected answers
+    // Should contain enriched answers (SDB-31)
     expect(call.prompt).toContain('q-mixed-feedback-001');
     expect(call.prompt).toContain('q-mixed-feedback-002');
     expect(call.prompt).toContain('Prefer the simpler approach');
+    expect(call.prompt).toContain('Which rollback strategy?');
+    expect(call.prompt).toContain('Simpler or thorough approach?');
+    expect(call.prompt).toContain('Feature flags');
+    expect(call.prompt).toContain('Simpler');
 
     // Verify ordering of actionable items
     const firstIndex = call.prompt.indexOf('act-mixed-001');

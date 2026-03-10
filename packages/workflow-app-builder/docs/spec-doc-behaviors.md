@@ -452,6 +452,14 @@ Each behavior should validate all relevant dimensions:
 **And** updated spec reflects cumulative accepted decisions
 **And** this invariant is validated by consistency-check stages (`consistency-scope-objective`, `consistency-contradictions-completeness`) rather than an integrate-prompt directive
 
+## B-SD-INPUT-006: Prompt answersJson includes question and option context
+**Given** `IntegrateIntoSpec` is building the `{{answersJson}}` interpolation variable
+**When** `answers` is non-empty
+**Then** each answer is enriched with `questionPrompt` from the matching queue item
+**And** each answer includes `selectedOptions` containing the `id` and `label` of each selected option
+**And** the enriched shape per answer is `{ questionId, questionPrompt, selectedOptionIds, selectedOptions: [{ id, label }], text?, answeredAt }`
+**And** if a queue item is not found for a given `questionId`, `questionPrompt` is `null` and `selectedOptions` is empty
+
 ---
 
 ## 10) Observability Behaviors

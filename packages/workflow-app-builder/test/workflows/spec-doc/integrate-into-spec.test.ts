@@ -6,6 +6,7 @@ import type {
   CopilotPromptOptions,
   IntegrateIntoSpecSource,
   NormalizedAnswer,
+  QuestionQueueItem,
   SpecDocGenerationInput,
   SpecDocGenerationOutput,
   SpecActionableItem,
@@ -95,6 +96,19 @@ function makeAnswers(count: number): NormalizedAnswer[] {
   }));
 }
 
+function makeQueueForAnswers(answers: NormalizedAnswer[]): QuestionQueueItem[] {
+  return answers.map((a) => ({
+    questionId: a.questionId,
+    kind: 'issue-resolution' as const,
+    prompt: `How should ${a.questionId} be resolved?`,
+    options: [
+      { id: 1, label: 'Option Alpha' },
+      { id: 2, label: 'Option Beta' },
+    ],
+    answered: true,
+  }));
+}
+
 function stateDataWithAnswers(
   answers: NormalizedAnswer[],
   specPath = 'specs/todo.md',
@@ -102,6 +116,7 @@ function stateDataWithAnswers(
   return {
     ...createInitialStateData(),
     normalizedAnswers: answers,
+    queue: makeQueueForAnswers(answers),
     artifacts: { specPath },
   };
 }
@@ -193,7 +208,7 @@ describe('SD-INT-001-FirstPassSource', () => {
 // ---------------------------------------------------------------------------
 
 describe('SD-INT-002-FeedbackPassSource', () => {
-  it('re-entry uses source: numbered-options-feedback with normalized answers', async () => {
+  it('re-entry uses source: numbered-options-feedback with enriched answers', async () => {
     const answers = makeAnswers(2);
     const stateData = stateDataWithAnswers(answers);
     const { ctx, launchChildSpy, transitionSpy } = createMockContext();
@@ -205,6 +220,11 @@ describe('SD-INT-002-FeedbackPassSource', () => {
     // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     expect(childInput.prompt).toContain('q-1');
     expect(childInput.prompt).toContain('q-2');
+
+    // SDB-31: enriched answers include questionPrompt and selectedOptions
+    expect(childInput.prompt).toContain('How should q-1 be resolved?');
+    expect(childInput.prompt).toContain('How should q-2 be resolved?');
+    expect(childInput.prompt).toContain('Option Alpha');
 
     expect(transitionSpy).toHaveBeenCalledTimes(1);
   });
@@ -290,14 +310,16 @@ describe('SD-ACT consistency-action-items integration', () => {
 // ---------------------------------------------------------------------------
 
 describe('SD-QF consistency-action-items-with-feedback integration', () => {
-  it('accepts source: consistency-action-items-with-feedback and forwards both actionableItems and answers', async () => {
+  it('accepts source: consistency-action-items-with-feedback and forwards both actionableItems and enriched answers', async () => {
     const actionableItems = makeActionableItems();
     const answers = makeAnswers(2);
+    const queue = makeQueueForAnswers(answers);
     const payload: IntegrateIntoSpecTestPayload = {
       ...createInitialStateData(),
       source: 'consistency-action-items-with-feedback',
       actionableItems,
       normalizedAnswers: answers,
+      queue,
       artifacts: { specPath: 'specs/prior-draft.md' },
     };
     const { ctx, launchChildSpy, transitionSpy, failSpy } = createMockContext();
@@ -316,9 +338,11 @@ describe('SD-QF consistency-action-items-with-feedback integration', () => {
     expect(firstIndex).toBeGreaterThanOrEqual(0);
     expect(secondIndex).toBeGreaterThan(firstIndex);
 
-    // Verify answers are forwarded
+    // Verify enriched answers are forwarded (SDB-31)
     expect(childInput.prompt).toContain('q-1');
     expect(childInput.prompt).toContain('q-2');
+    expect(childInput.prompt).toContain('How should q-1 be resolved?');
+    expect(childInput.prompt).toContain('Option Alpha');
 
     expect(transitionSpy).toHaveBeenCalledTimes(1);
   });
@@ -359,6 +383,70 @@ describe('SD-QF consistency-action-items-with-feedback integration', () => {
     // source no longer appears in prompt (SDB-30 removed {{source}} from template)
     // Even with empty normalizedAnswers, the answers field should be present
     expect(childInput.prompt).toContain('answers ([])');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SD-INT-007-MissingQueueItemFallback (B-SD-INPUT-006)
+// ---------------------------------------------------------------------------
+
+describe('SD-INT-007-MissingQueueItemFallback', () => {
+  it('missing queue item produces questionPrompt: null and selectedOptions: []', async () => {
+    const answers: NormalizedAnswer[] = [
+      { questionId: 'q-orphan', selectedOptionIds: [3], answeredAt: '2026-03-02T12:00:00.000Z' },
+    ];
+    // State data has answers but no matching queue entries
+    const stateData: SpecDocStateData = {
+      ...createInitialStateData(),
+      normalizedAnswers: answers,
+      queue: [], // empty — no matching queue item
+      artifacts: { specPath: 'specs/todo.md' },
+    };
+    const { ctx, launchChildSpy, failSpy } = createMockContext();
+
+    await handleIntegrateIntoSpec(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    const childInput = launchChildSpy.mock.calls[0][0].input;
+    const parsed = JSON.parse(childInput.prompt.match(/answers \((\[[\s\S]*?\])\)/)?.[1] ?? '[]');
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].questionId).toBe('q-orphan');
+    expect(parsed[0].questionPrompt).toBeNull();
+    expect(parsed[0].selectedOptions).toEqual([]);
+  });
+
+  it('unmatched selectedOptionId produces label: null', async () => {
+    const answers: NormalizedAnswer[] = [
+      { questionId: 'q-1', selectedOptionIds: [99], answeredAt: '2026-03-02T12:00:00.000Z' },
+    ];
+    const queue: QuestionQueueItem[] = [
+      {
+        questionId: 'q-1',
+        kind: 'issue-resolution',
+        prompt: 'How should q-1 be resolved?',
+        options: [
+          { id: 1, label: 'Option Alpha' },
+          { id: 2, label: 'Option Beta' },
+        ],
+        answered: true,
+      },
+    ];
+    const stateData: SpecDocStateData = {
+      ...createInitialStateData(),
+      normalizedAnswers: answers,
+      queue,
+      artifacts: { specPath: 'specs/todo.md' },
+    };
+    const { ctx, launchChildSpy, failSpy } = createMockContext();
+
+    await handleIntegrateIntoSpec(ctx, stateData);
+
+    expect(failSpy).not.toHaveBeenCalled();
+    const childInput = launchChildSpy.mock.calls[0][0].input;
+    const parsed = JSON.parse(childInput.prompt.match(/answers \((\[[\s\S]*?\])\)/)?.[1] ?? '[]');
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].questionPrompt).toBe('How should q-1 be resolved?');
+    expect(parsed[0].selectedOptions).toEqual([{ id: 99, label: null }]);
   });
 });
 

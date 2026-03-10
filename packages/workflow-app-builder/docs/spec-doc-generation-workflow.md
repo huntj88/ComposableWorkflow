@@ -423,6 +423,7 @@ Contract notes:
 - `source: "consistency-action-items-with-feedback"` is used after numbered queue exhaustion when the originating consistency pass returned both `actionableItems` and `followUpQuestions`. Both the stashed actionable items and the collected answers are present.
 - `answers` is optional for initial and consistency-action-item passes and, when present, is the normalized answer record accumulated in `NumberedOptionsHumanRequest`.
 - `answers` is required when `source === "consistency-action-items-with-feedback"` and must contain the normalized answers collected during `NumberedOptionsHumanRequest`.
+- When serialized into the prompt `{{answersJson}}` variable, each answer must be enriched with the original question prompt text and selected option labels from the question queue so the LLM receives full context — not just opaque IDs. The enriched shape per answer is `{ questionId, questionPrompt, selectedOptionIds, selectedOptions: [{ id, label }], text?, answeredAt }`.
 - `actionableItems` is required when `source === "consistency-action-items"` or `source === "consistency-action-items-with-feedback"` and must be applied in array order as concrete edit directives for the current spec pass.
 - When both `answers` and `actionableItems` are present (`source === "consistency-action-items-with-feedback"`), the prompt must integrate the human-provided answers and the concrete edit directives together in the same pass, applying actionable items as ordered edits while also incorporating the answer-provided context.
 - `specPath` allows integration into an existing working draft path from prior passes.
@@ -548,7 +549,7 @@ Required runtime interpolation variables:
 - `{{targetPath}}` (optional)
 - `{{constraintsJson}}` (JSON array)
 - `{{specPath}}` (optional existing draft path)
-- `{{answersJson}}` (JSON array of normalized answers; optional/empty on first pass)
+- `{{answersJson}}` (JSON array of enriched answers with question prompt + selected option labels; optional/empty on first pass)
 - `{{actionableItemsJson}}` (JSON array of immediate action items; optional/empty unless source is `consistency-action-items` or `consistency-action-items-with-feedback`)
 
 Prompt text:

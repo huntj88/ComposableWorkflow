@@ -203,8 +203,11 @@ A behavior is integration-primary when one or more is true:
 - Mixed-aggregate pass: `source === "consistency-action-items-with-feedback"`, `actionableItems` are the stashed items forwarded unchanged and in child-provided order, `answers` contains normalized records collected during `NumberedOptionsHumanRequest`, and `specPath` references the prior draft.
 - All normalized answer records include `questionId`, `selectedOptionIds`, optional `text`, `answeredAt`.
 - Prior decisions preserved unless explicitly overridden by newer answers (validated by consistency-check stages, not the integrate prompt).
+- `{{answersJson}}` in the prompt contains enriched answers: each entry includes `questionPrompt` (original question text from the queue) and `selectedOptions` (array of `{ id, label }` for each selected option).
+- On second pass and mixed-aggregate pass, the enriched answer entries carry non-null `questionPrompt` and non-empty `selectedOptions` matching the queue items.
+- First pass and immediate-action pass use empty `answersJson` (`[]`).
 
-**Related behaviors:** `B-SD-INPUT-001`, `B-SD-INPUT-002`, `B-SD-INPUT-003`, `B-SD-INPUT-004`, `B-SD-INPUT-005`, `B-SD-TRANS-006`.
+**Related behaviors:** `B-SD-INPUT-001`, `B-SD-INPUT-002`, `B-SD-INPUT-003`, `B-SD-INPUT-004`, `B-SD-INPUT-005`, `B-SD-INPUT-006`, `B-SD-TRANS-006`.
 
 ## ITX-SD-008: Recovery of interrupted question queue processing
 **Why not E2E-only:** requires synthetic crash/restart during queue mid-processing.

@@ -18,6 +18,8 @@ import type { WorkflowContext } from '@composable-workflow/workflow-lib/contract
 import type {
   IntegrateIntoSpecInput,
   IntegrateIntoSpecSource,
+  NormalizedAnswer,
+  QuestionQueueItem,
   SpecDocGenerationInput,
   SpecDocGenerationOutput,
   SpecIntegrationOutput,
@@ -129,6 +131,60 @@ function buildIntegrateIntoSpecInput(
 }
 
 // ---------------------------------------------------------------------------
+// Prompt-only enrichment (B-SD-INPUT-006)
+// ---------------------------------------------------------------------------
+
+/**
+ * Enriched answer shape used exclusively in prompt assembly.
+ * Not persisted — `NormalizedAnswer` records remain unchanged.
+ */
+interface EnrichedPromptAnswer {
+  questionId: string;
+  questionPrompt: string | null;
+  selectedOptionIds: number[];
+  selectedOptions: Array<{ id: number; label: string | null }>;
+  text?: string;
+  answeredAt: string;
+}
+
+/**
+ * Join each `NormalizedAnswer` with its matching `QuestionQueueItem` to
+ * produce enriched prompt context. If a queue item cannot be found for a
+ * given `questionId`, `questionPrompt` is `null` and `selectedOptions` is `[]`.
+ * If a `selectedOptionId` does not match any option in the queue item,
+ * the entry is `{ id, label: null }`.
+ */
+function enrichAnswersWithContext(
+  answers: NormalizedAnswer[],
+  queue: QuestionQueueItem[],
+): EnrichedPromptAnswer[] {
+  const queueMap = new Map(queue.map((q) => [q.questionId, q]));
+
+  return answers.map((answer) => {
+    const queueItem = queueMap.get(answer.questionId);
+
+    const enriched: EnrichedPromptAnswer = {
+      questionId: answer.questionId,
+      questionPrompt: queueItem?.prompt ?? null,
+      selectedOptionIds: answer.selectedOptionIds,
+      selectedOptions: queueItem
+        ? answer.selectedOptionIds.map((optId) => {
+            const opt = queueItem.options.find((o) => o.id === optId);
+            return { id: optId, label: opt?.label ?? null };
+          })
+        : [],
+      answeredAt: answer.answeredAt,
+    };
+
+    if (answer.text !== undefined) {
+      enriched.text = answer.text;
+    }
+
+    return enriched;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // State handler
 // ---------------------------------------------------------------------------
 
@@ -167,7 +223,9 @@ export async function handleIntegrateIntoSpec(
     targetPath: integrationInput.targetPath ?? '',
     constraintsJson: JSON.stringify(integrationInput.constraints ?? []),
     specPath: integrationInput.specPath ?? '',
-    answersJson: JSON.stringify(integrationInput.answers ?? []),
+    answersJson: JSON.stringify(
+      enrichAnswersWithContext(integrationInput.answers ?? [], stateData.queue),
+    ),
     actionableItemsJson: JSON.stringify(integrationInput.actionableItems ?? []),
   };
 

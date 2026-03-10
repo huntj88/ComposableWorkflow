@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27` -> `SDB-28` -> `SDB-29` -> `SDB-30`).
+1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27` -> `SDB-28` -> `SDB-29` -> `SDB-30` -> `SDB-31`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -52,6 +52,7 @@ This folder contains the ordered implementation plan for:
 - `SDB-28` -> `SDB-27`
 - `SDB-29` -> `SDB-28`
 - `SDB-30` -> `SDB-27`
+- `SDB-31` -> `SDB-30`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
@@ -100,6 +101,7 @@ Delegated-child evolution chain:
 - `SDB-28` [28-schema-level-pros-cons-enforcement.md](./28-schema-level-pros-cons-enforcement.md) — move Pros/Cons description validation into JSON Schema pattern constraints for copilot-prompt retry
 - `SDB-29` [29-allow-stage-local-mixed-output.md](./29-allow-stage-local-mixed-output.md) — remove stage-local mutual exclusivity between actionableItems and followUpQuestions
 - `SDB-30` [30-integrate-prompt-directive-trimming.md](./30-integrate-prompt-directive-trimming.md) — remove redundant integrate-prompt directives validated by consistency stages
+- `SDB-31` [31-enrich-answers-in-integrate-prompt.md](./31-enrich-answers-in-integrate-prompt.md) — enrich answersJson with question prompt text and selected option labels
 
 ## Full Coverage Ownership
 
@@ -112,7 +114,7 @@ Delegated-child evolution chain:
 - Done/terminal (`B-SD-DONE-001..003`) -> `SDB-02`, `SDB-07`, `SDB-10`, `SDB-11`
 - Loop/failure (`B-SD-TRANS-012..015`, `B-SD-FAIL-001`) -> `SDB-07`, `SDB-10`, `SDB-11`
 - Feedback cancellation lifecycle (`B-SD-FAIL-002`) -> `SDB-11`
-- Integrate input normalization (`B-SD-INPUT-001..005`) -> `SDB-03`, `SDB-15`, `SDB-17`, `SDB-25`, `SDB-26`
+- Integrate input normalization (`B-SD-INPUT-001..006`) -> `SDB-03`, `SDB-15`, `SDB-17`, `SDB-25`, `SDB-26`, `SDB-31`
 - Observability (`B-SD-OBS-001..003`) -> `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-18`, `SDB-19`, `SDB-11`, `SDB-21`, `SDB-22`, `SDB-23`, `SDB-24`
 - Post-spec-update clarification research + delegated-child deltas -> `SDB-13`, `SDB-14`, `SDB-15`, `SDB-16`, `SDB-16A`, `SDB-17`
 - Scoped consistency prompt decoupling baseline -> `SDB-16A`
@@ -169,6 +171,7 @@ Delegated-child supersession guide:
 - Full-sweep/planning parity for `ITX-SD-012/013/016/017` -> `SDB-21`, `SDB-22`, `SDB-23`
 - Cross-stage dedup-and-log for `ITX-SD-016` -> `SDB-24`
 - Questions-first routing for `ITX-SD-007/013/016` -> `SDB-26`
+- Enriched answersJson for `ITX-SD-007` -> `SDB-31`
 - Schema-level Pros/Cons enforcement for `ITX-SD-001/011` -> `SDB-28`
 - Harness `GS-SD-004` two-pass parity -> `SDB-23`
 - Harness `GS-SD-004A` questions-first parity -> `SDB-26`
