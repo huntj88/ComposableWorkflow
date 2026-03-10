@@ -375,7 +375,7 @@ describe('SD-CUSTOM-006-ClarificationProsConsContent', () => {
 
     expect(failSpy).toHaveBeenCalledTimes(1);
     const error = failSpy.mock.calls[0][0] as Error;
-    expect(error.message).toContain('Pros/Cons validation failed');
+    expect(error.message).toContain('Output schema validation failed');
   });
 
   it('hard-fails when option description lacks Pros:', async () => {

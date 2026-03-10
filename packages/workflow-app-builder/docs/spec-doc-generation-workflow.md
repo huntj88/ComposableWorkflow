@@ -457,7 +457,8 @@ Schema artifacts for this workflow:
 - `packages/workflow-app-builder/docs/schemas/spec-doc/spec-doc-generation-output.schema.json`
 
 Schema ownership boundary:
-- `packages/workflow-app-builder/docs/schemas/spec-doc/numbered-question-item.schema.json` extends the server-owned base envelope in `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json` by adding app-builder-specific `kind` semantics.
+- `packages/workflow-app-builder/docs/schemas/spec-doc/numbered-question-item.schema.json` extends the server-owned base envelope in `packages/workflow-server/docs/schemas/human-input/numbered-question-item.schema.json` by adding app-builder-specific `kind` semantics and enforcing `Pros:` / `Cons:` content in option `description` fields via a `pattern` constraint. This schema-level enforcement enables `app-builder.copilot.prompt.v1`'s in-session retry loop to catch Pros/Cons violations automatically.
+- `packages/workflow-app-builder/docs/schemas/spec-doc/clarification-follow-up-output.schema.json` applies the same `Pros:` / `Cons:` pattern constraint on its `followUpQuestion.options` descriptions.
 - Numbered response transport validation remains server-owned via `packages/workflow-server/docs/schemas/human-input/numbered-options-response-input.schema.json`.
 - `consistency-check-output.schema.json` is the final aggregate child-result contract consumed by the parent FSM after the child completes the full-sweep stage pass and `PlanResolution`.
 - Each `consistency-*-output.schema.json` file is a layer-local prompt contract that exposes only the current layer's owned `readinessChecklist` keys while reusing shared item/question/actionable-item definitions.
@@ -519,7 +520,7 @@ Numbered-options question requirements:
 
 Validation behavior:
 - `app-builder.copilot.prompt.v1` validates `structuredOutput` against the provided `outputSchema` using Ajv2020 before accepting the result.
-- If `structuredOutput` is not valid JSON **or** is valid JSON that does not satisfy the `outputSchema`, the entire copilot ACP execution is retried (up to 3 total attempts: 1 initial + 2 retries).
+- If `structuredOutput` is not valid JSON **or** is valid JSON that does not satisfy the `outputSchema` (including missing or malformed `Pros:` / `Cons:` content in option descriptions), the entire copilot ACP execution is retried (up to 3 total attempts: 1 initial + 2 retries).
 - Each retry attempt emits a warn-level log containing the validation error from the previous attempt.
 - If all attempts are exhausted without producing schema-valid output, the run fails with schema-validation error details aggregated from the final attempt.
 
@@ -598,6 +599,7 @@ Common prompt rules:
 - Readiness-checklist booleans for focused fields reflect this stage's findings; non-focused fields may remain `true` unless this stage directly proves them false.
 - Each stage must return deterministic ordering and only its owned readiness-checklist surface.
 - Stage rules no longer restate schema-enforceable constraints (contiguous IDs, `kind` values, `description` format); schema validation enforces those.
+- Although the `Pros:` / `Cons:` description format is enforced at the schema level (triggering copilot-prompt in-session retry on violation), prompt templates restate this requirement as explicit model guidance to maximize first-attempt compliance and reduce retry frequency.
 
 ### 7.2.2.1 `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` implementation contract
 
@@ -684,6 +686,7 @@ Rules:
 5) It is valid for the final aggregate to include both non-empty `actionableItems` and non-empty `followUpQuestions`. When this occurs, the parent resolves all human questions first via `NumberedOptionsHumanRequest`, then delivers both the stashed actionable items and collected answers together to `IntegrateIntoSpec` in a single integration pass.
 6) Use the coverage data to avoid redundant questions or edits when multiple stages surface the same underlying issue.
 7) If no new integration work or human question remains, return empty `actionableItems` and empty `followUpQuestions`.
+8) Every followUpQuestion option MUST include a `description` field containing both a `Pros:` section and a `Cons:` section analysing that option's trade-offs.
 ```
 
 ### 7.2.3 `ClassifyCustomPrompt` prompt (`spec-doc.classify-custom-prompt.v1`)
@@ -743,6 +746,7 @@ Rules:
 4) If research resolves the question without remaining ambiguity, set `researchOutcome = resolved-with-research` and omit `followUpQuestion`.
 5) If research finds a remaining decision or ambiguity that requires human input, set `researchOutcome = needs-follow-up-question` and create exactly one deterministic numbered `followUpQuestion` grounded in the research findings.
 6) Any generated question should minimize ambiguity, be based on the research, and be suitable for asking next while the skipped source question is revisited later.
+7) Every followUpQuestion option MUST include a `description` field containing both a `Pros:` section and a `Cons:` section analysing that option's trade-offs.
 
 ```
 

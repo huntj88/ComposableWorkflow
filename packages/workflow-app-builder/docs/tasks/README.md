@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27`).
+1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27` -> `SDB-28`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -49,6 +49,7 @@ This folder contains the ordered implementation plan for:
 - `SDB-25` -> `SDB-15`, `SDB-20`, `SDB-22`
 - `SDB-26` -> `SDB-23`, `SDB-25`
 - `SDB-27` -> `SDB-24`, `SDB-25`
+- `SDB-28` -> `SDB-27`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
@@ -94,13 +95,14 @@ Delegated-child evolution chain:
 - `SDB-25` [25-mixed-aggregate-questions-first-routing.md](./25-mixed-aggregate-questions-first-routing.md) — mixed-aggregate questions-first routing with stash
 - `SDB-26` [26-questions-first-coverage-and-parity.md](./26-questions-first-coverage-and-parity.md) — integration/parity coverage for questions-first routing
 - `SDB-27` [27-prompt-template-trimming.md](./27-prompt-template-trimming.md) — reduce prompt token cost by removing schema-redundant and echo text
+- `SDB-28` [28-schema-level-pros-cons-enforcement.md](./28-schema-level-pros-cons-enforcement.md) — move Pros/Cons description validation into JSON Schema pattern constraints for copilot-prompt retry
 
 ## Full Coverage Ownership
 
 ### Behavior Coverage (`B-SD-*`)
 - FSM transitions (`B-SD-TRANS-001..015`) -> `SDB-02`, `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`
 - Human feedback integration (`B-SD-HFB-001..005`) -> `SDB-05`, `SDB-13`, `SDB-17`
-- Schema validation (`B-SD-SCHEMA-001..006`) -> `SDB-00`, `SDB-03`, `SDB-04`, `SDB-06`, `SDB-10`
+- Schema validation (`B-SD-SCHEMA-001..006`) -> `SDB-00`, `SDB-03`, `SDB-04`, `SDB-06`, `SDB-10`, `SDB-28`
 - Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-20`, `SDB-21`, `SDB-22`, `SDB-24`, `SDB-25`
 - Queue processing (`B-SD-QUEUE-001..005`) -> `SDB-04`, `SDB-05`, `SDB-06`, `SDB-10`
 - Done/terminal (`B-SD-DONE-001..003`) -> `SDB-02`, `SDB-07`, `SDB-10`, `SDB-11`
@@ -131,6 +133,9 @@ Questions-first routing evolution:
 Prompt trimming:
 - `SDB-27` -> remove schema-redundant instructions, input-context echo blocks, duplicated quality prose, and repeated stage rules from all prompt templates; spec doc section 7.2 aligned in parallel
 
+Schema-level enforcement:
+- `SDB-28` -> Pros/Cons description constraint moves from code-level `validateProsConsDescriptions()` to JSON Schema `pattern`; violations caught during copilot-prompt in-session retry instead of failing the parent workflow
+
 Delegated-child supersession guide:
 - `SDB-16` should be read as the original delegated-child delivery, not as the final word on prompt decomposition or schema ownership.
 - `SDB-16A` is the canonical task for understanding when the former combined consistency prompt was replaced by scoped consistency prompt layers.
@@ -156,6 +161,7 @@ Delegated-child supersession guide:
 - Full-sweep/planning parity for `ITX-SD-012/013/016/017` -> `SDB-21`, `SDB-22`, `SDB-23`
 - Cross-stage dedup-and-log for `ITX-SD-016` -> `SDB-24`
 - Questions-first routing for `ITX-SD-007/013/016` -> `SDB-26`
+- Schema-level Pros/Cons enforcement for `ITX-SD-001/011` -> `SDB-28`
 - Harness `GS-SD-004` two-pass parity -> `SDB-23`
 - Harness `GS-SD-004A` questions-first parity -> `SDB-26`
 

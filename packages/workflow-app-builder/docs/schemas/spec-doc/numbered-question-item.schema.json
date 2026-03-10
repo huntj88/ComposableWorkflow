@@ -19,6 +19,22 @@
             "completion-confirmation"
           ],
           "description": "App-builder workflow semantics layered on top of the server-owned numbered question envelope."
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "description"
+            ],
+            "properties": {
+              "description": {
+                "type": "string",
+                "pattern": "(?=.*Pros:)(?=.*Cons:)",
+                "description": "Trade-off analysis with required 'Pros:' and 'Cons:' sections."
+              }
+            }
+          }
         }
       }
     }

@@ -287,6 +287,9 @@ Each behavior should validate all relevant dimensions:
 **Given** any generated numbered question item for consistency-check or clarification follow-up
 **When** options are validated for usability requirements
 **Then** each option includes `description` text containing concise `Pros:` and `Cons:` guidance
+**And** the `Pros:` / `Cons:` requirement is enforced at the JSON Schema level via a `pattern` constraint in `numbered-question-item.schema.json` and `clarification-follow-up-output.schema.json`
+**And** `app-builder.copilot.prompt.v1`'s in-session schema retry loop catches violations before the output reaches workflow-level contract validation
+**And** prompt templates restate the `Pros:` / `Cons:` requirement as explicit model guidance to maximize first-attempt compliance
 
 ---
 
@@ -582,6 +585,7 @@ Must assert:
 3. NumberedOptionsHumanRequest implementation (section 6.4) → `B-SD-HFB-001..005`, `B-SD-QUEUE-001..005`, `B-SD-TRANS-004..007`, `B-SD-TRANS-012..015`.
 4. IntegrateIntoSpec input contract (section 6.5) → `B-SD-INPUT-001..005`.
 5. Schema validation (section 7.1) → `B-SD-SCHEMA-001..006`.
+   - `B-SD-SCHEMA-006` covers schema-level `Pros:` / `Cons:` pattern enforcement and copilot-prompt in-session retry integration.
 6. Copilot prompt delegation (section 7) → `B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`.
    - `B-SD-CHILD-002` covers cross-stage deduplication with observability; duplicates are dropped and logged, not fatal.
 7. Human feedback boundary (section 8) → `B-SD-HFB-004`.

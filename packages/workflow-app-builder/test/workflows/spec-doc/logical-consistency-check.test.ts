@@ -331,7 +331,7 @@ describe('handleLogicalConsistencyCheck', () => {
     expect(failSpy).toHaveBeenCalledTimes(1);
     expect(transitionSpy).not.toHaveBeenCalled();
     const error = failSpy.mock.calls[0][0] as Error;
-    expect(error.message).toContain('Child aggregate contract validation failed');
+    expect(error.message).toContain('Output schema validation failed');
   });
 
   it('fails on child workflow delegation errors', async () => {

@@ -22,7 +22,32 @@
       "description": "Concise summary of what the research found in the current spec and workspace context."
     },
     "followUpQuestion": {
-      "$ref": "../../../../workflow-server/docs/schemas/human-input/numbered-question-item.schema.json"
+      "allOf": [
+        {
+          "$ref": "../../../../workflow-server/docs/schemas/human-input/numbered-question-item.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "description"
+                ],
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "pattern": "(?=.*Pros:)(?=.*Cons:)",
+                    "description": "Trade-off analysis with required 'Pros:' and 'Cons:' sections."
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "allOf": [

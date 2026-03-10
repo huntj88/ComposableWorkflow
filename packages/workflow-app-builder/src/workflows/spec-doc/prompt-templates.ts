@@ -97,7 +97,8 @@ Stage rules:
 - If no blocking issues remain: return empty \`actionableItems\` and empty \`followUpQuestions\`.
 - \`actionableItems\` must contain only concrete edits that can be integrated without another human decision.
 - Set readinessChecklist booleans for this stage carefully. Focused checklist fields should reflect this stage's findings. Non-focused fields may remain \`true\` unless this stage directly proves them false.
-- Keep followUpQuestions ordering deterministic.`;
+- Keep followUpQuestions ordering deterministic.
+- Every followUpQuestion option MUST include a \`description\` field containing both a \`Pros:\` section and a \`Cons:\` section analysing that option's trade-offs.`;
 }
 
 const CONSISTENCY_SCOPE_OBJECTIVE_BODY = createScopedConsistencyBody({
@@ -165,7 +166,8 @@ Rules:
 4) Keep \`followUpQuestions\` ordered and limited to decisions that still require human input after considering the full sweep.
 5) It is valid for the final aggregate to include both non-empty \`actionableItems\` and non-empty \`followUpQuestions\`. When this occurs, the parent resolves all human questions first via \`NumberedOptionsHumanRequest\`, then delivers both the stashed actionable items and collected answers together to \`IntegrateIntoSpec\` in a single integration pass.
 6) Use the coverage data to avoid redundant questions or edits when multiple stages surface the same underlying issue.
-7) If no new integration work or human question remains, return empty \`actionableItems\` and empty \`followUpQuestions\`.`;
+7) If no new integration work or human question remains, return empty \`actionableItems\` and empty \`followUpQuestions\`.
+8) Every followUpQuestion option MUST include a \`description\` field containing both a \`Pros:\` section and a \`Cons:\` section analysing that option's trade-offs.`;
 
 // -- 7.2.3 ClassifyCustomPrompt --------------------------------------------
 
@@ -192,7 +194,8 @@ Rules:
 3) Always return \`researchOutcome\` and \`researchSummary\`.
 4) If research resolves the question without remaining ambiguity, set \`researchOutcome = resolved-with-research\` and omit \`followUpQuestion\`.
 5) If research finds a remaining decision or ambiguity that requires human input, set \`researchOutcome = needs-follow-up-question\` and create exactly one deterministic numbered \`followUpQuestion\` grounded in the research findings.
-6) Any generated question should minimize ambiguity, be based on the research, and be suitable for asking next while the skipped source question is revisited later.`;
+6) Any generated question should minimize ambiguity, be based on the research, and be suitable for asking next while the skipped source question is revisited later.
+7) Every followUpQuestion option MUST include a \`description\` field containing both a \`Pros:\` section and a \`Cons:\` section analysing that option's trade-offs.`;
 
 // ---------------------------------------------------------------------------
 // Template catalog

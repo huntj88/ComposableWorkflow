@@ -93,10 +93,11 @@ A behavior is integration-primary when one or more is true:
 - Non-JSON output fails the run with parse error details.
 - Schema-mismatched JSON fails the run with schema-validation error including expected schema identifier.
 - For scoped consistency layers, the error identifies the concrete stage schema rather than only the broad child aggregate contract.
+- Option `description` fields missing `Pros:` / `Cons:` content fail at schema validation (pattern constraint) rather than at code-level contract validation, enabling `app-builder.copilot.prompt.v1` in-session retry.
 - No partial state mutation persists after schema failure.
 - Failed state is identifiable from error context.
 
-**Related behaviors:** `B-SD-SCHEMA-001`, `B-SD-SCHEMA-002`, `B-SD-SCHEMA-003`.
+**Related behaviors:** `B-SD-SCHEMA-001`, `B-SD-SCHEMA-002`, `B-SD-SCHEMA-003`, `B-SD-SCHEMA-006`.
 
 ## ITX-SD-002: Question queue ordering determinism and stability
 **Why not E2E-only:** requires direct queue state inspection and retry/recovery simulation.
@@ -264,11 +265,12 @@ A behavior is integration-primary when one or more is true:
 **Assertions**
 - All consistency-check questions conform to `numbered-question-item.schema.json`.
 - Option IDs are unique contiguous integers starting at `1` per question.
-- Each option includes `description` with pros/cons content.
+- Each option includes `description` with `Pros:` and `Cons:` content, enforced by a `pattern` constraint in the schema.
+- Missing or malformed `Pros:` / `Cons:` descriptions are caught at schema validation (not code-level contract validation), triggering `app-builder.copilot.prompt.v1` in-session retry before the output reaches the workflow state handler.
 - Each consistency-check question has `kind: "issue-resolution"`.
 - Stage-specific consistency schemas and the final planned child aggregate both preserve the same numbered-question item contract.
 - Completion-confirmation question is synthesized in workflow logic when delegated child output has empty `actionableItems` and empty `followUpQuestions`.
-- Clarification follow-up questions conform to server-owned base schema plus `kind: "issue-resolution"`.
+- Clarification follow-up questions conform to server-owned base schema plus `kind: "issue-resolution"`, with the same `Pros:` / `Cons:` pattern constraint applied via `clarification-follow-up-output.schema.json`.
 
 **Related behaviors:** `B-SD-SCHEMA-004`, `B-SD-SCHEMA-005`, `B-SD-SCHEMA-006`.
 
