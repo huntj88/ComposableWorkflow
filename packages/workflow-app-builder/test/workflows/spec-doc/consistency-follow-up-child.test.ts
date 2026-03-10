@@ -159,7 +159,7 @@ function createChildContext(responses: Array<unknown | Error>) {
 }
 
 describe('validateConsistencyStageOutputContract', () => {
-  it('rejects mixed actionable and follow-up output within one stage', () => {
+  it('accepts mixed actionable and follow-up output within one stage', () => {
     const violations = validateConsistencyStageOutputContract(
       stageOutput({
         actionableItems: [actionableItem()],
@@ -167,9 +167,53 @@ describe('validateConsistencyStageOutputContract', () => {
       }),
     );
 
-    expect(violations).toContain(
-      'actionableItems and followUpQuestions must be mutually exclusive',
+    expect(violations).toEqual([]);
+  });
+});
+
+describe('mixed stage output aggregation', () => {
+  it('collects both actionableItems and followUpQuestions from a single stage into the aggregate', async () => {
+    const { ctx } = createChildContext(
+      withPlanResolutionResponse(
+        [
+          narrowStageOutput(['hasScopeAndObjective'], {
+            actionableItems: [actionableItem({ itemId: 'act-mixed-1' })],
+            followUpQuestions: [followUpQuestion('q-mixed-1')],
+            blockingIssues: [],
+          }),
+          narrowStageOutput(['hasInterfacesOrContracts'], {
+            blockingIssues: [],
+            actionableItems: [],
+            followUpQuestions: [],
+          }),
+        ],
+        {
+          actionableItems: [actionableItem({ itemId: 'act-mixed-1' })],
+          followUpQuestions: [followUpQuestion('q-mixed-1')],
+          blockingIssues: [],
+        },
+      ),
     );
+
+    const result = await executeConsistencyFollowUpPromptLayers(ctx, ctx.input, [
+      {
+        stageId: 'stage-1',
+        templateId: TEMPLATE_IDS.consistencyScopeObjective,
+        outputSchema: SCHEMA_IDS.consistencyScopeObjectiveOutput,
+        checklistKeys: ['hasScopeAndObjective'],
+      },
+      {
+        stageId: 'stage-2',
+        templateId: TEMPLATE_IDS.consistencyInterfacesContracts,
+        outputSchema: SCHEMA_IDS.consistencyInterfacesContractsOutput,
+        checklistKeys: ['hasInterfacesOrContracts'],
+      },
+    ]);
+
+    expect(result.actionableItems).toHaveLength(1);
+    expect(result.actionableItems[0].itemId).toBe('act-mixed-1');
+    expect(result.followUpQuestions).toHaveLength(1);
+    expect(result.followUpQuestions[0].questionId).toBe('q-mixed-1');
   });
 });
 

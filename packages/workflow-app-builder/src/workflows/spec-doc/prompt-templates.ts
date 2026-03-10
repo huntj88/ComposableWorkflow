@@ -70,6 +70,7 @@ Directives:
 5) Acceptance criteria must be testable and unambiguous; include enough detail to implement without ambiguity.
 6) When actionableItems are present (source: {{source}}), treat them as ordered concrete edit directives for the current pass.
 7) Write or update the markdown file at {{targetPath}} using existing spec at {{specPath}} when present.
+8) The target file may have uncommitted changes from prior workflow passes. This is expected — always apply your edits regardless of working-tree or git state. Never skip edits because of uncommitted changes.
 
 Request: {{request}}.`;
 
@@ -93,7 +94,7 @@ ${params.checklistFocus.map((item, index) => `${index + 1}) ${item}`).join('\n')
 Stage rules:
 - Emit issues, actionable items, and follow-up questions only for this stage's focus area. Ignore issues outside it.
 - For each issue, choose exactly one outcome: immediate \`actionableItems\`, human \`followUpQuestions\`, or no output.
-- \`actionableItems\` and \`followUpQuestions\` are mutually exclusive per stage: if one is non-empty, the other must be empty.
+- A stage may emit both \`actionableItems\` and \`followUpQuestions\` when they address different gaps. Each item must clearly address a distinct finding.
 - If no blocking issues remain: return empty \`actionableItems\` and empty \`followUpQuestions\`.
 - \`actionableItems\` must contain only concrete edits that can be integrated without another human decision.
 - Set readinessChecklist booleans for this stage carefully. Focused checklist fields should reflect this stage's findings. Non-focused fields may remain \`true\` unless this stage directly proves them false.

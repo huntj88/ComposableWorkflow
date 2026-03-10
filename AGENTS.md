@@ -24,3 +24,6 @@ This is a greenfield project with no users. Backwards compatibility is not a foc
 - Do not use patterns that can expand to unrelated tests (for example: `pnpm --filter <package> test -- <substring>`).
 - If multiple targeted tests are requested, run each exact file explicitly, one command per file.
 - After targeted runs, report each command and whether it passed/failed.
+
+## Deterministic output from copilot-prompt
+When expecting deterministic output from copilot-prompt workflow it must be part of the output schema.

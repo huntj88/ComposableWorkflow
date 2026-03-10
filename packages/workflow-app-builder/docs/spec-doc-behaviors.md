@@ -180,15 +180,15 @@ Each behavior should validate all relevant dimensions:
 **And** the child run continues executing remaining configured prompt layers and proceeds to `PlanResolution`
 **And** the deduplicated aggregate is available for the planning step
 
-## B-SD-CHILD-003: Delegated child rejects stage-local mixed actionable and follow-up output
+## B-SD-CHILD-003: Delegated child allows stage-local mixed actionable and follow-up output for different gaps
 **Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` receives a schema-valid layer output
-**When** that single layer output contains both non-empty `actionableItems` and non-empty `followUpQuestions`
-**Then** the child run fails explicitly before returning an aggregate result
-**And** the parent workflow does not branch from the invalid mixed result
+**When** that single layer output contains both non-empty `actionableItems` and non-empty `followUpQuestions` addressing different gaps
+**Then** the child run does not fail and proceeds normally with the mixed stage output
+**And** both `actionableItems` and `followUpQuestions` from that stage are collected into the full-sweep coverage aggregate
 
 ## B-SD-CHILD-004: Delegated child preserves mixed aggregate outcomes across executed stages
-**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` executes one or more stages that emit `followUpQuestions`
-**When** a later executed stage emits one or more `actionableItems`
+**Given** delegated child workflow `app-builder.spec-doc.consistency-follow-up.v1` executes one or more stages
+**When** the full-sweep produces both `actionableItems` and `followUpQuestions` (from the same stage or different stages)
 **Then** the full-sweep planning result may contain both non-empty `actionableItems` and non-empty `followUpQuestions`
 **And** remaining later prompt layers still execute before `PlanResolution`
 **And** the parent transitions to `NumberedOptionsHumanRequest` to resolve the follow-up questions first, stashing actionable items for later delivery to `IntegrateIntoSpec`

@@ -32,7 +32,7 @@ In scope:
 - Parent-state branching is limited to: `IntegrateIntoSpec -> LogicalConsistencyCheckCreateFollowUpQuestions`, then `LogicalConsistencyCheckCreateFollowUpQuestions -> IntegrateIntoSpec` when only actionable items exist (no follow-up questions), `LogicalConsistencyCheckCreateFollowUpQuestions -> NumberedOptionsHumanRequest` when follow-up questions exist (regardless of whether actionable items are also present).
 - The parent FSM change surface is intentionally minimal: prompt-layer execution, issue splitting, and follow-up generation remain child-owned implementation details rather than new parent states or parent-managed prompt sequencing.
 - Immediate actionable items are integration directives that do not require a new human decision. When follow-up questions are also present, the questions are resolved first via `NumberedOptionsHumanRequest`, and the actionable items are stashed in workflow state until queue exhaustion, at which point both answered questions and stashed actionable items are carried into `IntegrateIntoSpec`.
-- A single scoped prompt layer must emit at most one of `actionableItems` or `followUpQuestions`, but the final child aggregate may contain both after the planning step consolidates full-sweep stage outputs.
+- A single scoped prompt layer may emit both `actionableItems` and `followUpQuestions` in the same stage output when they address different gaps; the final child aggregate may also contain both after the planning step consolidates full-sweep stage outputs.
 - If the child returns follow-up questions (with or without actionable items), numbered-options behavior is entered to resolve the human decisions. If the child returns no actionable items and no follow-up questions, workflow-synthesized completion confirmation is triggered.
 
 ## 3) Planned Workflow Series (initial)
@@ -158,7 +158,7 @@ Contract rules:
 - A stage-specific schema must expose only that layer's owned `readinessChecklist` keys and must not require unrelated checklist fields from other layers.
 - Parent state transition logic after delegation must use only this child output contract; it must not branch from raw model text.
 - Scoped prompt layers produce stage-local candidate outputs during the coverage sweep; the child planning step is solely responsible for authoring the final aggregate contract returned to the parent for that pass.
-- `actionableItems` and `followUpQuestions` must be mutually exclusive within a single `ConsistencyStageOutput` emitted by one scoped prompt layer.
+- A single `ConsistencyStageOutput` emitted by one scoped prompt layer may contain both non-empty `actionableItems` and non-empty `followUpQuestions` when they address different gaps discovered during that stage's analysis.
 - The final `ConsistencyCheckOutput` aggregate may contain both non-empty `actionableItems` and non-empty `followUpQuestions` when the planning step preserves immediate edits and remaining human decisions from the same full-sweep coverage pass.
 - `actionableItems` is ordered and must contain only edits that `IntegrateIntoSpec` can apply without asking the human for another decision.
 - `followUpQuestions` is ordered and must contain only questions that require human input through `NumberedOptionsHumanRequest`.
@@ -565,6 +565,7 @@ Directives:
 5) Acceptance criteria must be testable and unambiguous; include enough detail to implement without ambiguity.
 6) When actionableItems are present (source: {{source}}), treat them as ordered concrete edit directives for the current pass.
 7) Write or update the markdown file at {{targetPath}} using existing spec at {{specPath}} when present.
+8) The target file may have uncommitted changes from prior workflow passes. This is expected — always apply your edits regardless of working-tree or git state. Never skip edits because of uncommitted changes.
 
 Request: {{request}}.
 ```
@@ -593,8 +594,7 @@ Common runtime interpolation variables:
 Common prompt rules:
 - Each scoped prompt inspects only its assigned concern area.
 - Each scoped prompt receives only the schema surface for its assigned concern area; unrelated checklist booleans and off-topic fields are excluded from that prompt's `outputSchema`.
-- Each scoped prompt splits surfaced issues into exactly one of: `actionableItems`, `followUpQuestions`, or no output.
-- `actionableItems` and `followUpQuestions` are mutually exclusive per stage: if one is non-empty, the other must be empty.
+- Each scoped prompt may split surfaced issues into `actionableItems`, `followUpQuestions`, both, or no output — as long as each item addresses a distinct gap within that stage's concern area.
 - `actionableItems` must contain only concrete edits that can be integrated without another human decision.
 - Readiness-checklist booleans for focused fields reflect this stage's findings; non-focused fields may remain `true` unless this stage directly proves them false.
 - Each stage must return deterministic ordering and only its owned readiness-checklist surface.
@@ -821,7 +821,7 @@ All events should include `runId`, `workflowType`, `state`, and sequence orderin
 - **AC-6 Full-sweep behavior:** every configured child prompt layer executes exactly once per consistency-check pass before the child enters `PlanResolution`.
 - **AC-7 Cross-stage deduplication:** duplicate `itemId` or `questionId` values across executed child prompt layers are deduplicated by keeping the first occurrence and silently dropping the later duplicate. Each dedup event emits a warn-level `consistency.duplicate-skipped` log entry that includes the `stageId` that produced the duplicate, the duplicate id value, and the `stageId` that originally produced the kept entry. Example: if layer `scope-objective-consistency` emits `questionId: "issue.api-shape"` and a later executed layer emits the same `questionId`, the later occurrence is dropped, the kept entry originates from `scope-objective-consistency`, and a warn-level log is emitted identifying both stages.
 - **AC-8 Integration behavior:** when `IntegrateIntoSpec` receives `source: "consistency-action-items"`, it applies the provided `actionableItems` in array order while preserving prior accepted decisions unless explicitly overridden by newer inputs. When `IntegrateIntoSpec` receives `source: "consistency-action-items-with-feedback"`, it applies `actionableItems` in array order and integrates the human-provided `answers` in the same pass.
-- **AC-9 Stage-level mixed-result rejection:** if any individual child stage output would produce both non-empty `actionableItems` and non-empty `followUpQuestions`, the child run fails before the parent chooses a next state.
+- **AC-9 Stage-level mixed output:** a single child stage output may contain both non-empty `actionableItems` and non-empty `followUpQuestions` when they address different gaps discovered during that stage's analysis; the child run does not fail for mixed stage-level output.
 - **AC-10 Aggregate mixed-result preservation:** after the full sweep completes, `PlanResolution` may return both non-empty `actionableItems` and non-empty `followUpQuestions` without failing, and the parent routes to `NumberedOptionsHumanRequest` to resolve the questions first before delivering both to `IntegrateIntoSpec`.
 - **AC-11 Minimal parent change surface:** the parent FSM implementation for this iteration introduces no additional outbound transitions from `LogicalConsistencyCheckCreateFollowUpQuestions` beyond `-> IntegrateIntoSpec` for actionable-items-only results and `-> NumberedOptionsHumanRequest` for results containing follow-up questions (including mixed aggregates and empty results); prompt layering and issue splitting remain child-owned behavior.
 

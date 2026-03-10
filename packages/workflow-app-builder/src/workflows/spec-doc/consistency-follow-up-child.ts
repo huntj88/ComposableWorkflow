@@ -298,13 +298,7 @@ function validateConsistencyOutputContractCore(
 }
 
 export function validateConsistencyStageOutputContract(output: ConsistencyStageOutput): string[] {
-  const violations = validateConsistencyOutputContractCore(output);
-
-  if (output.actionableItems.length > 0 && output.followUpQuestions.length > 0) {
-    violations.push('actionableItems and followUpQuestions must be mutually exclusive');
-  }
-
-  return violations;
+  return validateConsistencyOutputContractCore(output);
 }
 
 export function validateConsistencyCheckOutputContract(output: ConsistencyCheckOutput): string[] {

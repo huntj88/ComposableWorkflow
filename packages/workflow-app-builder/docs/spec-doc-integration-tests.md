@@ -338,17 +338,16 @@ A behavior is integration-primary when one or more is true:
 - Configure delegated child workflow layers to exercise:
   - early non-empty `actionableItems` followed by later configured layers,
   - duplicate `itemId` or `questionId` across executed layers,
-  - mixed non-empty `actionableItems` and `followUpQuestions` in one layer,
+  - mixed non-empty `actionableItems` and `followUpQuestions` in one layer addressing different gaps,
   - earlier-stage `followUpQuestions` followed by later-stage `actionableItems` in the final planning result.
 
 **Assertions**
 - When an early layer emits non-empty `actionableItems`, later configured layers still execute and `PlanResolution` remains the only child step that authors the final aggregate result.
 - Duplicate ids across executed layers are deduplicated: the first occurrence is kept in the aggregate, the later duplicate is silently dropped, a warn-level `consistency.duplicate-skipped` log event is emitted identifying both the producing `stageId` and the originating `stageId`, and the child run continues without failing.
 - The deduplicated aggregate still proceeds through `PlanResolution` and produces a valid parent-facing result.
-- Mixed actionable/question output within a single stage fails the child run before any parent transition is chosen.
+- Mixed actionable/question output within a single stage does not fail the child run; both arrays are collected into the full-sweep coverage aggregate.
 - A final aggregate that contains earlier-stage `followUpQuestions` plus later-stage `actionableItems` does not fail solely for being mixed.
 - When that valid mixed aggregate occurs, the parent transitions to `NumberedOptionsHumanRequest` to resolve follow-up questions first, stashing actionable items for later delivery to `IntegrateIntoSpec` with `source: "consistency-action-items-with-feedback"`.
-- Failure diagnostics identify the child contract violation and relevant stage context.
 - Resolution-planning input reflects the full-sweep stage coverage rather than only a prefix of stages, and the planning step executes exactly once.
 
 **Related behaviors:** `B-SD-CHILD-001`, `B-SD-CHILD-001B`, `B-SD-CHILD-002`, `B-SD-CHILD-003`, `B-SD-CHILD-004`, `B-SD-FAIL-001`.

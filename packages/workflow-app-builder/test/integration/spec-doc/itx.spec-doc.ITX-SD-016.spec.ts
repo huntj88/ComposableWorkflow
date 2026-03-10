@@ -197,7 +197,20 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
     expect(dupEvents[0].payload.originStageId).toBe(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].stageId);
   });
 
-  it('fails the parent state when a child layer mixes actionable items and follow-up questions', async () => {
+  it('accepts stage-local mixed actionable items and follow-up questions and aggregates both to PlanResolution', async () => {
+    const remainingResponses = Array.from(
+      { length: CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length - 1 },
+      (_, index) => ({
+        structuredOutput: narrowStageOutput(
+          index + 1,
+          makeConsistencyOutput({
+            blockingIssues: [],
+            followUpQuestions: [],
+          }),
+        ),
+      }),
+    );
+
     copilotDouble.reset({
       ExecutePromptLayer: [
         {
@@ -209,6 +222,15 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
             }),
           ),
         },
+        ...remainingResponses,
+      ],
+      PlanResolution: [
+        makeResolutionResponse(
+          makeConsistencyOutput({
+            actionableItems: [makeActionableItem('act-mixed-001')],
+            followUpQuestions: [makeQuestionItem('q-mixed-001')],
+          }),
+        ),
       ],
     });
 
@@ -220,13 +242,24 @@ describe('ITX-SD-016: Delegated child contract enforcement under full-sweep exec
 
     await handleLogicalConsistencyCheck(ctx, stateData);
 
-    expect(result.transitions).toHaveLength(0);
-    expect(result.failedError).toBeDefined();
-    expect(result.failedError?.message).toContain('Output schema validation failed');
-    expect(result.failedError?.message).toContain('followUpQuestions');
-    expect(result.failedError?.message).toContain('actionableItems');
-    expect(result.failedError?.message).toContain(CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS[0].stageId);
-    expect(copilotDouble.callsByState('PlanResolution')).toHaveLength(0);
+    expect(result.failedError).toBeUndefined();
+    expect(result.transitions).toHaveLength(1);
+    expect(result.transitions[0].to).toBe('NumberedOptionsHumanRequest');
+
+    const nextData = result.transitions[0].data as SpecDocStateData & {
+      stashedActionableItems: ReturnType<typeof makeActionableItem>[];
+    };
+    expect(nextData.stashedActionableItems).toEqual([makeActionableItem('act-mixed-001')]);
+    expect(nextData.queue.some((item) => item.questionId === 'q-mixed-001')).toBe(true);
+
+    // All stages executed plus PlanResolution
+    expect(copilotDouble.callsByState('ExecutePromptLayer')).toHaveLength(
+      CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS.length,
+    );
+    const planResolutionCalls = copilotDouble.callsByState('PlanResolution');
+    expect(planResolutionCalls).toHaveLength(1);
+    expect(planResolutionCalls[0].prompt).toContain('act-mixed-001');
+    expect(planResolutionCalls[0].prompt).toContain('q-mixed-001');
   });
 
   it('allows mixed aggregate preservation across stages while still executing later layers', async () => {

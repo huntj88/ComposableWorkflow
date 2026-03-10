@@ -7,7 +7,7 @@ This folder contains the ordered implementation plan for:
 
 ## How to Execute This Plan
 
-1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27` -> `SDB-28`).
+1. Execute tasks in dependency order, including alphanumeric follow-ons (`SDB-00` ... `SDB-16` -> `SDB-16A` -> `SDB-17` -> `SDB-18` -> `SDB-19` -> `SDB-20` -> `SDB-21` -> `SDB-22` -> `SDB-23` -> `SDB-24` -> `SDB-25` -> `SDB-26` -> `SDB-27` -> `SDB-28` -> `SDB-29`).
 2. Do not start a task until every `Depends On` task is complete.
 3. Keep all acceptance criteria in each task file satisfied before closing that task.
 4. Treat each task’s `One-to-One Requirement Mapping` as mandatory scope.
@@ -50,6 +50,7 @@ This folder contains the ordered implementation plan for:
 - `SDB-26` -> `SDB-23`, `SDB-25`
 - `SDB-27` -> `SDB-24`, `SDB-25`
 - `SDB-28` -> `SDB-27`
+- `SDB-29` -> `SDB-28`
 
 No dependency points to a numerically later prerequisite outside this graph.
 
@@ -96,6 +97,7 @@ Delegated-child evolution chain:
 - `SDB-26` [26-questions-first-coverage-and-parity.md](./26-questions-first-coverage-and-parity.md) — integration/parity coverage for questions-first routing
 - `SDB-27` [27-prompt-template-trimming.md](./27-prompt-template-trimming.md) — reduce prompt token cost by removing schema-redundant and echo text
 - `SDB-28` [28-schema-level-pros-cons-enforcement.md](./28-schema-level-pros-cons-enforcement.md) — move Pros/Cons description validation into JSON Schema pattern constraints for copilot-prompt retry
+- `SDB-29` [29-allow-stage-local-mixed-output.md](./29-allow-stage-local-mixed-output.md) — remove stage-local mutual exclusivity between actionableItems and followUpQuestions
 
 ## Full Coverage Ownership
 
@@ -103,7 +105,7 @@ Delegated-child evolution chain:
 - FSM transitions (`B-SD-TRANS-001..015`) -> `SDB-02`, `SDB-03`, `SDB-04`, `SDB-05`, `SDB-06`, `SDB-07`
 - Human feedback integration (`B-SD-HFB-001..005`) -> `SDB-05`, `SDB-13`, `SDB-17`
 - Schema validation (`B-SD-SCHEMA-001..006`) -> `SDB-00`, `SDB-03`, `SDB-04`, `SDB-06`, `SDB-10`, `SDB-28`
-- Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-20`, `SDB-21`, `SDB-22`, `SDB-24`, `SDB-25`
+- Copilot delegation + child contract enforcement (`B-SD-COPILOT-001..005`, `B-SD-CHILD-001`, `B-SD-CHILD-001A`, `B-SD-CHILD-001B`, `B-SD-CHILD-002..004`) -> `SDB-01`, `SDB-07`, `SDB-08`, `SDB-16`, `SDB-16A`, `SDB-17`, `SDB-20`, `SDB-21`, `SDB-22`, `SDB-24`, `SDB-25`, `SDB-29`
 - Queue processing (`B-SD-QUEUE-001..005`) -> `SDB-04`, `SDB-05`, `SDB-06`, `SDB-10`
 - Done/terminal (`B-SD-DONE-001..003`) -> `SDB-02`, `SDB-07`, `SDB-10`, `SDB-11`
 - Loop/failure (`B-SD-TRANS-012..015`, `B-SD-FAIL-001`) -> `SDB-07`, `SDB-10`, `SDB-11`
@@ -136,6 +138,9 @@ Prompt trimming:
 Schema-level enforcement:
 - `SDB-28` -> Pros/Cons description constraint moves from code-level `validateProsConsDescriptions()` to JSON Schema `pattern`; violations caught during copilot-prompt in-session retry instead of failing the parent workflow
 
+Stage-local output relaxation:
+- `SDB-29` -> remove stage-local mutual exclusivity between `actionableItems` and `followUpQuestions`; a single scoped prompt layer may emit both when addressing different gaps
+
 Delegated-child supersession guide:
 - `SDB-16` should be read as the original delegated-child delivery, not as the final word on prompt decomposition or schema ownership.
 - `SDB-16A` is the canonical task for understanding when the former combined consistency prompt was replaced by scoped consistency prompt layers.
@@ -152,6 +157,7 @@ Delegated-child supersession guide:
 - `SDB-24` is the canonical task for current cross-stage duplicate handling: duplicate `itemId`/`questionId` across executed child stages are deduplicated (first-wins), not fatal errors, and each dedup emits a warn-level `consistency.duplicate-skipped` log.
 - Any older wording that implies `ITX-SD-012`, `ITX-SD-013`, `ITX-SD-016`, `ITX-SD-017`, or `GS-SD-004` still use delegated-child actionable-item short-circuiting is historical only; read those artifacts through the `SDB-21` + `SDB-22` model.
 - `SDB-24` supersedes any wording that describes duplicate `itemId`/`questionId` across executed child stages as a fatal contract violation. The canonical behavior is deduplicate-and-log.
+- `SDB-29` supersedes the stage-local mutual-exclusivity rule established in `SDB-16` (`SD-CHILD-004-MixedResultFailure`), refined in `SDB-20` (`SD-MIX-002-StageLocalMixedFailure`), and carried into `SDB-25`/`SDB-26`. After `SDB-29`, a single `ConsistencyStageOutput` may contain both non-empty `actionableItems` and non-empty `followUpQuestions` when they address different gaps.
 
 ### Integration Coverage (`ITX-SD-*`)
 - Harness prerequisites in `ITX` section 3 -> `SDB-09`

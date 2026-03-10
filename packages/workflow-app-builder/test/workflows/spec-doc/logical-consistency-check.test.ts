@@ -205,6 +205,29 @@ describe('handleLogicalConsistencyCheck', () => {
     expect(transitionData.queue.some((item) => item.questionId === 'q-mixed-1')).toBe(true);
   });
 
+  it('does not fail when child produces stage-local mixed output and both arrays reach PlanResolution', async () => {
+    // Stage-local mixed output (both actionableItems and followUpQuestions from a single stage)
+    // should not trigger a child failure. Both arrays should flow through the aggregate to the parent.
+    const mixedStageOutput = validConsistencyOutput({
+      actionableItems: [makeActionableItem({ itemId: 'act-stage-mix-1' })],
+      followUpQuestions: [makeFollowUpQuestion('q-stage-mix-1')],
+    });
+    const { ctx, transitionSpy, failSpy } = createMockContext({ childOutput: mixedStageOutput });
+
+    await handleLogicalConsistencyCheck(ctx, stateDataWithIntegrationOutput());
+
+    expect(failSpy).not.toHaveBeenCalled();
+    expect(transitionSpy).toHaveBeenCalledTimes(1);
+    expect(transitionSpy).toHaveBeenCalledWith(
+      'NumberedOptionsHumanRequest',
+      expect.objectContaining({
+        stashedActionableItems: [makeActionableItem({ itemId: 'act-stage-mix-1' })],
+      }),
+    );
+    const transitionData = transitionSpy.mock.calls[0][1] as SpecDocStateData;
+    expect(transitionData.queue.some((item) => item.questionId === 'q-stage-mix-1')).toBe(true);
+  });
+
   it('routes to IntegrateIntoSpec for actionable-items-only (no follow-up questions)', async () => {
     const { ctx, transitionSpy, failSpy } = createMockContext({
       childOutput: validConsistencyOutput({
