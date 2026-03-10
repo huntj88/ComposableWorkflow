@@ -17,14 +17,14 @@ Current prompts contain significant bloat:
 These reductions cut per-call token spend without changing model-observable behavior, because schema validation catches structural violations regardless of prompt wording.
 
 ## Implementation Tasks
-- [ ] **IntegrateIntoSpec prompt** (`spec-doc.integrate.v1`): Merge the 5-item "You must" list and the 5-item "Spec quality requirements" list into a single concise directive block. Remove the "Input context" label block (the interpolated values speak for themselves).
-- [ ] **Scoped consistency prompts** (6 templates via `createScopedConsistencyBody`): Remove schema-enforceable rules from the "Stage rules" block: unique contiguous IDs, `kind` value, per-option `description` format — these are schema-validated. Keep only model-behavioral guidance (mutual exclusivity intent, deterministic ordering, focus-area scoping). Remove the "Input context" label block.
-- [ ] **PlanResolution prompt** (`spec-doc.consistency-resolution.v1`): Remove the "Input context" label block. Remove rule about duplicate IDs (runtime dedup handles this per SDB-24). Tighten remaining rules to essential model guidance.
-- [ ] **ClassifyCustomPrompt prompt** (`spec-doc.classify-custom-prompt.v1`): Remove the "Input context" label block. Consolidate classification policy to essential distinctions only.
-- [ ] **ExpandQuestionWithClarification prompt** (`spec-doc.expand-clarification.v1`): Remove the "Input context" label block. Consolidate rules to essential research-first guidance.
-- [ ] Update spec doc section 7.2 prompt text blocks to match trimmed implementation templates.
-- [ ] Update `prompt-templates.test.ts` snapshot/content assertions to match trimmed bodies.
-- [ ] Verify all existing integration and unit tests still pass (prompt shrinkage must not break schema validation or routing behavior).
+- [x] **IntegrateIntoSpec prompt** (`spec-doc.integrate.v1`): Merge the 5-item "You must" list and the 5-item "Spec quality requirements" list into a single concise directive block. Remove the "Input context" label block (the interpolated values speak for themselves).
+- [x] **Scoped consistency prompts** (6 templates via `createScopedConsistencyBody`): Remove schema-enforceable rules from the "Stage rules" block: unique contiguous IDs, `kind` value, per-option `description` format — these are schema-validated. Keep only model-behavioral guidance (mutual exclusivity intent, deterministic ordering, focus-area scoping). Remove the "Input context" label block.
+- [x] **PlanResolution prompt** (`spec-doc.consistency-resolution.v1`): Remove the "Input context" label block. Remove rule about duplicate IDs (runtime dedup handles this per SDB-24). Tighten remaining rules to essential model guidance.
+- [x] **ClassifyCustomPrompt prompt** (`spec-doc.classify-custom-prompt.v1`): Remove the "Input context" label block. Consolidate classification policy to essential distinctions only.
+- [x] **ExpandQuestionWithClarification prompt** (`spec-doc.expand-clarification.v1`): Remove the "Input context" label block. Consolidate rules to essential research-first guidance.
+- [x] Update spec doc section 7.2 prompt text blocks to match trimmed implementation templates.
+- [x] Update `prompt-templates.test.ts` snapshot/content assertions to match trimmed bodies.
+- [x] Verify all existing integration and unit tests still pass (prompt shrinkage must not break schema validation or routing behavior).
 
 ## Required Artifacts
 - `packages/workflow-app-builder/src/workflows/spec-doc/prompt-templates.ts`

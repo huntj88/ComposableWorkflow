@@ -172,7 +172,7 @@ describe('SD-INT-001-FirstPassSource', () => {
 
     const childInput = launchChildSpy.mock.calls[0][0].input;
     // answers should be empty array for first pass
-    expect(childInput.prompt).toContain('answers: []');
+    expect(childInput.prompt).toContain('answers ([])');
   });
 
   it('works when data parameter is undefined (defaults to initial state)', async () => {
@@ -241,7 +241,7 @@ describe('SD-ACT consistency-action-items integration', () => {
     const childInput = launchChildSpy.mock.calls[0][0].input;
     expect(childInput.prompt).toContain('consistency-action-items');
     expect(childInput.prompt).toContain('specs/prior-draft.md');
-    expect(childInput.prompt).toContain('actionableItems:');
+    expect(childInput.prompt).toContain('actionable items (');
 
     const firstIndex = childInput.prompt.indexOf('act-2');
     const secondIndex = childInput.prompt.indexOf('act-1');
@@ -263,7 +263,7 @@ describe('SD-ACT consistency-action-items integration', () => {
     await handleIntegrateIntoSpec(ctx, payload);
 
     const childInput = launchChildSpy.mock.calls[0][0].input;
-    expect(childInput.prompt).toContain('answers: []');
+    expect(childInput.prompt).toContain('answers ([])');
   });
 
   it('fails fast when consistency-action-items source is missing actionableItems', async () => {
@@ -357,7 +357,7 @@ describe('SD-QF consistency-action-items-with-feedback integration', () => {
     const childInput = launchChildSpy.mock.calls[0][0].input;
     expect(childInput.prompt).toContain('consistency-action-items-with-feedback');
     // Even with empty normalizedAnswers, the answers field should be present
-    expect(childInput.prompt).toContain('answers: []');
+    expect(childInput.prompt).toContain('answers ([])');
   });
 });
 

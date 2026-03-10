@@ -556,29 +556,16 @@ Prompt text:
 ```text
 You are generating and maintaining an implementation-ready software specification markdown document.
 
-You must:
+Directives:
 1) Preserve prior accepted decisions unless explicitly overridden by newer answers.
-2) Integrate all provided constraints, normalized numbered-options answers, and immediate actionable items.
-3) Keep the spec concrete and testable.
+2) Integrate all provided constraints ({{constraintsJson}}), normalized numbered-options answers ({{answersJson}}), and immediate actionable items ({{actionableItemsJson}}).
+3) Keep the spec concrete, testable, and implementation-ready — no vague statements or unresolved contradictions.
 4) Ensure sections exist for: objective/scope, non-goals, constraints/assumptions, interfaces/contracts, acceptance criteria.
-5) Write or update the markdown file in the workspace.
+5) Acceptance criteria must be testable and unambiguous; include enough detail to implement without ambiguity.
+6) When actionableItems are present (source: {{source}}), treat them as ordered concrete edit directives for the current pass.
+7) Write or update the markdown file at {{targetPath}} using existing spec at {{specPath}} when present.
 
-Input context:
-- source: {{source}}
-- request: {{request}}
-- targetPath: {{targetPath}}
-- existingSpecPath: {{specPath}}
-- constraints: {{constraintsJson}}
-- answers: {{answersJson}}
-- actionableItems: {{actionableItemsJson}}
-
-Spec quality requirements:
-- No unresolved contradictions in scope, constraints, or interface contracts.
-- Acceptance criteria must be testable and unambiguous.
-- Keep language implementation-ready and avoid vague statements.
-- Enough detail to implement without ambiguity.
-- When actionableItems are present, treat them as ordered concrete edit directives for the current pass.
-- When both answers and actionableItems are present (consistency-action-items-with-feedback), integrate the answered human decisions alongside the concrete edit directives in the same pass.
+Request: {{request}}.
 ```
 
 ### 7.2.2 `LogicalConsistencyCheckCreateFollowUpQuestions` scoped prompt templates
@@ -606,8 +593,11 @@ Common prompt rules:
 - Each scoped prompt inspects only its assigned concern area.
 - Each scoped prompt receives only the schema surface for its assigned concern area; unrelated checklist booleans and off-topic fields are excluded from that prompt's `outputSchema`.
 - Each scoped prompt splits surfaced issues into exactly one of: `actionableItems`, `followUpQuestions`, or no output.
-- `actionableItems` and `followUpQuestions` remain mutually exclusive for a single stage output.
+- `actionableItems` and `followUpQuestions` are mutually exclusive per stage: if one is non-empty, the other must be empty.
+- `actionableItems` must contain only concrete edits that can be integrated without another human decision.
+- Readiness-checklist booleans for focused fields reflect this stage's findings; non-focused fields may remain `true` unless this stage directly proves them false.
 - Each stage must return deterministic ordering and only its owned readiness-checklist surface.
+- Stage rules no longer restate schema-enforceable constraints (contiguous IDs, `kind` values, `description` format); schema validation enforces those.
 
 ### 7.2.2.1 `CONSISTENCY_FOLLOW_UP_PROMPT_LAYERS` implementation contract
 
@@ -684,23 +674,16 @@ Prompt text:
 ```text
 You are consolidating a full consistency-check coverage sweep into the final child-workflow result.
 
-Input context:
-- request: {{request}}
-- specPath: {{specPath}}
-- constraints: {{constraintsJson}}
-- loopCount: {{loopCount}}
-- remainingQuestionIds: {{remainingQuestionIdsJson}}
-- fullCoverageSummary: {{coverageSummaryJson}}
+Request: {{request}}. Spec: {{specPath}}. Constraints: {{constraintsJson}}. Loop: {{loopCount}}. Remaining question IDs: {{remainingQuestionIdsJson}}. Full coverage summary: {{coverageSummaryJson}}.
 
 Rules:
 1) Use the full coverage summary across all executed stages; do not ignore a later stage solely because an earlier stage already emitted `actionableItems`.
 2) Return the final aggregate child result using only `blockingIssues`, `actionableItems`, `followUpQuestions`, and `readinessChecklist`.
 3) Keep `actionableItems` ordered and limited to concrete edits that can be integrated without another human decision.
 4) Keep `followUpQuestions` ordered and limited to decisions that still require human input after considering the full sweep.
-5) It is valid for the final aggregate to include both non-empty `actionableItems` and non-empty `followUpQuestions` when concrete edits exist alongside decisions that still require human input. The parent will resolve the human questions first and then apply both the actionable items and the answered decisions together in a single integration pass.
-6) Do not invent duplicate `itemId` or `questionId` values.
-7) Use the coverage data to avoid redundant questions or edits when multiple stages surface the same underlying issue.
-8) If no new integration work or human question remains, return empty `actionableItems` and empty `followUpQuestions`.
+5) It is valid for the final aggregate to include both non-empty `actionableItems` and non-empty `followUpQuestions`. When this occurs, the parent resolves all human questions first via `NumberedOptionsHumanRequest`, then delivers both the stashed actionable items and collected answers together to `IntegrateIntoSpec` in a single integration pass.
+6) Use the coverage data to avoid redundant questions or edits when multiple stages surface the same underlying issue.
+7) If no new integration work or human question remains, return empty `actionableItems` and empty `followUpQuestions`.
 ```
 
 ### 7.2.3 `ClassifyCustomPrompt` prompt (`spec-doc.classify-custom-prompt.v1`)
@@ -720,17 +703,13 @@ Prompt text:
 ```text
 Classify the user's custom text for a numbered-options response.
 
-Input context:
-- questionId: {{questionId}}
-- questionPrompt: {{questionPrompt}}
-- selectedOptionIds: {{selectedOptionIdsJson}}
-- customText: {{customText}}
+Question: {{questionId}} — {{questionPrompt}}. Selected options: {{selectedOptionIdsJson}}. Custom text: {{customText}}.
 
 Classification policy:
-- intent = clarifying-question when the custom text is primarily asking for clarification, disambiguation, or additional information needed to answer the current numbered question.
-- intent = unrelated-question when the custom text is primarily a side research task about the spec, implementation, or repository and is not itself an answer to the current numbered question.
-- intent = custom-answer when the custom text primarily provides an answer, preference, constraint, or detail to be integrated.
-- For both question intents, populate `customQuestionText` with the normalized question text that should be researched next.
+- intent = clarifying-question when the custom text asks for clarification, disambiguation, or additional information needed to answer the current numbered question. Questions about existing implementation, repository, or spec draft still count as clarifying-question when that research answers the current numbered question.
+- intent = unrelated-question when the custom text is a side research task not itself answering the current numbered question. Use unrelated-question only for side research that does not move the current numbered question toward an answer.
+- intent = custom-answer when the custom text provides an answer, preference, constraint, or detail to be integrated.
+- For question intents, populate `customQuestionText` with the normalized question text.
 - Choose exactly one intent.
 
 ```
@@ -753,27 +732,17 @@ Required runtime interpolation variables:
 Prompt text:
 
 ```text
-Research the user's question against the current spec draft and relevant implementation context before deciding whether another human question is needed.
+Research the user's question against the current spec draft and relevant repository implementation context before deciding whether another human question is needed.
 
-Input context:
-- request: {{request}}
-- specPath: {{specPath}}
-- sourceQuestionId: {{sourceQuestionId}}
-- sourceQuestionPrompt: {{sourceQuestionPrompt}}
-- sourceOptions: {{sourceOptionsJson}}
-- customQuestionText: {{customQuestionText}}
-- intent: {{intent}}
+Request: {{request}}. Spec: {{specPath}}. Source question: {{sourceQuestionId}} — {{sourceQuestionPrompt}}. Source options: {{sourceOptionsJson}}. Custom question: {{customQuestionText}}. Intent: {{intent}}.
 
 Rules:
 1) Research first; do not merely restate the user's question.
-2) The delegated run must have access to the current workflow request, the spec draft at `specPath` when present, and workspace context reachable through the workflow's configured Copilot prompt options (`cwd`, `allowedDirs`).
+2) Research the current workflow request, the spec draft at `specPath` when present, and workspace context reachable through the workflow's configured Copilot prompt options (`cwd`, `allowedDirs`).
 3) Always return `researchOutcome` and `researchSummary`.
 4) If research resolves the question without remaining ambiguity, set `researchOutcome = resolved-with-research` and omit `followUpQuestion`.
 5) If research finds a remaining decision or ambiguity that requires human input, set `researchOutcome = needs-follow-up-question` and create exactly one deterministic numbered `followUpQuestion` grounded in the research findings.
-6) `followUpQuestion.questionId` must be new and deterministic.
-7) `followUpQuestion.options` must use contiguous integer ids starting at 1.
-8) `followUpQuestion` options should include `description` with concise `Pros:` and `Cons:` for each choice.
-9) Any generated question should minimize ambiguity, be based on the research, and be suitable for asking next while the skipped source question is revisited later.
+6) Any generated question should minimize ambiguity, be based on the research, and be suitable for asking next while the skipped source question is revisited later.
 
 ```
 

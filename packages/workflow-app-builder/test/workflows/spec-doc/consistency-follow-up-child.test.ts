@@ -264,9 +264,9 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     expect(launchChildSpy.mock.calls[1][0].input.prompt).toContain(
       'Stage focus: interfaces and contracts',
     );
-    expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain('currentLoopCount: 3');
+    expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain('Loop: 3');
     expect(launchChildSpy.mock.calls[0][0].input.prompt).toContain(
-      'remainingQuestionIdsFromIntegration: ["q-old-1"]',
+      'Remaining question IDs: ["q-old-1"]',
     );
     expect(JSON.parse(launchChildSpy.mock.calls[0][0].input.outputSchema).$id).toBe(
       SCHEMA_IDS.consistencyScopeObjectiveOutput,
@@ -280,7 +280,7 @@ describe('executeConsistencyFollowUpPromptLayers', () => {
     expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain(
       'full consistency-check coverage sweep',
     );
-    expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain('fullCoverageSummary:');
+    expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain('Full coverage summary:');
     expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain('scope-objective-consistency');
     expect(launchChildSpy.mock.calls[2][0].input.prompt).toContain(
       'interfaces-contracts-consistency',
